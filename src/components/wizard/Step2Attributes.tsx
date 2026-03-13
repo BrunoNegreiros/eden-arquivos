@@ -1,16 +1,25 @@
 import { useState } from 'react';
 import { Brain, Zap, Shield, Eye, BicepsFlexed, HelpCircle, Info } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
-import type { AttributeKey } from '../../types/characterSchema';
+import type { Attribute } from '../../types/systemData';
 
-// Cores e Descrições
+
+const KEY_MAP: Record<string, Attribute> = {
+  'agi': 'AGI',
+  'for': 'FOR',
+  'int': 'INT',
+  'pre': 'PRE',
+  'vig': 'VIG'
+};
+
+
 const ATTRIBUTE_DETAILS = {
   agi: { 
     label: 'Agilidade', 
     icon: Zap, 
     color: 'text-yellow-400', 
     borderColor: 'border-yellow-400',
-    shadowColor: 'shadow-yellow-400/50', // Novo para destaque
+    shadowColor: 'shadow-yellow-400/50',
     bgGradient: 'from-yellow-400/20',
     desc: 'Coordenação motora, velocidade de reação e destreza manual. Essencial para Furtividade, Pilotagem e Pontaria.' 
   },
@@ -53,34 +62,52 @@ const ATTRIBUTE_DETAILS = {
 };
 
 export default function Step2Attributes() {
-  const { character, updateAttribute } = useCharacter();
-  const { attributes } = character;
+  const { character, updateCharacter } = useCharacter();
   
-  const [activeKey, setActiveKey] = useState<AttributeKey | null>(null);
+  
+  const attributes = character.attributes.initial;
+  
+  
+  const updateAttribute = (key: Attribute, value: number) => {
+    updateCharacter(prev => ({
+        ...prev,
+        attributes: {
+            ...prev.attributes,
+            initial: {
+                ...prev.attributes.initial,
+                [key]: value
+            }
+        }
+    }));
+  };
+  
+  const [activeKey, setActiveKey] = useState<string | null>(null);
 
-  const currentSum = Object.values(attributes).reduce((a, b) => a + b, 0);
+  
+  const currentSum = (Object.values(attributes) as number[]).reduce((a: number, b: number) => a + b, 0);
   const pointsRemaining = 4 - (currentSum - 5);
   const zerosCount = Object.values(attributes).filter(v => v === 0).length;
 
-  const handleChange = (e: React.MouseEvent, key: AttributeKey, delta: number) => {
+  const handleChange = (e: React.MouseEvent, uiKey: string, delta: number) => {
     e.stopPropagation();
-    const currentVal = attributes[key];
+    const schemaKey = KEY_MAP[uiKey];
+    const currentVal = attributes[schemaKey];
     const newVal = currentVal + delta;
 
     if (newVal < 0 || newVal > 3) return;
     if (delta > 0 && pointsRemaining <= 0) return;
     if (newVal === 0 && zerosCount >= 1 && currentVal !== 0) return; 
 
-    updateAttribute(key, newVal);
-    setActiveKey(key);
+    updateAttribute(schemaKey, newVal);
+    setActiveKey(uiKey);
   };
 
-  const activeInfo = activeKey ? ATTRIBUTE_DETAILS[activeKey] : null;
+  const activeInfo = activeKey ? ATTRIBUTE_DETAILS[activeKey as keyof typeof ATTRIBUTE_DETAILS] : null;
 
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-500 h-full flex flex-col overflow-y-auto custom-scrollbar pb-4">
       
-      {/* Cabeçalho */}
+      {}
       <div className="text-center mb-4 lg:mb-8 shrink-0">
         <h2 className="text-2xl md:text-3xl font-bold text-eden-100 mb-2">Atributos</h2>
         
@@ -94,36 +121,32 @@ export default function Step2Attributes() {
         </div>
       </div>
 
-      {/* Container Flex Principal */}
+      {}
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-start flex-1">
         
-        {/* ÁREA DOS ATRIBUTOS */}
+        {}
         <div className="w-full lg:flex-1">
           
-          {/* Padding 'p-4' adicionado aqui para evitar que o scale-105 corte a borda */}
           <div className="grid grid-cols-3 sm:grid-cols-3 lg:flex lg:flex-wrap lg:justify-center gap-2 lg:gap-4 p-2 lg:p-4">
-            {(Object.entries(ATTRIBUTE_DETAILS) as [AttributeKey, typeof ATTRIBUTE_DETAILS['agi']][]).map(([key, info]) => {
+            {Object.entries(ATTRIBUTE_DETAILS).map(([uiKey, info]) => {
               const Icon = info.icon;
-              const value = attributes[key];
-              const isActive = activeKey === key;
+              const schemaKey = KEY_MAP[uiKey];
+              const value = attributes[schemaKey];
+              const isActive = activeKey === uiKey;
 
               return (
                 <div 
-                  key={key}
-                  onClick={() => setActiveKey(key)}
+                  key={uiKey}
+                  onClick={() => setActiveKey(uiKey)}
                   className={`
                     relative rounded-xl border flex flex-col items-center justify-between transition-all duration-300 cursor-pointer select-none
                     ${isActive 
                       ? `bg-eden-800 ${info.borderColor} shadow-lg ${info.shadowColor} z-10 scale-105` 
                       : 'bg-eden-800/40 border-eden-700/50 hover:border-eden-600 hover:bg-eden-800'
                     }
-                    /* Mobile Compacto */
-                    w-full h-28 p-1
-                    /* Desktop Espaçoso */
-                    lg:w-36 lg:h-auto lg:p-4
+                    w-full h-28 p-1 lg:w-36 lg:h-auto lg:p-4
                   `}
                 >
-                  {/* Ícone + Label */}
                   <div className="flex flex-col items-center mt-1 lg:mt-0">
                       <div className={`p-1.5 lg:p-2 rounded-full bg-eden-900/50 ${info.color} mb-1`}>
                         <Icon className="w-4 h-4 lg:w-6 lg:h-6" />
@@ -131,22 +154,20 @@ export default function Step2Attributes() {
                       <h3 className="font-bold text-eden-100 text-[10px] lg:text-xs uppercase tracking-wider">{info.label}</h3>
                   </div>
                   
-                  {/* Valor */}
                   <div className={`text-2xl lg:text-4xl font-black transition-colors duration-300 leading-none ${isActive ? info.color : 'text-eden-100'}`}>
                     {value}
                   </div>
 
-                  {/* Controles Compactos */}
                   <div className="flex items-center gap-2 w-full justify-center mb-1 lg:mt-2">
                     <button
-                      onClick={(e) => handleChange(e, key, -1)}
+                      onClick={(e) => handleChange(e, uiKey, -1)}
                       disabled={value <= 0 || (value === 1 && zerosCount >= 1)}
                       className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-eden-900 hover:bg-eden-700 text-eden-100 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center pb-0.5 text-lg font-bold transition-colors border border-eden-700"
                     >
                       -
                     </button>
                     <button
-                      onClick={(e) => handleChange(e, key, 1)}
+                      onClick={(e) => handleChange(e, uiKey, 1)}
                       disabled={value >= 3 || pointsRemaining <= 0}
                       className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-eden-100 text-eden-900 hover:bg-white disabled:bg-eden-700 disabled:text-eden-500 disabled:cursor-not-allowed flex items-center justify-center pb-0.5 text-lg font-bold transition-colors"
                     >
@@ -158,13 +179,12 @@ export default function Step2Attributes() {
             })}
           </div>
 
-          {/* Ajuda Mobile (Abaixo dos atributos) */}
            <div className="mt-2 p-2 bg-eden-900/30 rounded border border-eden-700/30 text-center lg:hidden">
              <p className="text-[10px] text-eden-100/40 uppercase">Toque para ver detalhes</p>
            </div>
         </div>
 
-        {/* PAINEL LATERAL / INFERIOR (Detalhes) */}
+        {}
         <div className="w-full lg:w-80 shrink-0">
           <div className={`rounded-xl border p-4 transition-all duration-500 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[140px] ${
             activeInfo 
@@ -186,11 +206,11 @@ export default function Step2Attributes() {
                 </p>
 
                 <div className="border-t border-eden-100/10 pt-2 flex flex-wrap justify-center gap-2 text-[10px] text-eden-100/60 font-mono uppercase">
-                  {activeInfo.label === 'Vigor' && <span className="bg-black/20 px-2 py-1 rounded">PV Inicial: {12 + attributes.vig} + Classe</span>}
-                  {activeInfo.label === 'Presença' && <span className="bg-black/20 px-2 py-1 rounded">PE Inicial: {1 + attributes.pre} + Classe</span>}
-                  {activeInfo.label === 'Intelecto' && <span className="bg-black/20 px-2 py-1 rounded">Perícias: {attributes.int} Extras</span>}
-                  {activeInfo.label === 'Força' && <span className="bg-black/20 px-2 py-1 rounded">Carga: {attributes.for * 5 + (attributes.for === 0 ? 2 : 0)}</span>}
-                  {activeInfo.label === 'Agilidade' && <span className="bg-black/20 px-2 py-1 rounded">Defesa: {10 + attributes.agi}</span>}
+                  {activeInfo.label === 'Vigor' && <span className="bg-black/20 px-2 py-1 rounded">PV Inicial: {12 + attributes.VIG} + Classe</span>}
+                  {activeInfo.label === 'Presença' && <span className="bg-black/20 px-2 py-1 rounded">PE Inicial: {1 + attributes.PRE} + Classe</span>}
+                  {activeInfo.label === 'Intelecto' && <span className="bg-black/20 px-2 py-1 rounded">Perícias: {attributes.INT} Extras</span>}
+                  {activeInfo.label === 'Força' && <span className="bg-black/20 px-2 py-1 rounded">Carga: {attributes.FOR * 5 + (attributes.FOR === 0 ? 2 : 0)}</span>}
+                  {activeInfo.label === 'Agilidade' && <span className="bg-black/20 px-2 py-1 rounded">Defesa: {10 + attributes.AGI}</span>}
                 </div>
               </div>
             ) : (
@@ -201,14 +221,14 @@ export default function Step2Attributes() {
             )}
           </div>
 
-          {/* Resumo Geral (Desktop) */}
+          {}
           <div className="hidden lg:block mt-4 p-3 bg-eden-900/50 rounded-xl border border-eden-700/50">
              <div className="text-[10px] text-eden-100/30 uppercase tracking-widest mb-2 flex items-center gap-2">
                <Info size={12} /> Status Base (Mundano)
              </div>
              <div className="space-y-1 text-xs text-eden-100/60">
-                <div className="flex justify-between"><span>PV Inicial</span> <strong className="text-eden-100">{12 + attributes.vig}</strong></div>
-                <div className="flex justify-between"><span>PE Inicial</span> <strong className="text-eden-100">{1 + attributes.pre}</strong></div>
+                <div className="flex justify-between"><span>PV Inicial</span> <strong className="text-eden-100">{12 + attributes.VIG}</strong></div>
+                <div className="flex justify-between"><span>PE Inicial</span> <strong className="text-eden-100">{1 + attributes.PRE}</strong></div>
                 <div className="flex justify-between"><span>SAN Inicial</span> <strong className="text-eden-100">8</strong></div>
              </div>
           </div>

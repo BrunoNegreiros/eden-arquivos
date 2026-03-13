@@ -1,7 +1,8 @@
-export type AttributeKey = 'agi' | 'for' | 'int' | 'pre' | 'vig';
-export type SkillLevel = 'destreinado' | 'treinado' | 'veterano' | 'expert';
-export type DamageType = 'balistico' | 'corte' | 'impacto' | 'perfuracao' | 'fogo' | 'frio' | 'eletricidade' | 'quimico' | 'morte' | 'sangue' | 'medo' | 'conhecimento' | 'energia' | 'mental';
-export type NumericBonusType = string;
+import type { AnyUserItem, UserRitual, UserOrigin, Effect, Attribute, UserAbility } from './systemData';
+
+
+
+
 
 export interface TextObject {
   id: string;
@@ -10,121 +11,172 @@ export interface TextObject {
   text: string;
   color: string;
   fontSize: number;
-  // Campos adicionados para o editor avançado:
-  align: 'left' | 'center' | 'right'; 
+  align: 'left' | 'center' | 'right';
   width: number;
   height: number;
   borderColor?: string;
   backgroundColor?: string;
 }
 
-// NOVA INTERFACE PARA IMAGENS
+export interface TextNote {
+   id: string;
+   title: string;
+   createdAt: string;
+   updatedAt: string;
+   coverUrl: string;
+   category: string;
+   content: Record<string, string>;
+}
+
+export interface LevelUpTask {
+  id: string;
+  text: string;
+  isDone: boolean;
+}
+
 export interface ImageObject {
   id: string;
   x: number;
   y: number;
-  src: string; // Base64 da imagem
+  src: string;
   width: number;
   height: number;
 }
 
 export interface NotePage {
   id: number;
-  title?: string; // Adicionado título
+  title?: string;
   drawing: string;
   texts: TextObject[];
   images: ImageObject[];
 }
 
-export interface CustomEffect {
+export interface LevelUpTask {
+  id: string;
+  text: string;
+  isDone: boolean;
+}
+
+export interface StatusPool {
+  current: number;
+  temp: number;
+  max?: number; 
+}
+
+
+
+
+
+export interface CharacterAttributes {
+  initial: Record<Attribute, number>;
+  nexIncreases: Record<Attribute, number>;
+}
+
+export interface CharacterPersonal {
+  name: string;
+  player: string;
+  age: number;
+  gender: string;
+  origin: string; 
+  class: 'combatente' | 'especialista' | 'ocultista' | 'mundano';
+  trail: string;
+  nex: number;
+  xp: number;
+  prestigePoints: number;
+  patent: string;
+  
+  
+  portraitUrl?: string;
+  appearance?: string;
+  personality?: string;
+  history?: string;
+  archetype?: string; 
+  campaign?: string;
+}
+
+export interface CharacterCondition {
   id: string;
   name: string;
-  type: 'bonus' | 'penalty' | 'other';
-  target?: string; // PV, PE, SAN, Defesa...
-  targetSubType?: string; // Atual, Máximo, Tipo de Dano...
-  value?: string; // "+1d8", "5", "Resistência"
   description?: string;
+  duration: string; 
+  turnsRemaining: number; 
+  isActive: boolean;
+  effects: Effect[]; 
 }
 
-export interface CustomAbility {
-  id: string;
-  name: string;
-  type: 'active' | 'passive';
-  description: string;
-  cost?: number; // PE
-  effects: CustomEffect[];
+export interface CharacterSkill {
+  training: number; 
+  otherBonus: number; 
+  customName?: string; 
 }
 
-export interface ItemEffect {
-    id: string; name: string; description: string; targetType?: string; element?: string; allowedTypes?: string[];
-    bonuses?: { type: NumericBonusType, value: number | string, condition?: string }[];
-    complexEffect?: string;
-}
 
-export interface InventoryItem {
-    id: string; name: string; category: number; space: number;
-    type: 'weapon' | 'protection' | 'general' | 'ammo' | 'amaldicoado' | 'accessory' | 'explosive' | 'paranormal';
-    subType?: string; quantity: number; isEquipped: boolean;
-    modifications: ItemEffect[]; curses: ItemEffect[]; damage?: string; details?: string;
-}
 
-export type TeamRole = 'tanque' | 'suporte' | 'curandeiro' | 'oportunista' | 'investigador' | 'terapeuta' | 'sabotador' | 'polivalente' | 'lobo_solitario'; 
 
-export interface ActiveCondition {
-  id: string; name: string; description: string; durationType: 'turnos' | 'cena' | 'indefinida'; durationValue?: number; effects?: { target: string, value: number }[];
-}
 
 export interface CharacterSheet {
-  id: string; userId: string; createdAt: string; updatedAt: string; isPublic: boolean; version: string; isPrivate?: boolean;
-
-  info: {
-    name: string; player: string; campaign: string; archetype: string; age: number; gender: string; portraitUrl: string; appearance: string; personality: string; history: string;
-  };
-
-  attributes: { agi: number; for: number; int: number; pre: number; vig: number; };
-
-  notes: NotePage[];
-
-  progression: {
-    nex: number; patente: string; prestigePoints: number;
-    class: 'combatente' | 'especialista' | 'ocultista' | 'mundano';
-    origin: { id: string; name: string; }; trail: string;
-    affinity?: string | null | undefined;
-    attributeIncreases?: Record<number, string>;
-  };
-
+  id: string;
+  userId: string;
+  personal: any; 
+  attributes: any;
   status: {
-    pv: { current: number; max: number; temp: number; }; 
-    pe: { current: number; max: number; temp: number; }; 
-    san: { current: number; max: number; temp: number; }; 
-    defense: { passiveMod: number; tempMod: number; };
-    displacement: { baseMetres: number; tempMod: number; };
-    resistances: Record<DamageType, number>; 
-    immunities: DamageType[];
-    conditions: ActiveCondition[];
-    // NOVO: Array de IDs dos rituais sendo sustentados atualmente
-    sustainedIds: string[]; 
+    pv: StatusPool;
+    pe: StatusPool;
+    san: StatusPool;
+    sustainedIds: string[];
+    dyingRounds: number;
+    isDying: boolean;
   };
-
-  skills: Record<string, { level: SkillLevel; isTrained: boolean; miscBonus: number; customName?: string; }>;
-
-  inventory: { items: InventoryItem[]; weapons: any[]; creditLimit: string; maxLoad: number; };
-
-  abilities: any[];
-  rituals: any[]; // Aqui ficam os rituais aprendidos
-  
-  teamStrategy: {
-    role: TeamRole; roleAbilities: Array<{ id: string; name: string; currentLevel: 0 | 1 | 2 | 3 | 4 | 5; }>;
-    favoriteFormations: string[]; isFormationActive: boolean;
-    loneWolf: { isActive: boolean; extraPowersChosen: Array<{ nexSource: number; powerId: string; powerName: string; }>; };
-  };
-
-  classPowers: {
-    coreLevel: number; // Nível do poder principal (0 a 3)
-    selectedIds: string[]; // IDs de classPowers.ts
-  };
-  paranormalPowers: string[]; // IDs de paranormalPowers.ts
-  customAbilities: CustomAbility[];
-
-  combatLog: any[];
+  inventory: AnyUserItem[];
+  rituals: UserRitual[];
+  customOrigin?: UserOrigin; 
+  conditions: any[];
+  skills: Record<string, any>;
+  classPowers: any[]; 
+  otherPowers: any[];
+  abilities: UserAbility[]; 
+  textNotes: TextNote[];    
+  proficiencies: string[]; 
+  attacks: any[]; 
+  resistances: any[];
+  notes: any[];
+  levelUpTasks?: LevelUpTask[];
 }
+
+
+
+
+
+export const initialCharacterState: CharacterSheet = {
+  id: '',
+  userId: '',
+  personal: { 
+    name: '', player: '', origin: '', class: 'mundano', trail: '', nex: 5, prestigePoints: 0,
+    age: 0, gender: '', portraitUrl: '', appearance: '', personality: '', history: '', patent: 'Recruta', xp: 0
+  },
+  status: { 
+    pv: { current: 1, temp: 0 }, 
+    pe: { current: 1, temp: 0 }, 
+    san: { current: 1, temp: 0 },
+    sustainedIds: [],
+    dyingRounds: 0,
+    isDying: false
+  },
+  attributes: {
+    initial: { AGI: 1, INT: 1, VIG: 1, PRE: 1, FOR: 1 },
+    nexIncreases: { AGI: 0, INT: 0, VIG: 0, PRE: 0, FOR: 0 }
+  },
+  inventory: [],
+  rituals: [],
+  conditions: [],
+  skills: {},
+  notes: [],
+  classPowers: [],
+  otherPowers: [],
+  abilities: [],
+  textNotes: [],
+  proficiencies: [],
+  attacks: [],
+  resistances: [],
+  levelUpTasks: []
+};

@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CharacterProvider, useCharacter } from '../context/CharacterContext';
-import { ChevronRight, ChevronLeft, Save, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useCharacter } from '../context/CharacterContext';
+import { ChevronRight, ChevronLeft, Save, Loader2, AlertCircle, X } from 'lucide-react';
 import { saveCharacter } from '../services/characterService';
 
-// Importação dos Passos
+
 import Step1Concept from '../components/wizard/Step1Concept';
 import Step2Attributes from '../components/wizard/Step2Attributes';
 import Step3Origins from '../components/wizard/Step3Origins';
@@ -12,127 +12,165 @@ import Step4Classes from '../components/wizard/Step4Classes';
 import Step5Details from '../components/wizard/Step5Details';
 import Step6Inventory from '../components/wizard/Step6Inventory';
 import Step7Rituals from '../components/wizard/Step7Rituals';
-import Step8Team from '../components/wizard/Step8Team';
 
-function WizardContent() {
+
+const STEP_TITLES = [
+  "Conceito & Identidade",
+  "Atributos",
+  "Origem Customizada",
+  "Classe & Trilha",
+  "Detalhes & Perícias",
+  "Inventário & Equipamento",
+  "Rituais & Finalização"
+];
+
+export default function CreateSheet() {
+  const navigate = useNavigate();
+  const { mesaId } = useParams();
+  const { character, resetCharacter } = useCharacter(); 
+  
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
-  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+
   
-  const [searchParams] = useSearchParams();
-  const isPrivate = searchParams.get('private') === 'true';
+  useEffect(() => {
+    resetCharacter();
+    
+  }, []);
 
-  const { character } = useCharacter();
-
-  const handleNext = async () => {
-    if (step < 8) {
-      setStep(s => s + 1);
-      // Rola para o topo ao mudar de passo
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      setIsSaving(true);
-      try {
-        const finalCharacter = {
-            ...character,
-            isPrivate: isPrivate,
-        };
-        const id = await saveCharacter(finalCharacter);
-        navigate(`/ficha/${id}`); 
-      } catch (error) {
-        console.error(error);
-        alert("Erro ao salvar. Verifique o console.");
-        setIsSaving(false);
-      }
+  const handleNext = () => {
+    if (step < 7) {
+      setStep(step + 1);
+      setError(null);
     }
   };
 
-  const renderStep = () => {
-    switch(step) {
-      case 1: return <Step1Concept />;
-      case 2: return <Step2Attributes />;
-      case 3: return <Step3Origins />;
-      case 4: return <Step4Classes />;
-      case 5: return <Step5Details />;
-      case 6: return <Step6Inventory />;
-      case 7: return <Step7Rituals />;
-      case 8: return <Step8Team />;
-      default: return null;
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+      setError(null);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError(null);
+    
+    try {
+      if (!mesaId) {
+          setError("Erro Crítico: Mesa não identificada na URL.");
+          setIsSaving(false);
+          return;
+      }
+
+      
+      const newId = await saveCharacter(character, mesaId);
+
+      
+      navigate(`/mesa/${mesaId}/ficha/${newId}`);
+      
+    } catch (err) {
+      console.error("Erro ao salvar:", err);
+      setError("Falha ao salvar o personagem. Verifique sua conexão e tente novamente.");
+      setIsSaving(false);
+    } 
+  };
+
+  const handleCancel = () => {
+    if (confirm("Deseja realmente cancelar? Todo o progresso será perdido.")) {
+      navigate(mesaId ? `/mesa/${mesaId}` : '/');
     }
   };
 
   return (
-    <div className="min-h-screen bg-eden-900 text-eden-100 flex flex-col font-sans">
-      {/* Barra de Progresso (Sticky no topo para não sumir) */}
-      <div className="sticky top-0 z-50 w-full bg-eden-800 h-2 shrink-0 shadow-md">
-        <div 
-          className="bg-gradient-to-r from-energia to-conhecimento h-full transition-all duration-500"
-          style={{ width: `${(step / 8) * 100}%` }}
-        />
-      </div>
-
-      {/* Main sem altura travada (min-h-screen apenas para garantir fundo) */}
-      <main className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8 flex flex-col gap-6">
-        
-        {/* Header */}
-        <header className="flex justify-between items-center border-b border-eden-700 pb-4">
-          <button onClick={() => navigate(isPrivate ? '/mestre' : '/')} className="text-sm text-eden-100/50 hover:text-eden-100 transition-colors">
-            &larr; Cancelar
-          </button>
-          <div className="text-right">
-              <span className="text-sm font-mono text-eden-100/30 block">ETAPA {step}/8</span>
-              {isPrivate && <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">CONFIDENCIAL</span>}
+    <div className="min-h-screen bg-eden-900 text-eden-100 flex flex-col font-sans selection:bg-energia selection:text-eden-900">
+      
+      {}
+      <header className="bg-eden-950 border-b border-eden-700 p-4 sticky top-0 z-50 shadow-md">
+        <div className="container mx-auto max-w-5xl flex justify-between items-center">
+          <div className="flex items-center gap-4">
+             <button onClick={handleCancel} className="p-2 bg-eden-800 hover:bg-red-900/50 text-eden-100/50 hover:text-red-400 rounded-xl transition-colors">
+                <X size={20} />
+             </button>
+             <div>
+                <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                  NOVO AGENTE
+                </h1>
+                <p className="text-xs text-eden-100/50 font-medium uppercase tracking-widest mt-0.5">
+                  Passo {step} de 7: <span className="text-energia">{STEP_TITLES[step - 1]}</span>
+                </p>
+             </div>
           </div>
-        </header>
-
-        {/* Área de Conteúdo (Removemos overflow-hidden e altura fixa) */}
-        <div className={`flex-1 bg-eden-800/30 border ${isPrivate ? 'border-red-500/30' : 'border-eden-700'} rounded-2xl p-4 md:p-8 shadow-2xl relative`}>
-          {renderStep()}
+          
+          <div className="hidden md:flex items-center gap-2">
+            <span className="text-sm font-bold text-eden-100/40">Progresso</span>
+            <div className="w-48 h-2 bg-eden-800 rounded-full overflow-hidden border border-eden-700">
+              <div 
+                className="h-full bg-energia transition-all duration-300"
+                style={{ width: `${(step / 7) * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
+      </header>
 
-        {/* Navegação (Sticky no fundo mobile para facilitar) */}
-        <div className="sticky bottom-0 p-4 bg-eden-900/90 backdrop-blur-md border-t border-eden-700 flex justify-between items-center z-40 -mx-4 md:mx-0 md:relative md:bg-transparent md:border-none md:p-0">
+      {}
+      {error && (
+        <div className="bg-red-950/80 border-b border-red-500/50 text-red-200 p-3 flex justify-center items-center gap-2 text-sm font-bold shadow-inner">
+           <AlertCircle size={18} className="text-red-500" /> {error}
+        </div>
+      )}
+
+      {}
+      <main className="flex-1 container mx-auto max-w-5xl p-4 md:p-8 overflow-y-auto custom-scrollbar pb-32">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {step === 1 && <Step1Concept />}
+          {step === 2 && <Step2Attributes />}
+          {step === 3 && <Step3Origins />}
+          {step === 4 && <Step4Classes />}
+          {step === 5 && <Step5Details />}
+          {step === 6 && <Step6Inventory />}
+          {step === 7 && <Step7Rituals />}
+        </div>
+      </main>
+
+      {}
+      <footer className="bg-eden-950/80 backdrop-blur-md border-t border-eden-700 p-4 fixed bottom-0 w-full z-50">
+        <div className="container mx-auto max-w-5xl flex justify-between items-center">
+          
           <button
-            onClick={() => { 
-                if(step > 1) {
-                    setStep(s => s - 1);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-            }}
+            onClick={handleBack}
             disabled={step === 1 || isSaving}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-              step === 1 ? 'opacity-0 pointer-events-none' : 'bg-eden-800 hover:bg-eden-700 text-eden-100 border border-eden-700'
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide transition-all ${
+              step === 1 
+                ? 'opacity-0 pointer-events-none' 
+                : 'text-eden-100/60 hover:text-white hover:bg-eden-800'
             }`}
           >
-            <ChevronLeft className="w-5 h-5" /> Anterior
+            <ChevronLeft className="w-4 h-4" /> Anterior
           </button>
 
           <button
-            onClick={handleNext}
+            onClick={step === 7 ? handleSave : handleNext}
             disabled={isSaving}
-            className={`flex items-center gap-2 px-8 py-3 rounded-lg font-bold transition-all shadow-lg ${
-               step === 8 
-               ? 'bg-energia text-eden-900 hover:bg-yellow-400' 
-               : 'bg-eden-100 text-eden-900 hover:bg-white hover:scale-105'
+            className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-lg hover:shadow-xl transform active:scale-95 ${
+               step === 7 
+               ? 'bg-gradient-to-r from-energia to-orange-500 text-eden-950 hover:to-orange-400'                 
+               : 'text-eden-100/60 hover:text-white hover:bg-eden-800'
             }`}
           >
             {isSaving ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Salvando...</>
-            ) : step === 8 ? (
-              <><Save className="w-5 h-5" /> Finalizar</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
+            ) : step === 7 ? (
+              <><Save className="w-4 h-4" /> Concluir Ficha</>
             ) : (
-              <>Próximo <ChevronRight className="w-5 h-5" /></>
+              <>Próximo <ChevronRight className="w-4 h-4" /></>
             )}
           </button>
-        </div>
-      </main>
-    </div>
-  );
-}
 
-export default function CreateSheet() {
-  return (
-    <CharacterProvider>
-      <WizardContent />
-    </CharacterProvider>
+        </div>
+      </footer>
+    </div>
   );
 }

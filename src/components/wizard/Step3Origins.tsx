@@ -1,192 +1,187 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCharacter } from '../../context/CharacterContext';
-import { ORIGINS } from '../../data/origins';
-import type { Origin } from '../../data/origins';
-import { Search, BookOpen, Award, X, ChevronRight } from 'lucide-react';
+import { 
+  Plus, Trash2, Edit2, X, HelpCircle, Zap, Shield, Settings
+} from 'lucide-react';
+import EffectEditor from '../sheet/EffectEditor';
+
+
+const SKILL_OPTIONS = [
+  "Acrobacia", "Adestramento", "Artes", "Atletismo", "Atualidades", 
+  "Ciências", "Crime", "Diplomacia", "Enganação", "Fortitude", 
+  "Furtividade", "Iniciativa", "Intimidação", "Intuição", "Investigação", 
+  "Luta", "Medicina", "Ocultismo", "Percepção", "Pilotagem", 
+  "Pontaria", "Profissão", "Reflexos", "Religião", "Sobrevivência", 
+  "Tática", "Tecnologia", "Vontade"
+];
+
+
+interface CustomOriginState {
+    id: string;
+    name: string;
+    source: string;
+    description: string;
+    trainedSkills: string[];
+    power: {
+        name: string;
+        description: string;
+        effects: any[];
+    };
+}
+
+
+
 
 export default function Step3Origins() {
-  const { character, updateProgression } = useCharacter();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { character, updateCharacter } = useCharacter();
   
-  const [selectedOrigin, setSelectedOrigin] = useState<Origin | null>(
-    ORIGINS.find(o => o.name === character.progression.origin.name) || null
-  );
+  const [origin, setOrigin] = useState<CustomOriginState>({
+    id: '', name: '', source: 'Própria', description: '', trainedSkills: [],
+    power: { name: '', description: '', effects: [] }
+  });
 
-  const [showMobileDetails, setShowMobileDetails] = useState(false);
-
-  const filteredOrigins = ORIGINS.filter(origin => 
-    origin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    origin.skills.some(s => s.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    origin.source.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleSelect = (origin: Origin) => {
-    setSelectedOrigin(origin);
-    updateProgression('origin', { id: origin.id, name: origin.name });
-    if (window.innerWidth < 1024) {
-        setShowMobileDetails(true);
+  useEffect(() => {
+    if (character.personal.origin) {
+      setOrigin((prev: any) => ({ ...prev, name: character.personal.origin }));
     }
+  }, []);
+
+  useEffect(() => {
+    const cleanId = origin.name.toLowerCase().trim().replace(/\s+/g, '_');
+    updateCharacter((prev: any) => {
+        const resetSkills = { ...prev.skills };
+        Object.keys(resetSkills).forEach(k => {
+            if (resetSkills[k].training === 1 && resetSkills[k].customName === 'Origem') {
+                resetSkills[k].training = 0;
+                resetSkills[k].customName = undefined;
+            }
+        });
+        origin.trainedSkills.forEach((skill: string) => {
+            if (resetSkills[skill]) {
+                resetSkills[skill] = { ...resetSkills[skill], training: 1, customName: 'Origem' };
+            }
+        });
+        return {
+            ...prev,
+            personal: { ...prev.personal, origin: origin.name },
+            skills: resetSkills,
+            customOrigin: { ...origin, id: cleanId }
+        };
+    });
+  }, [origin]);
+
+  const [editingEffectIndex, setEditingEffectIndex] = useState<number | null>(null);
+
+  const toggleSkill = (skill: string) => {
+    setOrigin((prev: CustomOriginState) => {
+      if (prev.trainedSkills.includes(skill)) return { ...prev, trainedSkills: prev.trainedSkills.filter((s: string) => s !== skill) };
+      if (prev.trainedSkills.length >= 2) return prev; 
+      return { ...prev, trainedSkills: [...prev.trainedSkills, skill] };
+    });
   };
-
-  const getSourceStyle = (source: string) => {
-    if (source.includes('Livro')) return 'bg-red-500/10 text-red-300 border-red-500/30';
-    if (source.includes('Sobrevivendo')) return 'bg-blue-500/10 text-blue-300 border-blue-500/30';
-    if (source.includes('HQ')) return 'bg-green-500/10 text-green-300 border-green-500/30';
-    return 'bg-eden-800 text-eden-100 border-eden-700';
-  };
-
-  const OriginDetailsContent = ({ origin }: { origin: Origin }) => (
-    <div className="space-y-6 animate-in fade-in duration-300">
-        <div className="text-center">
-            <h3 className="text-3xl md:text-4xl font-black text-eden-100 leading-none mb-3">
-                {origin.name}
-            </h3>
-            
-            <span className={`inline-block mb-4 text-[10px] px-3 py-0.5 rounded-full border uppercase tracking-wider font-bold ${getSourceStyle(origin.source)}`}>
-                {origin.source.replace('Livro de Regras', 'Livro').replace('Sobrevivendo ao Horror', 'SaH')}
-            </span>
-
-            <p className="text-eden-100/80 leading-relaxed text-sm md:text-lg border-l-2 border-energia/50 pl-4 italic text-left">
-                "{origin.description}"
-            </p>
-        </div>
-
-        <div className="space-y-4">
-            <div className="p-4 md:p-5 bg-eden-900/50 rounded-xl border border-eden-700/50">
-                <h4 className="flex items-center gap-2 text-xs md:text-sm font-bold text-conhecimento uppercase tracking-wider mb-3">
-                    <BookOpen size={18} /> Perícias Treinadas
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                    {origin.skills.length > 0 ? origin.skills.map(skill => (
-                        <span key={skill} className="px-2 py-1 md:px-3 md:py-1.5 rounded-lg bg-eden-800 text-eden-100 text-xs md:text-sm font-medium border border-eden-700 shadow-sm">
-                            {skill}
-                        </span>
-                    )) : (
-                        <span className="text-eden-100/50 italic text-xs">À escolha do jogador.</span>
-                    )}
-                </div>
-            </div>
-
-            <div className="p-4 md:p-5 bg-eden-900/50 rounded-xl border border-eden-700/50">
-                <h4 className="flex items-center gap-2 text-xs md:text-sm font-bold text-sangue uppercase tracking-wider mb-3">
-                    <Award size={18} /> Poder: {origin.power.name}
-                </h4>
-                <p className="text-xs md:text-sm text-eden-100/80 leading-relaxed">
-                    {origin.power.description}
-                </p>
-            </div>
-        </div>
-    </div>
-  );
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-8 duration-500">
-      
-      <div className="text-center space-y-1 shrink-0">
-        <h2 className="text-2xl md:text-3xl font-bold text-eden-100">Origem</h2>
-        <p className="text-xs md:text-base text-eden-100/50">O que você fazia antes de encarar o Paranormal?</p>
-      </div>
-
-      <div className="relative shrink-0">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-eden-100/40 w-4 h-4 md:w-5 md:h-5" />
-        <input 
-          type="text" 
-          placeholder="Buscar origem, perícia..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-eden-800 border border-eden-700 rounded-xl py-3 pl-10 md:pl-12 pr-4 text-sm md:text-base text-eden-100 focus:border-eden-100 focus:ring-1 focus:ring-eden-100 outline-none transition-all placeholder:text-eden-100/30"
-        />
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-6 items-start relative">
-        
-        {/* ESQUERDA: LISTA (Cresce naturalmente com a página) */}
-        <div className="w-full lg:w-1/2 space-y-3">
-          {filteredOrigins.map((origin) => (
-            <button
-              key={origin.id}
-              onClick={() => handleSelect(origin)}
-              className={`w-full text-left p-3 md:p-4 rounded-xl border transition-all duration-200 group relative overflow-hidden flex flex-col gap-1 ${
-                selectedOrigin?.id === origin.id
-                  ? 'bg-eden-800 border-energia shadow-lg z-10 ring-1 ring-energia/50'
-                  : 'bg-eden-800/30 border-eden-700 hover:border-eden-600 hover:bg-eden-800'
-              }`}
-            >
-              <div className="flex justify-between items-center w-full relative z-10">
-                 <div className="flex items-center gap-2 overflow-hidden min-w-0">
-                    <h3 className={`font-bold text-base md:text-lg leading-tight truncate ${selectedOrigin?.id === origin.id ? 'text-energia' : 'text-eden-100'}`}>
-                      {origin.name}
-                    </h3>
-                    {selectedOrigin?.id === origin.id && (
-                      <div className="hidden lg:block w-2 h-2 rounded-full bg-energia animate-pulse shadow-[0_0_8px_#7c3aed] shrink-0" />
-                    )}
-                 </div>
-                 <span className={`ml-auto shrink-0 text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-wider font-bold ${getSourceStyle(origin.source)}`}>
-                    {origin.source.replace('Livro de Regras', 'Livro').replace('Sobrevivendo ao Horror', 'SaH')}
-                 </span>
-              </div>
-              
-              <div className="flex flex-wrap gap-1.5 relative z-10 opacity-80">
-                {origin.skills.slice(0, 3).map(skill => (
-                  <span key={skill} className="text-[10px] px-1.5 py-0.5 rounded bg-eden-900/50 border border-eden-700/50 text-eden-100/60">
-                    {skill}
-                  </span>
-                ))}
-                {origin.skills.length > 3 && <span className="text-[10px] text-eden-100/40 px-1 self-center">...</span>}
-              </div>
-              <div className="lg:hidden absolute top-1/2 -translate-y-1/2 right-2 opacity-10"><ChevronRight size={24} /></div>
-            </button>
-          ))}
-          
-          {filteredOrigins.length === 0 && (
-            <div className="text-center p-8 text-eden-100/30 italic border border-dashed border-eden-800 rounded-xl text-sm">
-              Nenhuma origem encontrada.
-            </div>
-          )}
-        </div>
-
-        {/* DIREITA: DETALHES (STICKY - Acompanha o scroll) */}
-        {/* sticky top-4 faz ele grudar no topo da janela enquanto o pai (flex-row) tiver altura */}
-        <div className="hidden lg:block w-1/2 sticky top-4 self-start">
-          <div className={`rounded-2xl border transition-all duration-500 relative overflow-hidden flex flex-col ${
-             selectedOrigin 
-               ? 'bg-eden-800 border-eden-600 shadow-2xl' 
-               : 'bg-eden-800/10 border-eden-700/30 border-dashed items-center justify-center min-h-[300px]'
-          }`}>
-            {selectedOrigin ? (
-              <div className="p-8">
-                <OriginDetailsContent origin={selectedOrigin} />
-              </div>
-            ) : (
-              <div className="text-center text-eden-100/20">
-                <Search size={64} className="mx-auto mb-6 opacity-30" />
-                <p className="text-xl font-light">Selecione uma origem</p>
-              </div>
-            )}
+    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-right-8 duration-500 pb-20">
+      <div className="text-center"><h2 className="text-3xl font-black text-eden-100 uppercase">Criar Origem</h2></div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <div className="bg-eden-900/50 p-6 rounded-2xl border border-eden-700/50 space-y-4">
+             <h3 className="text-energia font-bold uppercase text-sm flex items-center gap-2"><HelpCircle size={16}/> Identidade</h3>
+             <input type="text" value={origin.name} onChange={(e) => setOrigin({...origin, name: e.target.value})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 font-bold text-lg" placeholder="Nome da Origem..."/>
+             <textarea value={origin.description} onChange={(e) => setOrigin({...origin, description: e.target.value})} rows={4} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 text-sm resize-none" placeholder="História..."/>
+          </div>
+          <div className="bg-eden-900/50 p-6 rounded-2xl border border-eden-700/50 space-y-4">
+             <h3 className="text-conhecimento font-bold uppercase text-sm flex items-center gap-2"><Shield size={16}/> Perícias ({origin.trainedSkills.length}/2)</h3>
+             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto custom-scrollbar p-1">
+               {SKILL_OPTIONS.map(skill => (
+                   <button key={skill} onClick={() => toggleSkill(skill)} disabled={!origin.trainedSkills.includes(skill) && origin.trainedSkills.length >= 2} className={`px-2 py-2 rounded-lg text-xs font-bold border transition-all ${origin.trainedSkills.includes(skill) ? 'bg-conhecimento text-eden-950 border-conhecimento' : (!origin.trainedSkills.includes(skill) && origin.trainedSkills.length >= 2) ? 'opacity-30 cursor-not-allowed bg-eden-950 border-eden-800' : 'bg-eden-950 text-eden-100/70 border-eden-800 hover:border-conhecimento/50'}`}>{skill}</button>
+               ))}
+             </div>
           </div>
         </div>
-
-        {/* Mobile View (Modal Centralizado) */}
-        {showMobileDetails && selectedOrigin && (
-            <div className="fixed inset-0 z-50 lg:hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                <div className="bg-eden-900 border border-eden-600 w-full max-w-lg max-h-[85vh] rounded-2xl shadow-2xl flex flex-col relative animate-in zoom-in-95 duration-300 overflow-hidden">
-                    <div className="p-4 border-b border-eden-700 flex justify-between items-center bg-eden-800/80 backdrop-blur-md shrink-0">
-                        <span className="text-xs font-bold text-eden-100/50 uppercase tracking-widest">Detalhes da Origem</span>
-                        <button onClick={() => setShowMobileDetails(false)} className="p-1 bg-eden-950 rounded-full text-eden-100 border border-eden-700"><X size={16}/></button>
-                    </div>
-                    <div className="p-5 overflow-y-auto custom-scrollbar">
-                        <OriginDetailsContent origin={selectedOrigin} />
-                    </div>
-                    <div className="p-4 border-t border-eden-700 bg-eden-900 shrink-0">
-                        <button onClick={() => setShowMobileDetails(false)} className="w-full py-3 bg-energia text-eden-900 font-black rounded-xl shadow-lg hover:bg-yellow-400 transition-colors">
-                            CONFIRMAR ESCOLHA
-                        </button>
-                    </div>
+        <div className="space-y-6">
+          <div className="bg-eden-900/50 p-6 rounded-2xl border border-eden-700/50 space-y-4 h-full flex flex-col">
+             <h3 className="text-sangue font-bold uppercase text-sm flex items-center gap-2"><Zap size={16}/> Poder da Origem</h3>
+             <input type="text" value={origin.power.name} onChange={(e) => setOrigin({...origin, power: {...origin.power, name: e.target.value}})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none font-bold" placeholder="Nome do poder..."/>
+             <textarea value={origin.power.description} onChange={(e) => setOrigin({...origin, power: {...origin.power, description: e.target.value}})} rows={3} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none text-sm resize-none" placeholder="Efeito técnico..."/>
+             <div className="flex-1 bg-eden-950/50 rounded-xl border border-eden-800 p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-end border-b border-eden-800 pb-2">
+                  <label className="text-[10px] text-eden-100/40 uppercase font-bold tracking-widest">Efeitos (Automação)</label>
+                  <button 
+                      onClick={() => {
+                          const newEffect = { id: Date.now().toString(), name: 'Novo Efeito', category: 'add_fixed', value: { terms: [{ id: '1', type: 'fixed', value: 1 }], operations: [] }, targets: [] } as any;
+                          const newEffectsList = [...(origin.power.effects || []), newEffect];
+                          setOrigin((prev: any) => ({ ...prev, power: { ...prev.power, effects: newEffectsList } }));
+                          setEditingEffectIndex(newEffectsList.length - 1);
+                      }} 
+                      className="text-xs flex items-center gap-1 bg-eden-800 hover:bg-sangue hover:text-white px-3 py-1.5 rounded-lg transition-all"
+                  >
+                      <Plus size={14}/> Novo
+                  </button>
                 </div>
-            </div>
-        )}
-
+                
+                <div className="space-y-2 overflow-y-auto max-h-[300px] custom-scrollbar">
+                  {origin.power.effects.map((eff: any, idx: number) => (
+                    <div key={eff.id} className="bg-eden-900 border border-eden-700 rounded-lg p-3 flex justify-between items-center group hover:border-sangue/50 transition-colors">
+                       <div>
+                           <span className="text-xs font-bold text-energia block mb-0.5 capitalize">
+                               {eff.name ? eff.name : eff.category.replace('_', ' ')}
+                           </span>
+                           <span className="text-[10px] text-eden-100/70">{eff.targets?.length || 0} alvo(s) configurado(s)</span>
+                       </div>
+                       <div className="flex gap-1">
+                         <button onClick={() => setEditingEffectIndex(idx)} className="p-2 hover:bg-eden-800 rounded text-eden-100/50 hover:text-white"><Edit2 size={14}/></button>
+                         <button onClick={() => {
+                             const newEffects = [...(origin.power.effects || [])];
+                             newEffects.splice(idx, 1);
+                             setOrigin((prev: any) => ({ ...prev, power: { ...prev.power, effects: newEffects } }));
+                         }} className="p-2 hover:bg-red-900/30 rounded text-eden-100/50 hover:text-red-400"><Trash2 size={14}/></button>
+                       </div>
+                    </div>
+                  ))}
+                  {(!origin.power.effects || origin.power.effects.length === 0) && (
+                      <p className="text-[10px] text-eden-100/30 italic text-center py-4 border border-dashed border-eden-800 rounded-lg">Poder sem atributos automatizados.</p>
+                  )}
+                </div>
+             </div>
+          </div>
+        </div>
       </div>
+
+      {}
+      {editingEffectIndex !== null && origin.power.effects?.[editingEffectIndex] && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+              <div className="bg-eden-900 border border-eden-600 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+                  <div className="p-4 border-b border-eden-700 bg-eden-800 flex justify-between items-center shrink-0">
+                      <h3 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2"><Settings size={16} className="text-energia"/> Configurar Efeito</h3>
+                      <button onClick={() => setEditingEffectIndex(null)} className="text-eden-100/50 hover:text-white"><X size={20}/></button>
+                  </div>
+                  
+                  <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
+                      <EffectEditor
+                          effect={origin.power.effects[editingEffectIndex]}
+                          onChange={(updatedEffect: any) => {
+                              const newEffects = [...(origin.power.effects || [])];
+                              newEffects[editingEffectIndex] = updatedEffect;
+                              setOrigin((prev: any) => ({ ...prev, power: { ...prev.power, effects: newEffects } }));
+                          }}
+                          onRemove={() => {
+                              const newEffects = [...(origin.power.effects || [])];
+                              newEffects.splice(editingEffectIndex, 1);
+                              setOrigin((prev: any) => ({ ...prev, power: { ...prev.power, effects: newEffects } }));
+                              setEditingEffectIndex(null);
+                          }}
+                      />
+                  </div>
+
+                  <div className="p-4 border-t border-eden-700 bg-eden-800 shrink-0 flex justify-end">
+                      <button onClick={() => setEditingEffectIndex(null)} className="bg-energia text-eden-900 font-black px-6 py-2 rounded-lg hover:bg-yellow-400 transition-colors shadow-[0_0_15px_rgba(250,176,5,0.3)]">
+                          Concluir Edição
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 }

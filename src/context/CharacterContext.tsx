@@ -1,76 +1,82 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import type { CharacterSheet, InventoryItem } from '../types/characterSchema';
-
-const emptyCharacter: CharacterSheet = {
-  id: '', userId: '', createdAt: '', updatedAt: '', isPublic: false, version: '2.0',
-  info: { name: '', player: '', campaign: '', archetype: '', age: 0, gender: '', portraitUrl: '', appearance: '', personality: '', history: '' },
-  attributes: { agi: 1, for: 1, int: 1, pre: 1, vig: 1 },
-  // Inicializa com 0 PP
-  progression: { nex: 5, patente: 'Recruta', prestigePoints: 0, class: 'mundano', origin: { id: '', name: '' }, trail: '' },
-  
-  status: {
-    pv: { current: 0, max: 0, temp: 0 }, 
-    pe: { current: 0, max: 0, temp: 0 }, 
-    san: { current: 0, max: 0, temp: 0 }, 
-    defense: { passiveMod: 0, tempMod: 0 },
-    displacement: { baseMetres: 9, tempMod: 0 },
-    resistances: {} as any, 
-    immunities: [],
-    conditions: [],
-    sustainedIds: [] // <--- CORREÇÃO: Inicializado aqui
-  },
-
-  notes: [],
-  skills: {},
-  
-  // HABILIDADES (Novos campos)
-  classPowers: { coreLevel: 0, selectedIds: [] }, // <--- Inicializado
-  paranormalPowers: [], // <--- Inicializado
-  customAbilities: [], // <--- Inicializado
-
-  inventory: { items: [], weapons: [], creditLimit: 'Baixo', maxLoad: 0 },
-  abilities: [], 
-  rituals: [],
-  teamStrategy: { role: 'polivalente', roleAbilities: [], favoriteFormations: [], isFormationActive: false, loneWolf: { isActive: false, extraPowersChosen: [] } },
-  combatLog: []
-};
+import { initialCharacterState } from '../types/characterSchema';
+import type { CharacterSheet } from '../types/characterSchema';
+import { calculateVariables } from '../utils/characterFormulas';
+import type { CalculatedVariables } from '../utils/characterFormulas';
 
 interface CharacterContextType {
   character: CharacterSheet;
-  updateInfo: (field: keyof CharacterSheet['info'], value: string | number) => void;
-  updateAttribute: (attr: keyof CharacterSheet['attributes'], value: number) => void;
-  updateProgression: (field: keyof CharacterSheet['progression'], value: any) => void;
-  updateInventory: (items: InventoryItem[]) => void; // Nova função segura
+  vars: CalculatedVariables; 
+  updateCharacter: (action: CharacterSheet | ((prev: CharacterSheet) => CharacterSheet)) => void;
+  resetCharacter: () => void;
+  toggleItem: (itemId: string) => void;
+  toggleCondition: (conditionId: string) => void;
+  updateSkill: (skillId: string, training: number, otherBonus?: number) => void;
 }
 
 const CharacterContext = createContext<CharacterContextType | undefined>(undefined);
 
 export function CharacterProvider({ children }: { children: ReactNode }) {
-  const [character, setCharacter] = useState<CharacterSheet>(emptyCharacter);
+  const [character, setCharacter] = useState<CharacterSheet>(initialCharacterState);
 
-  const updateInfo = (field: keyof CharacterSheet['info'], value: string | number) => {
-    setCharacter(prev => ({ ...prev, info: { ...prev.info, [field]: value } }));
+  
+  const vars = useMemo(() => {
+    return calculateVariables(character);
+  }, [character]);
+
+  const updateCharacter = (action: CharacterSheet | ((prev: CharacterSheet) => CharacterSheet)) => {
+    setCharacter(prev => {
+      const newState = typeof action === 'function' ? action(prev) : action;
+      return newState;
+    });
   };
 
-  const updateAttribute = (attr: keyof CharacterSheet['attributes'], value: number) => {
-    setCharacter(prev => ({ ...prev, attributes: { ...prev.attributes, [attr]: value } }));
+  const resetCharacter = () => {
+    setCharacter(initialCharacterState);
   };
 
-  const updateProgression = (field: keyof CharacterSheet['progression'], value: any) => {
-    setCharacter(prev => ({ ...prev, progression: { ...prev.progression, [field]: value } }));
-  };
-
-  // Função dedicada para atualizar inventário forçando re-render
-  const updateInventory = (newItems: InventoryItem[]) => {
+  const toggleItem = (itemId: string) => {
     setCharacter(prev => ({
       ...prev,
-      inventory: { ...prev.inventory, items: newItems }
+      inventory: prev.inventory.map(item => 
+        item.id === itemId ? { ...item, isEquipped: !item.isEquipped } : item
+      )
+    }));
+  };
+
+  
+  
+
+  const toggleCondition = (conditionId: string) => {
+    setCharacter(prev => ({
+      ...prev,
+      conditions: prev.conditions.map(cond => 
+        cond.id === conditionId ? { ...cond, isActive: !cond.isActive } : cond
+      )
+    }));
+  };
+
+  const updateSkill = (skillId: string, training: number, otherBonus: number = 0) => {
+    setCharacter(prev => ({
+      ...prev,
+      skills: {
+        ...prev.skills,
+        [skillId]: { ...prev.skills[skillId], training, otherBonus }
+      }
     }));
   };
 
   return (
-    <CharacterContext.Provider value={{ character, updateInfo, updateAttribute, updateProgression, updateInventory }}>
+    <CharacterContext.Provider value={{ 
+      character, 
+      vars, 
+      updateCharacter, 
+      resetCharacter, 
+      toggleItem, 
+      toggleCondition,
+      updateSkill
+    }}>
       {children}
     </CharacterContext.Provider>
   );

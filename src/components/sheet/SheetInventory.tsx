@@ -1,558 +1,826 @@
-import { useState, useMemo } from 'react';
-import { Scale, Trash2, CheckCircle2, Circle, Ghost, Plus, Search, X, Settings, Info, Flame, Skull, Eye, Zap, Hexagon, DollarSign } from 'lucide-react';
-import type { CharacterSheet, InventoryItem, ItemEffect } from '../../types/characterSchema';
-import { EQUIPMENT_LIST, MODIFICATIONS, CURSES, RANKS, DAMAGE_TYPES_INFO } from '../../data/referenceData';
-import type { ItemBase } from '../../data/referenceData';
+import { useState } from 'react';
+import { 
+  Scale, Trash2, CheckCircle2, Circle, Plus, Search, X, 
+  Settings, Crown, AlertTriangle, Edit2,
+  Crosshair, Shield, Package, Bomb, ShoppingBag, Calculator, Book, Sparkles
+} from 'lucide-react';
+import { useCharacter } from '../../context/CharacterContext';
+import { RANKS, DAMAGE_TYPES_INFO } from '../../data/referenceData';
+import EffectEditor from './EffectEditor';
+import type { Formula, FormulaTerm, Operation, ItemType, ElementType } from '../../types/systemData';
+import { calculateVariables } from '../../utils/characterFormulas';
 
-interface Props {
-  character: CharacterSheet;
-  onUpdate: (updates: any) => void;
-}
+
+const SKILL_OPTIONS = ["Acrobacia", "Adestramento", "Artes", "Atletismo", "Atualidades", "Ciências", "Crime", "Diplomacia", "Enganação", "Fortitude", "Furtividade", "Iniciativa", "Intimidação", "Intuição", "Investigação", "Luta", "Medicina", "Ocultismo", "Percepção", "Pilotagem", "Pontaria", "Profissão", "Reflexos", "Religião", "Sobrevivência", "Tática", "Tecnologia", "Vontade"];
+const ELEMENTS: ElementType[] = ['Sangue', 'Morte', 'Conhecimento', 'Energia', 'Medo'];
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).substring(2, 9);
 
-// Estilos de Elementos
-const getElementStyle = (element?: string) => {
-  switch (element) {
-    case 'sangue': return { color: 'text-red-500', border: 'border-red-500', bg: 'bg-red-500/10', icon: Flame };
-    case 'morte': return { color: 'text-zinc-400', border: 'border-zinc-500', bg: 'bg-zinc-500/10', icon: Skull };
-    case 'conhecimento': return { color: 'text-amber-400', border: 'border-amber-500', bg: 'bg-amber-500/10', icon: Eye };
-    case 'energia': return { color: 'text-violet-400', border: 'border-violet-500', bg: 'bg-violet-500/10', icon: Zap };
-    case 'medo': return { color: 'text-white', border: 'border-white', bg: 'bg-white/10', icon: Ghost };
-    default: return { color: 'text-eden-100', border: 'border-eden-700', bg: 'bg-eden-800', icon: Hexagon };
-  }
-};
+const ITEM_TYPES: { id: ItemType; label: string; icon: any; color: string }[] = [
+  { id: 'weapon', label: 'Arma', icon: Crosshair, color: 'text-red-400 border-red-500' },
+  { id: 'protection', label: 'Proteção', icon: Shield, color: 'text-emerald-400 border-emerald-500' },
+  { id: 'ammo', label: 'Munição', icon: Package, color: 'text-yellow-400 border-yellow-500' },
+  { id: 'accessory', label: 'Acessório', icon: Crown, color: 'text-cyan-400 border-cyan-500' },
+  { id: 'explosive', label: 'Explosivo', icon: Bomb, color: 'text-orange-400 border-orange-500' },
+  { id: 'general', label: 'Geral', icon: ShoppingBag, color: 'text-zinc-400 border-zinc-500' },
+];
 
-// Regra de Opressão
-const isOpposing = (elemA: string, elemB: string) => {
-  if ((elemA === 'sangue' && elemB === 'conhecimento') || (elemA === 'conhecimento' && elemB === 'sangue')) return true;
-  if ((elemA === 'morte' && elemB === 'energia') || (elemA === 'energia' && elemB === 'morte')) return true;
-  if ((elemA === 'energia' && elemB === 'conhecimento') || (elemA === 'conhecimento' && elemB === 'energia')) return true;
-  if ((elemA === 'sangue' && elemB === 'morte') || (elemA === 'morte' && elemB === 'sangue')) return true;
-  return false;
-};
-
-const getTypeStyle = (item: ItemBase | InventoryItem) => {
-    const base = "border-opacity-40 bg-opacity-5"; 
-    if (item.subType === 'cursed_item') return `border-purple-500 bg-purple-500 ${base} text-purple-200`;
+const getTypeStyle = (item: any) => {
     switch (item.type) {
-      case 'weapon': case 'explosive': return `border-red-500 bg-red-500 ${base} text-red-200`;
-      case 'ammo': return `border-yellow-500 bg-yellow-500 ${base} text-yellow-200`;
-      case 'protection': return `border-emerald-500 bg-emerald-500 ${base} text-emerald-200`;
-      case 'accessory': return `border-cyan-500 bg-cyan-500 ${base} text-cyan-200`;
-      case 'paranormal': return `border-pink-500 bg-pink-500 ${base} text-pink-200`;
-      default: return `border-zinc-500 bg-zinc-500 ${base} text-zinc-200`;
+      case 'weapon': 
+      case 'explosive': return `border-red-500/50 bg-red-500/5 text-red-200`;
+      case 'ammo': return `border-yellow-500/50 bg-yellow-500/5 text-yellow-200`;
+      case 'protection': return `border-emerald-500/50 bg-emerald-500/5 text-emerald-200`;
+      case 'accessory': return `border-cyan-500/50 bg-cyan-500/5 text-cyan-200`;
+      default: return `border-zinc-500/50 bg-zinc-500/5 text-zinc-200`;
     }
 };
 
-export default function SheetInventory({ character, onUpdate }: Props) {
-  const { items } = character.inventory;
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [addTab, setAddTab] = useState<'catalog' | 'custom'>('catalog');
-  
-  // Estado para item customizado
-  const [customItem, setCustomItem] = useState({ 
-      name: '', 
-      category: 1, 
-      space: 1, 
-      type: 'general', 
-      description: '',
-      damageDice: '',
-      damageType: 'cortante',
-      weaponSubType: 'melee'
-  });
-  
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [viewingItemId, setViewingItemId] = useState<string | null>(null);
 
-  const prestige = character.progression.prestigePoints || 0;
-  const calculatedRank = useMemo(() => [...RANKS].reverse().find(r => prestige >= r.minPP) || RANKS[0], [prestige]);
-  
-  const currentLoad = items.reduce((acc, item) => acc + (item.space * item.quantity), 0);
-  
-  // CORREÇÃO: Usar character.progression.class para checar combatente
-  const maxLoad = (character.attributes.for === 0 ? 2 : character.attributes.for * 5) + 
-                  (character.progression.class === 'combatente' ? 0 : 0); 
 
-  const getItemCategory = (item: InventoryItem) => {
-    let cat = item.category;
-    cat += item.modifications.length;
-    if (item.curses.length > 0) {
-      cat += 2;
-      if (item.curses.length > 1) cat += (item.curses.length - 1);
-    }
-    return cat;
-  };
 
-  const itemCounts = useMemo(() => items.reduce((acc, item) => {
-    const finalCat = getItemCategory(item);
-    if (finalCat > 0) acc[finalCat] = (acc[finalCat] || 0) + item.quantity;
-    return acc;
-  }, {} as Record<number, number>), [items]);
-
-  const curseCounts = useMemo(() => {
-    const counts = { sangue: 0, morte: 0, energia: 0, conhecimento: 0, medo: 0 };
-    items.forEach(item => {
-      item.curses.forEach(curse => {
-        if (curse.element && curse.element in counts) {
-          counts[curse.element as keyof typeof counts]++;
-        }
-      });
-    });
-    return counts;
-  }, [items]);
-
-  
-  // --- AÇÕES ---
-  const toggleEquip = (id: string) => {
-    const newItems = items.map(i => i.id === id ? { ...i, isEquipped: !i.isEquipped } : i);
-    onUpdate({ inventory: { ...character.inventory, items: newItems } });
-  };
-
-  const removeItem = (id: string) => {
-    if (!confirm('Remover este item permanentemente?')) return;
-    const newItems = items.filter(i => i.id !== id);
-    onUpdate({ inventory: { ...character.inventory, items: newItems } });
-  };
-
-  const addItemFromCatalog = (base: ItemBase) => {
-    const limitKey = ['I', 'II', 'III', 'IV'][base.category - 1] as keyof typeof calculatedRank.limit;
-    const limit = base.category === 0 ? 999 : (calculatedRank.limit[limitKey] || 0);
-    if (base.category > 0 && (itemCounts[base.category] || 0) >= limit) {
-        alert(`Limite de Categoria ${base.category} atingido!`);
-        return;
-    }
-
-    const newItem: InventoryItem = {
-        id: generateId(),
-        name: base.name,
-        category: base.category,
-        space: base.space,
-        type: base.type as any,
-        subType: base.subType,
-        quantity: 1,
-        isEquipped: false,
-        modifications: [],
-        curses: [],
-        damage: base.damage,
-        details: base.details
+function FormulaBuilder({ formula, onChange }: { formula: Formula, onChange: (f: Formula) => void }) {
+    const addTerm = () => {
+      if (formula.terms.length >= 10) return;
+      onChange({ terms: [...formula.terms, { id: Date.now().toString(), type: 'fixed', value: 0 }], operations: formula.terms.length > 0 ? [...formula.operations, 'soma'] : [...formula.operations] });
     };
-    onUpdate({ inventory: { ...character.inventory, items: [...items, newItem] } });
-    setShowAddModal(false);
-  };
+    const removeTerm = (idx: number) => {
+        const newTerms = formula.terms.filter((_, i) => i !== idx);
+        const newOps = formula.operations.filter((_, i) => i !== (idx === 0 ? 0 : idx - 1));
+        onChange({ terms: newTerms, operations: newOps.slice(0, newTerms.length - 1) });
+    };
+    const updateTerm = (idx: number, field: keyof FormulaTerm, value: any) => {
+        const n = [...formula.terms]; n[idx] = { ...n[idx], [field]: value };
+        onChange({ ...formula, terms: n });
+    };
+    const updateOp = (idx: number, op: Operation) => {
+        const n = [...formula.operations]; n[idx] = op;
+        onChange({ ...formula, operations: n });
+    };
 
-  const addCustomItem = () => {
-      let finalDamage = undefined;
-      let finalSubType = undefined;
+    const renderTermExtras = (term: FormulaTerm, index: number) => {
+        switch (term.type) {
+            case 'fixed': return <input type="number" value={term.value ?? 0} onChange={(e) => updateTerm(index, 'value', Number(e.target.value))} className="w-12 bg-eden-900 border border-eden-700 rounded p-1 text-xs text-white text-center outline-none" placeholder="0" />;
+            case 'dice': return (
+                <div className="flex items-center gap-1"><input type="number" value={term.value || 1} onChange={(e) => updateTerm(index, 'value', Number(e.target.value))} className="w-10 bg-eden-900 border border-eden-700 rounded p-1 text-xs text-white text-center outline-none" /><span className="text-white text-xs font-bold">d</span><select value={term.diceFace || 20} onChange={(e) => updateTerm(index, 'diceFace', Number(e.target.value))} className="w-12 bg-eden-900 border border-eden-700 rounded p-1 text-xs text-white outline-none">{[2, 3, 4, 6, 8, 10, 12, 20, 100].map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+            );
+            case 'attribute': return <select value={term.attribute || 'PRE'} onChange={(e) => updateTerm(index, 'attribute', e.target.value)} className="w-16 bg-eden-900 border border-eden-700 rounded p-1 text-xs text-white outline-none">{['AGI', 'FOR', 'INT', 'PRE', 'VIG'].map(a => <option key={a} value={a}>{a}</option>)}</select>;
+            case 'skill_total': case 'skill_training': return <select value={term.skill || SKILL_OPTIONS[0]} onChange={(e) => updateTerm(index, 'skill', e.target.value)} className="w-24 bg-eden-900 border border-eden-700 rounded p-1 text-xs text-white outline-none">{SKILL_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select>;
+            case 'stat_max': case 'stat_current': case 'stat_temp': return <select value={term.stat || 'pv'} onChange={(e) => updateTerm(index, 'stat', e.target.value)} className="w-16 bg-eden-900 border border-eden-700 rounded p-1 text-xs text-white uppercase outline-none"><option value="pv">PV</option><option value="pe">PE</option><option value="san">SAN</option></select>;
+            case 'count_paranormal_powers': case 'count_rituals': return <select value={term.element || 'Sangue'} onChange={(e) => updateTerm(index, 'element', e.target.value)} className="w-24 bg-eden-900 border border-eden-700 rounded p-1 text-xs text-white outline-none">{ELEMENTS.map(el => <option key={el} value={el}>{el}</option>)}</select>;
+            case 'dr_value': return <select value={term.damageType || 'balistico'} onChange={(e) => updateTerm(index, 'damageType', e.target.value)} className="w-24 bg-eden-900 border border-eden-700 rounded p-1 text-xs text-white capitalize outline-none">{DAMAGE_TYPES_INFO.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select>;
+            default: return null;
+        }
+    };
 
-      if (customItem.type === 'weapon' || customItem.type === 'explosive') {
-          if (customItem.damageDice) {
-            const typeName = DAMAGE_TYPES_INFO.find(d => d.id === customItem.damageType)?.name || customItem.damageType;
-            finalDamage = `${customItem.damageDice} ${typeName}`;
+    return (
+      <div className="bg-eden-950/50 p-4 rounded-xl border border-eden-700 space-y-3">
+          <div className="flex justify-between items-center"><label className="text-xs font-bold text-energia flex gap-2"><Calculator size={14}/> Fórmula</label><button onClick={addTerm} className="text-xs bg-eden-800 px-2 py-1 rounded hover:bg-eden-700"><Plus size={12}/> Add</button></div>
+          {formula.terms.map((t, i) => (
+              <div key={t.id} className="flex gap-2 items-center bg-eden-900/30 p-2 rounded border border-eden-700/50 flex-wrap">
+                  {i > 0 && <select value={formula.operations[i-1]} onChange={e=>updateOp(i-1, e.target.value as Operation)} className="bg-eden-800 text-[10px] p-1 rounded text-white font-bold outline-none"><option value="soma">+</option><option value="subtracao">-</option><option value="multiplicacao">*</option><option value="divisao">/</option></select>}
+                  <select value={t.type} onChange={e=>updateTerm(i, 'type', e.target.value)} className="bg-eden-800 text-xs p-1.5 rounded text-white max-w-[130px] outline-none">
+                      <option value="fixed">Fixo</option>
+                      <option value="dice">Dado</option>
+                      <option value="attribute">Atributo</option>
+                      <option value="skill_total">Perícia (Total)</option>
+                      <option value="skill_training">Perícia (Treino)</option>
+                      <option value="stat_max">Status Máx</option>
+                      <option value="stat_current">Status Atual</option>
+                      <option value="defense">Defesa</option>
+                      <option value="dr_value">Valor de RD</option>
+                      <option value="nex">NEX Total</option>
+                      <option value="pe_limit">Lim. de PE</option>
+                      <option value="displacement">Deslocamento</option>
+                      <option value="load_max">Carga Max</option>
+                      <option value="count_rituals">Qtd. Rituais</option>
+                      <option value="count_paranormal_powers">Qtd. Poderes Paranormais</option>
+                      <option value="count_abilities">Qtd. Habilidades Gerais</option>
+                      <option value="count_class_powers">Qtd. Poderes de Classe</option>
+                      <option value="count_origin_powers">Qtd. Poderes de Origem</option>
+                      <option value="count_team_powers">Qtd. Poderes de Equipe</option>
+                      <option value="prestige_points">Pontos de Prestígio</option>
+                  </select>
+                  {renderTermExtras(t, i)}
+                  <button onClick={()=>removeTerm(i)} className="ml-auto text-red-400 p-1 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={14}/></button>
+              </div>
+          ))}
+      </div>
+    )
+}
+
+
+
+
+export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any, onSave: (item: any) => void, onCancel: () => void }) => {
+  const [formData, setFormData] = useState<any>(() => {
+      if (initialData) {
+          let convertedDamage = initialData.damage;
+          if (convertedDamage && !Array.isArray(convertedDamage)) {
+              convertedDamage = [{ 
+                  ...convertedDamage, 
+                  id: generateId(), 
+                  bonus: { terms: [], operations: [] } 
+              }];
           }
+          return { ...initialData, damage: convertedDamage };
       }
-
-      if (customItem.type === 'weapon') {
-          finalSubType = customItem.weaponSubType;
-      }
-
-      const newItem: InventoryItem = {
-          id: generateId(),
-          name: customItem.name || 'Item Sem Nome',
-          category: customItem.category,
-          space: customItem.space,
-          type: customItem.type as any,
-          subType: finalSubType,
-          quantity: 1,
-          isEquipped: false,
-          modifications: [],
-          curses: [],
-          damage: finalDamage,
-          details: customItem.description
+      return {
+          id: '', name: '', type: 'general', category: 1, weight: 1, amount: 1, isEquipped: true, description: '', 
+          isCustom: true, effects: []
       };
-      onUpdate({ inventory: { ...character.inventory, items: [...items, newItem] } });
-      setShowAddModal(false);
-      setCustomItem({ name: '', category: 1, space: 1, type: 'general', description: '', damageDice: '', damageType: 'cortante', weaponSubType: 'melee' });
-  };
+  });
 
-  const updateItem = (updatedItem: InventoryItem) => {
-      const newItems = items.map(i => i.id === updatedItem.id ? updatedItem : i);
-      onUpdate({ inventory: { ...character.inventory, items: newItems } });
-  };
+  const [editingEffectIndex, setEditingEffectIndex] = useState<number | null>(null);
 
-  const toggleModification = (mod: ItemEffect) => {
-      const item = items.find(i => i.id === editingItemId);
-      if (!item) return;
-      const has = item.modifications.some(m => m.id === mod.id);
-      const newMods = has ? item.modifications.filter(m => m.id !== mod.id) : [...item.modifications, mod];
-      
-      const testItem = { ...item, modifications: newMods };
-      const futureCat = getItemCategory(testItem);
-      const limitKey = ['I', 'II', 'III', 'IV'][futureCat - 1] as keyof typeof calculatedRank.limit;
-      const limit = calculatedRank.limit[limitKey] || 0;
-      
-      if (!has && futureCat > 0 && (itemCounts[futureCat] || 0) >= limit) {
-          alert(`Limite de Categoria ${futureCat} atingido!`);
-          return;
-      }
-      updateItem(testItem);
-  };
-
-  const toggleCurse = (curse: ItemEffect) => {
-      const item = items.find(i => i.id === editingItemId);
-      if (!item || !curse.element) return;
-
-      const has = item.curses.some(c => c.id === curse.id);
-      const newCurses = [...item.curses];
-
-      if (has) {
-         updateItem({ ...item, curses: item.curses.filter(c => c.id !== curse.id) });
-      } else {
-         const hasOpposing = item.curses.some(existing => isOpposing(existing.element!, curse.element!));
-         if (hasOpposing) {
-             alert(`Elementos opostos não se misturam! (${curse.element} oposto a existente).`);
-             return;
-         }
-         
-         const testItem = { ...item, curses: [...newCurses, curse] };
-         const futureCat = getItemCategory(testItem);
-         const limitKey = ['I', 'II', 'III', 'IV'][futureCat - 1] as keyof typeof calculatedRank.limit;
-         const limit = calculatedRank.limit[limitKey] || 0;
-         
-         if (futureCat > 0 && (itemCounts[futureCat] || 0) >= limit) {
-            alert(`Limite de Categoria ${futureCat} atingido!`);
-            return;
-         }
-
-         updateItem(testItem);
-      }
-  };
-
-  const activeItem = items.find(i => i.id === editingItemId);
-  const viewingItem = items.find(i => i.id === viewingItemId);
-  const filteredCatalog = EQUIPMENT_LIST.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const handleChange = (field: string, value: any) => setFormData((prev: any) => ({ ...prev, [field]: value }));
+  const updateNested = (parent: string, field: string, value: any) => setFormData((prev: any) => ({ ...prev, [parent]: { ...(prev[parent] || {}), [field]: value } }));
 
   return (
-    <div className="space-y-6">
-      
-      {/* PAINEL TÁTICO */}
-      <div className="bg-eden-800 border border-eden-700 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
-          <div className="flex justify-between items-start border-b border-eden-700 pb-3">
-              <div>
-                  <div className="text-[10px] uppercase text-eden-100/50 font-bold tracking-wider">Patente</div>
-                  <div className="text-xl font-black text-energia flex items-center gap-2">
-                      {calculatedRank.name} 
-                      <span className="text-xs font-normal text-eden-100/50 bg-eden-900 px-2 py-0.5 rounded border border-eden-700 flex items-center gap-1">
-                        <DollarSign size={10}/> {calculatedRank.credit}
-                      </span>
-                  </div>
-              </div>
-              <div className="text-right">
-                   <div className="text-[10px] uppercase text-eden-100/50 font-bold tracking-wider flex items-center gap-1 justify-end">
-                      <Scale size={12}/> Carga
-                   </div>
-                   <div className={`text-xl font-black ${currentLoad > maxLoad ? 'text-red-500' : 'text-eden-100'}`}>
-                       {currentLoad} <span className="text-sm text-eden-100/30">/ {maxLoad}</span>
-                   </div>
-              </div>
-          </div>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-eden-900 w-full max-w-5xl max-h-[95vh] rounded-2xl border border-eden-600 shadow-2xl flex flex-col">
+        <div className="p-4 border-b border-eden-700 bg-eden-800 rounded-t-2xl flex justify-between items-center">
+          <h3 className="font-bold text-xl text-eden-100">{initialData ? 'Editar Item' : 'Criar Novo Item'}</h3>
+          <button onClick={onCancel}><X size={24} className="text-eden-100/50 hover:text-white"/></button>
+        </div>
 
-          {/* Limites de Categoria */}
-          <div className="grid grid-cols-4 gap-2">
-               {[1, 2, 3, 4].map(cat => {
-                  const key = ['I', 'II', 'III', 'IV'][cat - 1] as keyof typeof calculatedRank.limit;
-                  const limit = calculatedRank.limit[key];
-                  const current = itemCounts[cat] || 0;
-                  return (
-                    <div key={cat} className={`text-center p-1.5 rounded border ${current > limit ? 'bg-red-900/30 border-red-500/50' : 'bg-eden-900/50 border-eden-700'}`}>
-                      <div className="text-[9px] text-eden-100/40 uppercase font-bold">Cat {['I','II','III','IV'][cat-1]}</div>
-                      <div className={`font-mono font-bold ${current > limit ? 'text-red-400' : 'text-eden-100'}`}>{current}/{limit}</div>
+        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+            <div className="flex flex-col lg:flex-row gap-6">
+                
+                {}
+                <div className="flex-1 space-y-5">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-eden-100/50 uppercase">Nome</label>
+                        <input value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-3 text-white font-bold text-lg focus:border-energia outline-none" placeholder="Nome do Item" />
                     </div>
-                  )
-               })}
-          </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {ITEM_TYPES.map(t => (
+                            <button
+                                key={t.id}
+                                onClick={() => handleChange('type', t.id)}
+                                className={`flex flex-col items-center justify-center p-3 rounded-xl border h-20 transition-all ${
+                                formData.type === t.id 
+                                    ? `bg-eden-800 ${t.color} shadow-md scale-105` 
+                                    : 'bg-eden-950 border-eden-800 text-eden-100/40 hover:bg-eden-900'
+                                }`}
+                            >
+                                <t.icon size={20} className="mb-1" />
+                                <span className="text-[10px] font-bold uppercase">{t.label}</span>
+                            </button>
+                        ))}
+                    </div>
 
-          {/* Resumo de Maldições */}
-          {(curseCounts.sangue > 0 || curseCounts.morte > 0 || curseCounts.energia > 0 || curseCounts.conhecimento > 0) && (
-              <div className="bg-eden-950/50 border border-eden-700/50 rounded-lg p-3 text-xs space-y-1">
-                  <div className="font-bold text-eden-100/70 mb-1 flex items-center gap-1"><Ghost size={10}/> Penalidades Ativas</div>
-                  {Object.entries(curseCounts).map(([elem, count]) => count > 0 && elem !== 'medo' && (
-                      <div key={elem} className="flex justify-between text-eden-100/50">
-                          <span className="capitalize">{elem}</span>
-                          <span className="text-red-400">-{count * 2} SAN em testes</span>
+                    <div className="grid grid-cols-2 gap-4 bg-eden-950/30 p-4 rounded-xl border border-eden-700/50">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-eden-100/50 uppercase">Categoria</label>
+                            <select 
+                                value={formData.category} onChange={(e) => handleChange('category', Number(e.target.value))}
+                                className="w-full bg-eden-900 border border-eden-700 rounded-lg p-2.5 text-sm text-white"
+                            >
+                                {[0,1,2,3,4].map(c => <option key={c} value={c}>{c === 0 ? '0' : ['I','II','III','IV'][c-1]}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-eden-100/50 uppercase">Espaço (Peso)</label>
+                            <input type="number" value={formData.weight || 1} onChange={e => handleChange('weight', Number(e.target.value))} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-2.5 text-sm text-white" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-eden-100/50 uppercase">Quantidade</label>
+                            <input type="number" value={formData.amount || 1} onChange={e => handleChange('amount', Number(e.target.value))} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-2.5 text-sm text-white" />
+                        </div>
+                    </div>
+
+                    {formData.type === 'cursed' && (
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 space-y-2 animate-in slide-in-from-top-2">
+                            <h4 className="text-sm font-bold text-purple-300 uppercase flex items-center gap-2"><Book size={16}/> Detalhes</h4>
+                            <div className="space-y-1">
+                                <label className="text-[10px] text-purple-200/60 uppercase font-bold">Elemento Principal</label>
+                                <select 
+                                    value={formData.element || 'Medo'} onChange={(e) => handleChange('element', e.target.value)}
+                                    className="w-full bg-eden-900 border border-purple-500/30 rounded-lg p-2.5 text-sm text-purple-100"
+                                >
+                                    {ELEMENTS.map(el => <option key={el} value={el}>{el}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {(formData.type === 'weapon' || formData.type === 'explosive') && (
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
+                            <h4 className="text-sm font-bold text-red-300 uppercase flex items-center gap-2"><Crosshair size={16}/> Estatísticas de Combate</h4>
+                            
+                            {formData.type === 'weapon' && (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Subtipo</label>
+                                        <select value={formData.subtype || 'melee'} onChange={(e) => handleChange('subtype', e.target.value)} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white">
+                                            <option value="melee">Corpo a Corpo</option><option value="ranged">Distância</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Empunhadura</label>
+                                        <select value={formData.hands || 'one'} onChange={(e) => handleChange('hands', e.target.value)} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white">
+                                            <option value="light">Leve</option><option value="one">Uma Mão</option><option value="two">Duas Mãos</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Complexidade</label>
+                                        <select value={formData.complexity || 'simple'} onChange={(e) => handleChange('complexity', e.target.value)} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white">
+                                            <option value="simple">Simples</option><option value="tactical">Tática</option><option value="heavy">Pesada</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Alcance</label>
+                                        <select value={formData.range || 'curto'} onChange={(e) => handleChange('range', e.target.value)} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white">
+                                            <option value="adjacente">Adjacente</option>
+                                            <option value="curto">Curto</option>
+                                            <option value="medio">Médio</option>
+                                            <option value="longo">Longo</option>
+                                            <option value="extremo">Extremo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {formData.type === 'explosive' && (
+                                <div className="flex items-center gap-2 pb-2 border-b border-red-500/20">
+                                    <input 
+                                        type="checkbox" 
+                                        id="dealsDamage"
+                                        checked={Array.isArray(formData.damage) && formData.damage.length > 0} 
+                                        onChange={e => {
+                                            if (e.target.checked) {
+                                                handleChange('damage', [{ id: generateId(), diceCount: 1, diceFace: 6, type: 'impacto', bonus: { terms: [], operations: [] } }]);
+                                            } else {
+                                                handleChange('damage', []);
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded border-red-500 bg-eden-900 text-red-500 focus:ring-red-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="dealsDamage" className="text-xs font-bold text-red-200 cursor-pointer select-none">
+                                        Explosivo causa dano direto?
+                                    </label>
+                                </div>
+                            )}
+
+                            {formData.type === 'weapon' && (
+                                <div className="space-y-3 pt-3 border-t border-red-500/20">
+                                    <h5 className="text-xs font-bold text-red-300 uppercase">Teste de Ataque</h5>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Perícia Base</label>
+                                        <select 
+                                            value={formData.attackTest?.skill || 'Luta'} 
+                                            onChange={e => updateNested('attackTest', 'skill', e.target.value)} 
+                                            className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-sm text-white"
+                                        >
+                                            {SKILL_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2 bg-black/20 p-3 rounded border border-red-900/30">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Dados Secundários (Opcional)</label>
+                                        <FormulaBuilder 
+                                            formula={formData.attackTest?.secondaryDice || { terms: [], operations: [] }} 
+                                            onChange={f => updateNested('attackTest', 'secondaryDice', f)} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2 bg-black/20 p-3 rounded border border-red-900/30">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Bônus Secundário (Opcional)</label>
+                                        <FormulaBuilder 
+                                            formula={formData.attackTest?.secondaryBonus || { terms: [], operations: [] }} 
+                                            onChange={f => updateNested('attackTest', 'secondaryBonus', f)} 
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {(formData.type === 'weapon' || (formData.type === 'explosive' && Array.isArray(formData.damage) && formData.damage.length > 0)) && (
+                                <div className="animate-in fade-in space-y-4 pt-3 border-t border-red-500/20">
+                                    <div className="flex justify-between items-center">
+                                        <h5 className="text-xs font-bold text-red-300 uppercase">Dano Causado</h5>
+                                        <button 
+                                            onClick={() => {
+                                                const currentDamage = Array.isArray(formData.damage) ? formData.damage : [];
+                                                handleChange('damage', [...currentDamage, { id: generateId(), diceCount: 1, diceFace: 6, type: 'impacto', bonus: { terms: [], operations: [] }, isMultipliable: true }]);
+                                            }}
+                                            className="text-[10px] bg-red-900/50 px-2 py-1 rounded text-red-200 hover:bg-red-800 flex items-center gap-1 transition-colors"
+                                        >
+                                            <Plus size={12}/> Adicionar Dano
+                                        </button>
+                                    </div>
+                                    
+                                    {(Array.isArray(formData.damage) ? formData.damage : []).map((dmg: any, idx: number) => (
+                                        <div key={dmg.id} className="bg-black/20 p-3 rounded border border-red-900/30 space-y-3 relative group">
+                                            <button 
+                                                onClick={() => {
+                                                    const newDmg = formData.damage.filter((_: any, i: number) => i !== idx);
+                                                    handleChange('damage', newDmg);
+                                                }} 
+                                                className="absolute -top-2 -right-2 bg-red-900 hover:bg-red-700 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                            <div className="grid grid-cols-2 gap-3 flex-1">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] text-red-200/60 uppercase font-bold">Dados</label>
+                                                    <div className="flex gap-1 items-center bg-eden-900 border border-red-900/50 rounded p-1">
+                                                        <input 
+                                                            type="number" 
+                                                            value={dmg.diceCount ?? 0} 
+                                                            onChange={e => {
+                                                                const newDmg = [...formData.damage];
+                                                                newDmg[idx].diceCount = Number(e.target.value);
+                                                                handleChange('damage', newDmg);
+                                                            }} 
+                                                            className="w-10 bg-eden-800 text-center text-sm text-white font-bold outline-none"
+                                                        />
+                                                        <span className="text-xs text-red-400 font-bold">d</span>
+                                                        <select 
+                                                            value={dmg.diceFace || 6} 
+                                                            onChange={e => {
+                                                                const newDmg = [...formData.damage];
+                                                                newDmg[idx].diceFace = Number(e.target.value);
+                                                                handleChange('damage', newDmg);
+                                                            }} 
+                                                            className="bg-eden-800 text-sm text-white font-bold outline-none flex-1"
+                                                        >
+                                                            {[2,3,4,6,8,10,12,20,100].map(d => <option key={d} value={d}>{d}</option>)}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] text-red-200/60 uppercase font-bold">Tipo</label>
+                                                    <select 
+                                                        value={dmg.type || 'balistico'} 
+                                                        onChange={e => {
+                                                            const newDmg = [...formData.damage];
+                                                            newDmg[idx].type = e.target.value;
+                                                            handleChange('damage', newDmg);
+                                                        }} 
+                                                        className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-sm text-white capitalize"
+                                                    >
+                                                        {DAMAGE_TYPES_INFO.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <input 
+                                                    type="checkbox" 
+                                                    id={`mult_${dmg.id}`}
+                                                    checked={dmg.isMultipliable !== false}
+                                                    onChange={e => {
+                                                        const newDmg = [...formData.damage];
+                                                        newDmg[idx].isMultipliable = e.target.checked;
+                                                        handleChange('damage', newDmg);
+                                                    }} 
+                                                    className="w-3 h-3 rounded border-red-500 bg-eden-900 text-red-500 cursor-pointer"
+                                                />
+                                                <label htmlFor={`mult_${dmg.id}`} className="text-[10px] font-bold text-red-200/60 uppercase cursor-pointer select-none">
+                                                    Dados multiplicam no Crítico?
+                                                </label>
+                                            </div>
+
+                                            <div className="space-y-1 pt-2 border-t border-red-900/30">
+                                                <label className="text-[10px] text-red-200/60 uppercase font-bold">Bônus de Dano (Não multiplica no crítico)</label>
+                                                <FormulaBuilder 
+                                                    formula={dmg.bonus || { terms: [], operations: [] }} 
+                                                    onChange={f => {
+                                                        const newDmg = [...formData.damage];
+                                                        newDmg[idx].bonus = f;
+                                                        handleChange('damage', newDmg);
+                                                    }} 
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    
+                                    <div className="space-y-1 pt-3 border-t border-red-500/20">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Crítico (Margem / Multiplicador)</label>
+                                        <div className="flex gap-2">
+                                            <input type="number" value={formData.critical?.range || 20} onChange={e => updateNested('critical', 'range', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="20"/>
+                                            <span className="text-white font-bold self-center">/</span>
+                                            <input type="number" value={formData.critical?.multiplier || 2} onChange={e => updateNested('critical', 'multiplier', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="x2"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {formData.type === 'explosive' && (
+                                <div className="grid grid-cols-2 gap-3 border-t border-red-500/20 pt-2">
+                                    <div className="space-y-1"><label className="text-[10px] font-bold text-red-300">Área</label><input type="text" value={formData.area || ''} onChange={e => handleChange('area', e.target.value)} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white" placeholder="Ex: 6m raio"/></div>
+                                    <div className="space-y-1"><label className="text-[10px] font-bold text-red-300">DT Resistência</label><input type="number" value={formData.dt || 0} onChange={e => handleChange('dt', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white"/></div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {formData.type === 'protection' && (
+                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
+                            <h4 className="text-sm font-bold text-emerald-300 uppercase flex items-center gap-2"><Shield size={16}/> Estatísticas de Defesa</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-emerald-200/60 uppercase font-bold">Defesa (+)</label>
+                                    <input type="number" value={formData.defenseBonus || 0} onChange={e => handleChange('defenseBonus', Number(e.target.value))} className="w-full bg-eden-900 border border-emerald-900/50 rounded p-2 text-sm text-white font-bold"/>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-emerald-200/60 uppercase font-bold">Penalidade (-)</label>
+                                    <input type="number" value={formData.penalty || 0} onChange={e => handleChange('penalty', Number(e.target.value))} className="w-full bg-eden-900 border border-emerald-900/50 rounded p-2 text-sm text-white font-bold"/>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 pt-2 border-t border-emerald-500/20">
+                                <input type="checkbox" id="isHeavy" checked={formData.isHeavy || false} onChange={e => handleChange('isHeavy', e.target.checked)} className="w-4 h-4 rounded border-emerald-500 bg-eden-900"/>
+                                <label htmlFor="isHeavy" className="text-xs text-emerald-100 cursor-pointer font-bold">Proteção Pesada?</label>
+                            </div>
+                        </div>
+                    )}
+
+                    {formData.type === 'ammo' && (
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
+                            <h4 className="text-sm font-bold text-yellow-300 uppercase flex items-center gap-2"><Package size={16}/> Estatísticas de Munição</h4>
+                            
+                            <div className="space-y-1">
+                                <label className="text-[10px] text-yellow-200/60 uppercase font-bold">Tipo de Duração</label>
+                                <select 
+                                    value={formData.ammoDurationType || 'scenes'} 
+                                    onChange={e => handleChange('ammoDurationType', e.target.value)} 
+                                    className="w-full bg-eden-900 border border-yellow-900/50 rounded p-2 text-xs text-white"
+                                >
+                                    <option value="scenes">Por Cenas</option>
+                                    <option value="single_use">Uso Único (Contada em Unidades)</option>
+                                    <option value="infinite">Infinita / Recuperável</option>
+                                </select>
+                            </div>
+
+                            {(!formData.ammoDurationType || formData.ammoDurationType === 'scenes') && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-yellow-200/60 uppercase font-bold">Cenas (Pacotes)</label>
+                                        <input type="number" value={formData.durationScenes || 0} onChange={e => handleChange('durationScenes', Number(e.target.value))} className="w-full bg-eden-900 border border-yellow-900/50 rounded p-2 text-sm text-white font-bold"/>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-yellow-200/60 uppercase font-bold">Sobras Atuais</label>
+                                        <input type="number" value={formData.leftovers || 0} onChange={e => handleChange('leftovers', Number(e.target.value))} className="w-full bg-eden-900 border border-yellow-900/50 rounded p-2 text-sm text-white font-bold"/>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="space-y-1 h-full flex flex-col">
+                        <label className="text-xs font-bold text-eden-100/50 uppercase">Descrição & Regras</label>
+                        <textarea value={formData.description} onChange={e => handleChange('description', e.target.value)} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-3 text-sm text-eden-100 focus:border-energia outline-none resize-none flex-1 min-h-[100px]" placeholder="Descreva os detalhes do item..."/>
+                    </div>
+                </div>
+                
+                {}
+          <div className="space-y-4">
+              <div className="flex justify-between items-center border-b border-eden-700 pb-2">
+                  <h3 className="text-xs md:text-sm font-black text-eden-100 uppercase tracking-widest flex items-center gap-2">
+                      <Sparkles size={16} className="text-energia" />
+                      Efeitos
+                  </h3>
+                  <button 
+                      type="button"
+                      onClick={() => {
+                          const newEffect = { id: Date.now().toString(), name: 'Novo Efeito', category: 'add_fixed', value: { terms: [{ id: '1', type: 'fixed', value: 1 }], operations: [] }, targets: [] };
+                          const newEffectsList = [...(formData.effects || []), newEffect];
+                          setFormData((prev: any) => ({ ...prev, effects: newEffectsList }));
+                          setEditingEffectIndex(newEffectsList.length - 1);
+                      }}
+                      className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-energia hover:text-yellow-400 transition-colors flex items-center gap-1"
+                  >
+                      <Plus size={14} /> Adicionar
+                  </button>
+              </div>
+
+              <div className="space-y-2">
+                  {(formData.effects || []).map((effect: any, idx: number) => (
+                      <div key={effect.id} className="flex justify-between items-center bg-eden-950/50 border border-eden-700/50 p-2.5 rounded-lg group">
+                          <div className="flex flex-col">
+                              <span className="text-xs font-bold text-white capitalize">
+                                  {effect.name ? effect.name : effect.category.replace('_', ' ')}
+                              </span>
+                              <span className="text-[10px] text-eden-100/50">{effect.targets?.length || 0} alvo(s) configurado(s)</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                              <button type="button" onClick={() => setEditingEffectIndex(idx)} className="p-1.5 text-eden-100/50 hover:text-energia hover:bg-energia/10 rounded transition-colors"><Edit2 size={16}/></button>
+                              <button type="button" onClick={() => {
+                                  const newEffects = [...(formData.effects || [])];
+                                  newEffects.splice(idx, 1);
+                                  setFormData((prev: any) => ({ ...prev, effects: newEffects }));
+                              }} className="p-1.5 text-eden-100/50 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={16}/></button>
+                          </div>
                       </div>
                   ))}
               </div>
-          )}
-      </div>
 
-      <div className="flex justify-end">
-          <button onClick={() => setShowAddModal(true)} className="bg-energia text-eden-900 font-bold px-4 py-2 rounded-lg hover:bg-yellow-400 flex items-center gap-2 shadow-lg transition-all">
-              <Plus size={18} /> Adicionar Item
-          </button>
-      </div>
+              {(!formData.effects || formData.effects.length === 0) && (
+                  <p className="text-xs text-eden-100/50 italic text-center py-4">Este item não possui bônus automáticos.</p>
+              )}
+          </div>
 
-      {/* Lista de Itens */}
-      <div className="grid grid-cols-1 gap-2">
-        {items.map(item => {
-            const typeClass = getTypeStyle(item);
-            const cat = getItemCategory(item);
-            const catIndex = cat - 1;
-            const limitKey = catIndex >= 0 && catIndex < 4 ? (['I', 'II', 'III', 'IV'][catIndex] as keyof typeof calculatedRank.limit) : null;
-            const limit = limitKey ? calculatedRank.limit[limitKey] : 999;
-            const isOverLimit = cat > 0 && (itemCounts[cat] || 0) > limit;
-
-            return (
-                <div key={item.id} className={`p-3 rounded-lg border flex justify-between items-center transition-all group ${item.isEquipped ? 'bg-eden-800 shadow-md ' + typeClass : 'bg-eden-900/30 border-eden-700/50 hover:bg-eden-800'}`}>
-                    <div className="flex items-center gap-3 flex-1 overflow-hidden">
-                        <button onClick={() => toggleEquip(item.id)} className="text-eden-100/50 hover:text-energia transition-colors shrink-0">
-                            {item.isEquipped ? <CheckCircle2 size={20} className="text-energia" /> : <Circle size={20} />}
-                        </button>
-                        <div className="min-w-0 flex-1">
-                            <div className={`font-bold text-sm truncate ${item.isEquipped ? 'text-white' : 'text-eden-100/70'}`}>
-                                {item.name} {item.quantity > 1 && <span className="text-xs text-eden-100/40">x{item.quantity}</span>}
-                            </div>
-                            <div className="flex flex-wrap gap-2 text-[10px] uppercase text-eden-100/40 font-bold tracking-wider items-center mt-0.5">
-                                <span className={isOverLimit ? 'text-red-500 font-black' : ''}>
-                                    Cat {['0','I','II','III','IV','V','VI'][cat] || 'VI+'}
-                                </span>
-                                <span>•</span>
-                                <span>{item.space} Esp</span>
-                                {item.damage && <><span className="text-eden-700">•</span><span className="text-red-400">{item.damage}</span></>}
-                                <div className="flex gap-1 ml-2">
-                                    {item.curses.length > 0 && <Ghost size={12} className="text-purple-400" />}
-                                    {item.modifications.length > 0 && <Zap size={12} className="text-blue-400" />}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
-                        <button onClick={() => setViewingItemId(item.id)} className="p-2 hover:bg-black/20 rounded text-blue-400"><Info size={16}/></button>
-                        <button onClick={() => setEditingItemId(item.id)} className="p-2 hover:bg-black/20 rounded text-conhecimento"><Settings size={16}/></button>
-                        <button onClick={() => removeItem(item.id)} className="p-2 hover:bg-black/20 rounded text-red-500"><Trash2 size={16}/></button>
-                    </div>
-                </div>
-            )
-        })}
-        {items.length === 0 && <div className="text-center py-10 text-eden-100/30 text-sm italic border-2 border-dashed border-eden-800 rounded-xl">Mochila vazia.</div>}
-      </div>
-
-      {/* MODAL ADICIONAR ITEM */}
-      {showAddModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
-              <div className="bg-eden-900 border border-eden-600 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95">
-                  <div className="p-4 border-b border-eden-700 flex justify-between items-center bg-eden-800">
-                      <div className="flex gap-4">
-                          <button onClick={() => setAddTab('catalog')} className={`font-bold text-sm ${addTab === 'catalog' ? 'text-energia border-b-2 border-energia' : 'text-eden-100/50 hover:text-eden-100'}`}>Catálogo</button>
-                          <button onClick={() => setAddTab('custom')} className={`font-bold text-sm ${addTab === 'custom' ? 'text-energia border-b-2 border-energia' : 'text-eden-100/50 hover:text-eden-100'}`}>Customizado</button>
+          {editingEffectIndex !== null && formData.effects?.[editingEffectIndex] && (
+              <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+                  <div className="bg-eden-900 border border-eden-600 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+                      <div className="p-4 border-b border-eden-700 bg-eden-800 flex justify-between items-center shrink-0">
+                          <h3 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2"><Settings size={16} className="text-energia"/> Configurar Efeito</h3>
+                          <button onClick={() => setEditingEffectIndex(null)} className="text-eden-100/50 hover:text-white"><X size={20}/></button>
                       </div>
-                      <button onClick={() => setShowAddModal(false)}><X size={24}/></button>
-                  </div>
-                  
-                  {addTab === 'catalog' ? (
-                      <>
-                        <div className="p-4 border-b border-eden-700 bg-eden-900">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-eden-100/40 w-4 h-4" />
-                                {/* Input de Busca Escuro */}
-                                <input 
-                                    type="text" 
-                                    placeholder="Buscar..." 
-                                    value={searchTerm} 
-                                    onChange={e => setSearchTerm(e.target.value)} 
-                                    className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded py-2 pl-9 text-sm outline-none focus:border-energia" 
-                                    style={{ colorScheme: 'dark' }}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
-                            {filteredCatalog.map(item => (
-                                <div key={item.id} className={`p-3 rounded border flex justify-between items-center ${getTypeStyle(item)}`}>
-                                    <div className="min-w-0 mr-2">
-                                        <div className="font-bold text-sm">{item.name}</div>
-                                        <div className="text-[10px] opacity-70 line-clamp-1">{item.details}</div>
-                                    </div>
-                                    <button onClick={() => addItemFromCatalog(item)} className="bg-black/20 hover:bg-white/20 px-3 py-1 rounded text-xs font-bold shrink-0">Add</button>
-                                </div>
-                            ))}
-                        </div>
-                      </>
-                  ) : (
-                      <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar bg-eden-900">
-                          {/* Inputs Customizados Escuros */}
-                          <div>
-                              <label className="text-xs uppercase font-bold text-eden-100/50 block mb-1">Nome</label>
-                              <input 
-                                value={customItem.name} 
-                                onChange={e => setCustomItem({...customItem, name: e.target.value})} 
-                                className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded p-2 outline-none focus:border-energia" 
-                                style={{ colorScheme: 'dark' }}
-                              />
-                          </div>
-                          <div className="grid grid-cols-3 gap-4">
-                              <div>
-                                  <label className="text-xs uppercase font-bold text-eden-100/50 block mb-1">Categoria</label>
-                                  <input 
-                                    type="number" min="0" max="4" 
-                                    value={customItem.category} 
-                                    onChange={e => setCustomItem({...customItem, category: parseInt(e.target.value)})} 
-                                    className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded p-2 outline-none focus:border-energia" 
-                                    style={{ colorScheme: 'dark' }}
-                                  />
-                              </div>
-                              <div>
-                                  <label className="text-xs uppercase font-bold text-eden-100/50 block mb-1">Espaço</label>
-                                  <input 
-                                    type="number" min="0" 
-                                    value={customItem.space} 
-                                    onChange={e => setCustomItem({...customItem, space: parseInt(e.target.value)})} 
-                                    className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded p-2 outline-none focus:border-energia" 
-                                    style={{ colorScheme: 'dark' }}
-                                  />
-                              </div>
-                              <div>
-                                  <label className="text-xs uppercase font-bold text-eden-100/50 block mb-1">Tipo</label>
-                                  <select 
-                                    value={customItem.type} 
-                                    onChange={e => setCustomItem({...customItem, type: e.target.value})} 
-                                    className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded p-2 outline-none focus:border-energia" 
-                                    style={{colorScheme:'dark'}}
-                                  >
-                                      <option value="general">Geral</option>
-                                      <option value="weapon">Arma</option>
-                                      <option value="protection">Proteção</option>
-                                      <option value="accessory">Acessório</option>
-                                      <option value="ammo">Munição</option>
-                                      <option value="explosive">Explosivo</option>
-                                  </select>
-                              </div>
-                          </div>
+                      
+                      <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
+                          <EffectEditor
+                              effect={formData.effects[editingEffectIndex]}
+                              onChange={(updatedEffect: any) => {
+                                  const newEffects = [...(formData.effects || [])];
+                                  newEffects[editingEffectIndex] = updatedEffect;
+                                  setFormData((prev: any) => ({ ...prev, effects: newEffects }));
+                              }}
+                              onRemove={() => {
+                                  const newEffects = [...(formData.effects || [])];
+                                  newEffects.splice(editingEffectIndex, 1);
+                                  setFormData((prev: any) => ({ ...prev, effects: newEffects }));
+                                  setEditingEffectIndex(null);
+                              }}
+                          />
+                      </div>
 
-                          {/* CAMPOS EXTRAS PARA ARMA/EXPLOSIVO */}
-                          {(customItem.type === 'weapon' || customItem.type === 'explosive') && (
-                              <div className="grid grid-cols-2 gap-4 p-3 border border-eden-700 rounded bg-eden-950/30">
-                                  <div>
-                                      <label className="text-xs uppercase font-bold text-eden-100/50 block mb-1">Dano (ex: 1d6)</label>
-                                      <input 
-                                        type="text"
-                                        value={customItem.damageDice} 
-                                        onChange={e => setCustomItem({...customItem, damageDice: e.target.value})} 
-                                        className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded p-2 outline-none focus:border-energia"
-                                        style={{ colorScheme: 'dark' }}
-                                        placeholder="1d6"
-                                      />
+                      <div className="p-4 border-t border-eden-700 bg-eden-800 shrink-0 flex justify-end">
+                          <button onClick={() => setEditingEffectIndex(null)} className="bg-energia text-eden-900 font-black px-6 py-2 rounded-lg hover:bg-yellow-400 transition-colors shadow-[0_0_15px_rgba(250,176,5,0.3)]">
+                              Concluir Edição
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          )}
+            </div>
+        </div>
+
+        <div className="p-4 border-t border-eden-700 bg-eden-800 rounded-b-2xl flex justify-end gap-3">
+            <button onClick={onCancel} className="px-6 py-2.5 text-eden-100 hover:bg-eden-700 rounded-lg text-sm font-bold">Cancelar</button>
+            <button onClick={() => onSave(formData)} disabled={!formData.name} className="px-8 py-2.5 bg-energia text-eden-900 rounded-lg text-sm font-black hover:bg-yellow-400 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">SALVAR ITEM</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+
+
+
+export default function SheetInventory() {
+  const { character, vars, updateCharacter, toggleItem } = useCharacter();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+
+  const injectedItems = (vars.INJECTED_ITEMS || []).map((i: any) => ({ ...i, isInjected: true, isEquipped: true }));
+  const fullInventory = [...(character.inventory || []), ...injectedItems];
+
+  const ctx = calculateVariables(character as any);
+  const currentLoad = ctx.CARGA.atual;
+  const maxLoad = ctx.CARGA.max;
+  
+  const prestige = character.personal.prestigePoints || 0;
+  const rank = [...RANKS].reverse().find(r => prestige >= r.minPP) || RANKS[0];
+
+  const categoryCounts = fullInventory.reduce((acc, item) => {
+    const cat = item.category;
+    if (cat > 0) acc[cat] = (acc[cat] || 0) + (item.amount || 1);
+    return acc;
+  }, {} as Record<number, number>);
+
+  const deepUpdatePayload = (prev: any, payloadId: string, mutator: (payload: any) => any) => {
+      const scan = (items: any[]) => items.map(item => {
+          if (item.effects) {
+              const n = item.effects.map((e: any) => e.payload?.id === payloadId ? { ...e, payload: mutator(e.payload) } : e);
+              return { ...item, effects: n };
+          }
+          return item;
+      });
+
+      let newOrigin = prev.customOrigin;
+      if (newOrigin) {
+          newOrigin = { ...newOrigin };
+          if (newOrigin.effects) {
+              newOrigin.effects = newOrigin.effects.map((e: any) => e.payload?.id === payloadId ? { ...e, payload: mutator(e.payload) } : e);
+          }
+          if (newOrigin.power?.effects) {
+              newOrigin.power = {
+                  ...newOrigin.power,
+                  effects: newOrigin.power.effects.map((e: any) => e.payload?.id === payloadId ? { ...e, payload: mutator(e.payload) } : e)
+              };
+          }
+      }
+
+      return { 
+          ...prev, 
+          inventory: scan(prev.inventory||[]), 
+          abilities: scan(prev.abilities||[]), 
+          classPowers: scan(prev.classPowers||[]), 
+          rituals: scan(prev.rituals||[]),
+          conditions: scan(prev.conditions||[]),
+          customOrigin: newOrigin
+      };
+  };
+
+  const handleSaveItem = (item: any) => {
+      if (item.isInjected) {
+          updateCharacter(prev => deepUpdatePayload(prev, item.id, () => { 
+              const copy = {...item}; 
+              delete copy.isInjected; 
+              return copy; 
+          }));
+          setIsCreating(false); 
+          setEditingItem(null); 
+          return;
+      }
+      
+      const finalItem = { 
+          ...item, 
+          isEquipped: item.isEquipped ?? true,
+          modifications: [],
+          curses: []
+      };
+      
+      if (editingItem) {
+          updateCharacter(prev => ({ ...prev, inventory: prev.inventory.map(i => i.id === item.id ? finalItem : i) }));
+      } else {
+          updateCharacter(prev => ({ ...prev, inventory: [...prev.inventory, { ...finalItem, id: generateId() }] }));
+      }
+      setIsCreating(false);
+      setEditingItem(null);
+  };
+
+  const handleDelete = (id: string) => {
+      if(confirm("Remover item do inventário?")) {
+          updateCharacter(prev => ({ ...prev, inventory: prev.inventory.filter(i => i.id !== id) }));
+      }
+  };
+
+  const handleDuplicate = (item: any) => {
+      const copy = { ...item, id: generateId(), name: `${item.name} (Cópia)` };
+      updateCharacter(prev => ({ ...prev, inventory: [...prev.inventory, copy] }));
+  };
+
+  const filteredItems = fullInventory.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'all' || item.type === filterType;
+      return matchesSearch && matchesType;
+  });
+
+  return (
+    <div className="flex flex-col gap-4 animate-in fade-in h-full pb-20">
+      
+      {}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
+         <div className="bg-eden-800 border border-eden-700 rounded-xl p-4 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-full bg-eden-900 flex items-center justify-center border border-eden-600 text-energia"><Crown size={20} /></div>
+               <div>
+                   <div className="text-[10px] uppercase font-bold text-eden-100/50">Patente</div>
+                   <div className="text-lg font-black text-eden-100 leading-none">{rank.name}</div>
+               </div>
+            </div>
+            <div className="text-right">
+                <div className="text-[10px] uppercase font-bold text-eden-100/50">Crédito</div>
+                <div className="flex items-center justify-end gap-1 text-conhecimento font-mono font-bold">{rank.credit}</div>
+            </div>
+         </div>
+         
+         <div className={`border rounded-xl p-4 flex items-center justify-between transition-colors shadow-sm ${currentLoad > maxLoad ? 'bg-red-900/20 border-red-500' : 'bg-eden-800 border-eden-700'}`}>
+             <div className="flex items-center gap-3">
+               <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${currentLoad > maxLoad ? 'bg-red-900 text-red-200 border-red-500' : 'bg-eden-900 text-eden-100 border-eden-600'}`}><Scale size={20} /></div>
+               <div>
+                  <div className="text-[10px] uppercase font-bold text-eden-100/50">Carga</div>
+                  <div className={`text-lg font-black leading-none ${currentLoad > maxLoad ? 'text-red-400' : 'text-eden-100'}`}>{currentLoad} <span className="text-sm font-normal text-eden-100/40">/ {maxLoad}</span></div>
+               </div>
+            </div>
+            {currentLoad > maxLoad && (<div className="flex items-center gap-1 text-red-400 text-xs font-bold animate-pulse"><AlertTriangle size={14} /> Sobrepeso</div>)}
+         </div>
+      </div>
+
+      {}
+      <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 no-scrollbar">
+          {[1, 2, 3, 4].map(cat => {
+              const key = ['I', 'II', 'III', 'IV'][cat - 1] as keyof typeof rank.limit;
+              const limit = rank.limit[key] || 0;
+              const current = categoryCounts[cat] || 0;
+              const isFull = current > limit; 
+              return (
+                  <div key={cat} className={`flex-1 min-w-[80px] bg-eden-900/40 border rounded-lg p-2 text-center flex flex-col justify-center ${isFull ? 'border-red-500/50 bg-red-500/5' : 'border-eden-700'}`}>
+                      <span className="text-[9px] text-eden-100/40 font-bold uppercase">Cat {key}</span>
+                      <span className={`text-sm font-mono font-bold ${isFull ? 'text-red-400' : 'text-eden-100'}`}>{current} / {limit}</span>
+                  </div>
+              )
+          })}
+      </div>
+
+      {}
+      <div className="flex-1 bg-eden-800 border border-eden-700 rounded-2xl flex flex-col overflow-hidden min-h-[500px] shadow-sm">
+          <div className="p-4 border-b border-eden-700 flex flex-col md:flex-row gap-4 items-center justify-between bg-eden-900/30">
+              <h3 className="font-bold text-eden-100 flex items-center gap-2"><ShoppingBag size={18} className="text-energia" /> Inventário <span className="text-xs bg-eden-900 px-2 py-0.5 rounded-full text-eden-100/50">{fullInventory.length}</span></h3>
+              <div className="flex flex-wrap md:flex-nowrap gap-2 w-full md:w-auto">
+                 
+                 <select 
+                     value={filterType} 
+                     onChange={(e) => setFilterType(e.target.value)}
+                     className="bg-eden-950 border border-eden-700 rounded-lg px-3 py-1.5 text-sm text-eden-100 focus:border-energia outline-none cursor-pointer flex-1 md:flex-none"
+                 >
+                     <option value="all">Todos os Itens</option>
+                     {ITEM_TYPES.map(t => (
+                         <option key={t.id} value={t.id}>{t.label}s</option>
+                     ))}
+                 </select>
+
+                 <div className="relative flex-1 md:w-48">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
+                    <input type="text" placeholder="Buscar pelo nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-eden-100 focus:border-energia outline-none"/>
+                 </div>                 
+                 
+                 <button onClick={() => { setEditingItem(null); setIsCreating(true); }} className="bg-energia text-eden-900 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-yellow-400 flex items-center justify-center gap-1 shadow-lg hover:shadow-energia/20 transition-all shrink-0"><Plus size={14} /> <span className="hidden md:inline">Criar</span></button>
+              </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+              {filteredItems.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-eden-100/20 gap-4"><ShoppingBag size={48} strokeWidth={1} /><p className="text-sm">Inventário vazio.</p></div>
+              ) : (
+                  filteredItems.map(item => {
+                      const typeInfo = ITEM_TYPES.find(t => t.id === item.type) || ITEM_TYPES[5];
+                      const styleClass = getTypeStyle(item);
+                      const isEquipped = item.isEquipped;
+                      const qty = item.amount || 1;
+                      
+                      return (
+                          <div key={item.id} className={`group relative rounded-xl border p-3 flex flex-col md:flex-row gap-3 items-start md:items-center transition-all ${isEquipped ? `bg-eden-800 shadow-md ${styleClass}` : 'bg-eden-900/40 border-eden-700/30 opacity-60 grayscale-[0.8] hover:grayscale-0 hover:opacity-100'}`}>
+                              
+                              <button 
+                                onClick={() => {
+                                    if ((item as any).isInjected) {
+                                        updateCharacter(prev => deepUpdatePayload(prev, item.id, p => ({...p, isEquipped: !p.isEquipped})));
+                                    } else {
+                                        toggleItem(item.id);
+                                    }
+                                }} 
+                                className={`shrink-0 p-2 rounded-full transition-all ${isEquipped ? 'text-energia bg-energia/10' : 'text-eden-100/20 hover:text-eden-100 hover:bg-white/5'}`}
+                                title={isEquipped ? "Desequipar (Desativa Efeitos)" : "Equipar (Ativa Efeitos)"}
+                              >
+                                  {isEquipped ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                              </button>
+
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 bg-eden-900/50 ${isEquipped ? 'border-current opacity-80' : 'border-eden-700 text-eden-100/30'}`}>
+                                      <typeInfo.icon size={20} />
                                   </div>
-                                  <div>
-                                      <label className="text-xs uppercase font-bold text-eden-100/50 block mb-1">Tipo Dano</label>
-                                      <select 
-                                        value={customItem.damageType} 
-                                        onChange={e => setCustomItem({...customItem, damageType: e.target.value})} 
-                                        className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded p-2 outline-none focus:border-energia"
-                                        style={{colorScheme:'dark'}}
-                                      >
-                                          {DAMAGE_TYPES_INFO.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                      </select>
-                                  </div>
-                                  {customItem.type === 'weapon' && (
-                                      <div className="col-span-2">
-                                          <label className="text-xs uppercase font-bold text-eden-100/50 block mb-1">Subtipo de Arma</label>
-                                          <select 
-                                            value={customItem.weaponSubType} 
-                                            onChange={e => setCustomItem({...customItem, weaponSubType: e.target.value})} 
-                                            className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded p-2 outline-none focus:border-energia"
-                                            style={{colorScheme:'dark'}}
-                                          >
-                                              <option value="melee">Corpo a Corpo</option>
-                                              <option value="ranged">Disparo</option>
-                                              <option value="firearm">Arma de Fogo</option>
-                                          </select>
+                                  <div className="min-w-0">
+                                      <h4 className={`font-bold text-sm truncate flex items-center gap-2 ${isEquipped ? 'text-eden-100' : 'text-eden-100/70'}`}>
+                                        {item.name} 
+                                        {qty > 1 && item.type !== 'ammo' && <span className="text-xs bg-black/20 px-1.5 rounded">x{qty}</span>}
+                                        {item.type === 'cursed' && (item as any).element && <span className="text-[9px] px-1.5 py-0.5 rounded border border-purple-500 text-purple-200 bg-purple-500/20 uppercase font-black">{(item as any).element}</span>}
+                                        {item.type === 'ammo' && (
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded border border-yellow-500 text-yellow-200 bg-yellow-500/20 uppercase font-black">
+                                                {(!item.ammoDurationType || item.ammoDurationType === 'scenes') ? `${item.durationScenes || 0} Cenas` :
+                                                item.ammoDurationType === 'infinite' ? 'Infinita' : `${item.amount || 0} Un`}
+                                            </span>
+                                        )}
+                                    </h4>
+                                      <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wide font-bold opacity-60 mt-0.5">
+                                          <span>{typeInfo.label}</span>
+                                          <span>•</span>
+                                          <span>Cat {['0', 'I', 'II', 'III', 'IV'][Math.min(item.category, 4)]}</span>
+                                          <span>•</span>
+                                          <span>{item.weight || 1} Esp</span>
                                       </div>
+                                  </div>
+                              </div>
+
+                              <div className="flex gap-1 ml-auto border-t md:border-none border-white/10 pt-2 md:pt-0 w-full md:w-auto justify-end items-center">
+                                  <button onClick={() => { setEditingItem(item); setIsCreating(true); }} className="p-2 text-eden-100/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors" title="Editar"><Settings size={16}/></button>
+                                  {!(item as any).isInjected ? (
+                                      <>
+                                          <button onClick={() => handleDuplicate(item)} className="p-2 text-eden-100/40 hover:text-energia hover:bg-energia/10 rounded-lg transition-colors" title="Duplicar"><Package size={16}/></button>
+                                          <button onClick={() => handleDelete(item.id)} className="p-2 text-eden-100/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Excluir"><Trash2 size={16}/></button>
+                                      </>
+                                  ) : (
+                                      <span className="text-[9px] font-black uppercase text-purple-400 bg-purple-900/20 px-2 py-1 rounded border border-purple-500/30 ml-2">
+                                          Item Injetado
+                                      </span>
                                   )}
                               </div>
-                          )}
+                          </div>
+                      )
+                  })
+              )}
+          </div>
+      </div>
 
-                          <div>
-                              <label className="text-xs uppercase font-bold text-eden-100/50 block mb-1">Descrição</label>
-                              <textarea 
-                                value={customItem.description} 
-                                onChange={e => setCustomItem({...customItem, description: e.target.value})} 
-                                className="w-full bg-eden-900 text-eden-100 border border-eden-700 rounded p-2 h-24 outline-none focus:border-energia resize-none" 
-                                style={{ colorScheme: 'dark' }}
-                              />
-                          </div>
-                          <button onClick={addCustomItem} className="w-full py-3 bg-energia text-eden-900 font-bold rounded hover:bg-yellow-400 transition-colors">Criar Item</button>
-                      </div>
-                  )}
-              </div>
-          </div>
-      )}
-
-      {activeItem && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
-              <div className="bg-eden-900 border border-eden-600 rounded-2xl w-full max-w-3xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95">
-                  <div className="p-4 border-b border-eden-700 flex justify-between items-center bg-eden-800">
-                      <div>
-                          <h3 className="font-bold text-eden-100 text-lg">{activeItem.name}</h3>
-                          <span className="text-xs text-energia font-mono">Categoria Atual: {['0','I','II','III','IV','V','VI'][getItemCategory(activeItem)] || 'VI+'}</span>
-                      </div>
-                      <button onClick={() => setEditingItemId(null)}><X size={24}/></button>
-                  </div>
-                  <div className="p-6 overflow-y-auto custom-scrollbar grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <section>
-                          <h4 className="text-conhecimento font-bold text-xs mb-2 uppercase border-b border-conhecimento/30 pb-1 flex items-center gap-2"><Settings size={14}/> Modificações</h4>
-                          <div className="space-y-2">
-                              {MODIFICATIONS.filter(m => m.targetType === 'any' || m.targetType === activeItem.type || (m.targetType === 'ammo' && activeItem.type === 'ammo')).map(mod => {
-                                  if (mod.allowedTypes && activeItem.subType && !mod.allowedTypes.includes(activeItem.subType)) return null;
-                                  const isInstalled = activeItem.modifications.some(m => m.id === mod.id);
-                                  return (
-                                  <button key={mod.id} onClick={() => toggleModification(mod)} className={`w-full text-left p-2 rounded border flex justify-between items-center transition-colors ${isInstalled ? 'bg-conhecimento/20 border-conhecimento text-eden-100' : 'bg-eden-950 border-eden-700 text-eden-100/50 hover:border-eden-500'}`}>
-                                      <div><div className="font-bold text-xs">{mod.name}</div><div className="text-[9px] opacity-70">{mod.description}</div></div>
-                                      {isInstalled && <CheckCircle2 size={14} className="text-conhecimento shrink-0" />}
-                                  </button>
-                              )})}
-                          </div>
-                      </section>
-                      <section>
-                          <h4 className="text-sangue font-bold text-xs mb-2 uppercase border-b border-sangue/30 pb-1 flex items-center gap-2"><Ghost size={14}/> Maldições</h4>
-                          <div className="space-y-2">
-                              {CURSES.filter(c => c.targetType === 'any' || c.targetType === activeItem.type).map(curse => {
-                                  const isInstalled = activeItem.curses.some(c => c.id === curse.id);
-                                  const style = getElementStyle(curse.element);
-                                  return (
-                                  <button key={curse.id} onClick={() => toggleCurse(curse)} className={`w-full text-left p-2 rounded border flex justify-between items-center transition-colors ${isInstalled ? `${style.bg} ${style.border} text-eden-100` : 'bg-eden-950 border-eden-700 text-eden-100/50 hover:border-eden-500'}`}>
-                                      <div><div className={`font-bold text-xs flex items-center gap-1`}><span className={isInstalled ? style.color : ''}>{curse.name}</span></div><div className="text-[9px] opacity-70">{curse.description}</div></div>
-                                      {isInstalled && <CheckCircle2 size={14} className={style.color + ' shrink-0'} />}
-                                  </button>
-                              )})}
-                          </div>
-                      </section>
-                  </div>
-              </div>
-          </div>
-      )}
-      
-      {viewingItem && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
-               <div className="bg-eden-900 border border-eden-600 rounded-2xl w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95">
-                   <button onClick={() => setViewingItemId(null)} className="absolute top-4 right-4 hover:text-white text-eden-100/50"><X/></button>
-                   <h3 className="text-2xl font-black mb-2 text-eden-100">{viewingItem.name}</h3>
-                   <div className="flex gap-2 mb-4 text-xs font-mono text-eden-100/50 uppercase border-b border-eden-700 pb-2">
-                       <span>{viewingItem.type}</span><span>•</span><span>Cat {viewingItem.category}</span><span>•</span><span>{viewingItem.space} Esp</span>
-                   </div>
-                   <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 text-sm text-eden-100/80 mb-4 italic">"{viewingItem.details || "Sem descrição."}"</div>
-                   {(viewingItem.modifications.length > 0 || viewingItem.curses.length > 0) && (
-                       <div className="space-y-3">
-                           {viewingItem.modifications.map(m => <div key={m.id} className="text-xs bg-conhecimento/10 border border-conhecimento/30 p-2 rounded text-conhecimento"><strong className="block mb-0.5"><Zap size={10} className="inline"/> {m.name}</strong> {m.description}</div>)}
-                           {viewingItem.curses.map(c => {
-                               const style = getElementStyle(c.element);
-                               return <div key={c.id} className={`text-xs ${style.bg} ${style.border} border p-2 rounded ${style.color}`}><strong className="block mb-0.5"><Ghost size={10} className="inline"/> {c.name}</strong> {c.description}</div>
-                           })}
-                       </div>
-                   )}
-               </div>
-          </div>
+      {}
+      {(isCreating || editingItem) && (
+        <ItemForm initialData={editingItem || undefined} onSave={handleSaveItem} onCancel={() => { setIsCreating(false); setEditingItem(null); }} />
       )}
     </div>
   );

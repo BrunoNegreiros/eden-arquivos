@@ -1,11 +1,10 @@
-import { User, Scroll, Users, VenetianMask, Dices, Minus, Plus } from 'lucide-react';
+import { User, Users, VenetianMask, Dices, Minus, Plus } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import { NATIONALITIES, ORIGINS_LIST, PERSONALITIES, MANIAS, FEARS, SECRETS, APPEARANCES, PARANORMAL_EVENTS, POSITIVE_TRAITS } from '../../data/generators';
 
 export default function Step1Concept() {
   const { character, updateCharacter } = useCharacter();
 
-  
   const updatePersonal = (field: string, value: string | number) => {
     updateCharacter((prev) => ({
       ...prev,
@@ -15,8 +14,6 @@ export default function Step1Concept() {
       }
     }));
   };
-
-  
 
   const generateRandomName = () => {
       const keys = Object.keys(NATIONALITIES) as Array<keyof typeof NATIONALITIES>;
@@ -30,12 +27,10 @@ export default function Step1Concept() {
   };
 
   const generateRandomConcept = () => {
-      
       const originObj = ORIGINS_LIST[Math.floor(Math.random() * ORIGINS_LIST.length)];
       const origin = originObj.text;
       const category = originObj.cat;
 
-      
       const personality = PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
       const mania = MANIAS[Math.floor(Math.random() * MANIAS.length)];
       const fear = FEARS[Math.floor(Math.random() * FEARS.length)];
@@ -43,38 +38,27 @@ export default function Step1Concept() {
       const appearance = APPEARANCES[Math.floor(Math.random() * APPEARANCES.length)];
       const positive = POSITIVE_TRAITS[Math.floor(Math.random() * POSITIVE_TRAITS.length)];
 
-      
       const eventsList = PARANORMAL_EVENTS[category] || PARANORMAL_EVENTS["Investigação, mídia e comunicação"]; 
       const paranormal = eventsList[Math.floor(Math.random() * eventsList.length)];
 
-      
       const concept = `${origin}, ${personality}, além disso, sempre ${mania}. Seu maior medo é ${fear}. Seu maior segredo é que ${secret}. ${appearance}. Conheceu o paranormal quando ${paranormal}. Sua maior força está no fato de que ${positive}.`;
 
       updatePersonal('archetype', concept);
   };
 
-  
   const handleAgeChange = (input: string | number) => {
       let finalValue = 0;
-
       if (typeof input === 'number') {
           finalValue = input;
       } else {
-          
           const onlyNumbers = input.replace(/[^0-9]/g, '');
           finalValue = onlyNumbers === '' ? 0 : parseInt(onlyNumbers);
       }
-
-      
       if (finalValue < 0) finalValue = 0;
-      
-      
       if (finalValue > 999) finalValue = 999;
-
       updatePersonal('age', finalValue);
   };
 
-  
   const { personal } = character;
 
   return (
@@ -87,7 +71,6 @@ export default function Step1Concept() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {}
         <div className="space-y-1.5">
           <label className="flex items-center justify-between text-sm font-medium text-eden-100/70 uppercase tracking-wider">
             <span className="flex items-center gap-2"><User className="w-4 h-4 text-energia" /> Nome do Personagem <span className="text-red-500">*</span></span>
@@ -101,7 +84,7 @@ export default function Step1Concept() {
           </label>
           <input
             type="text"
-            value={personal.name}
+            value={personal.name || ''}
             onChange={(e) => updatePersonal('name', e.target.value)}
             className="w-full bg-eden-900 border border-eden-700 rounded-lg p-3 text-base text-eden-100 focus:border-energia focus:ring-1 focus:ring-energia outline-none transition-all placeholder:text-eden-700"
             placeholder="Ex: Arthur Cervero"
@@ -109,21 +92,19 @@ export default function Step1Concept() {
           />
         </div>
 
-        {}
         <div className="space-y-1.5">
           <label className="flex items-center gap-2 text-sm font-medium text-eden-100/70 uppercase tracking-wider">
             <Users className="w-4 h-4 text-conhecimento" /> Jogador <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
-            value={personal.player}
+            value={personal.player || ''}
             onChange={(e) => updatePersonal('player', e.target.value)}
             className="w-full bg-eden-900 border border-eden-700 rounded-lg p-3 text-base text-eden-100 focus:border-conhecimento focus:ring-1 focus:ring-conhecimento outline-none transition-all placeholder:text-eden-700"
             placeholder="Seu nome real"
           />
         </div>
 
-        {}
         <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
                 <label className="text-sm font-medium text-eden-100/70 uppercase tracking-wider">Idade</label>
@@ -164,22 +145,7 @@ export default function Step1Concept() {
                 />
             </div>
         </div>
-       
-        {}
-         <div className="space-y-1.5">
-          <label className="flex items-center gap-2 text-sm font-medium text-eden-100/70 uppercase tracking-wider">
-            <Scroll className="w-4 h-4 text-morte" /> Campanha <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={personal.campaign || ''}
-            onChange={(e) => updatePersonal('campaign', e.target.value)}
-            className="w-full bg-eden-900 border border-eden-700 rounded-lg p-3 text-base text-eden-100 focus:border-morte focus:ring-1 focus:ring-morte outline-none transition-all placeholder:text-eden-700"
-            placeholder="Nome da missão"
-          />
-        </div>
 
-        {}
         <div className="space-y-1.5 md:col-span-2">
           <label className="flex items-center justify-between text-sm font-medium text-eden-100/70 uppercase tracking-wider">
             <span className="flex items-center gap-2"><VenetianMask className="w-4 h-4 text-sangue" /> Conceito / Arquétipo</span>

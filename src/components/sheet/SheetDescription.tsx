@@ -1,17 +1,14 @@
 import { useState, useEffect } from 'react';
-import { User, Save, Sparkles, Scroll, VenetianMask, Book, Image as ImageIcon } from 'lucide-react';
+import { User, Save, Sparkles, Scroll, Book, Image as ImageIcon } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 
 export default function SheetDescription() {
   const { character, updateCharacter } = useCharacter();
   
-  
   const info = character.personal;
-  
   const [editValues, setEditValues] = useState(info);
   const [hasChanges, setHasChanges] = useState(false);
 
-  
   useEffect(() => {
     setEditValues(character.personal);
   }, [character.personal]);
@@ -25,7 +22,6 @@ export default function SheetDescription() {
   };
 
   const saveChanges = () => {
-    
     updateCharacter(prev => ({
         ...prev,
         personal: editValues
@@ -40,7 +36,6 @@ export default function SheetDescription() {
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4">
       
-      {}
       <div className="flex justify-between items-center bg-eden-800 border border-eden-700 p-3 md:p-4 rounded-xl sticky top-0 z-10 shadow-md backdrop-blur-sm bg-eden-800/90">
           <h3 className="font-bold text-eden-100 flex items-center gap-2 text-base md:text-lg">
               <Book className="text-energia w-5 h-5 md:w-6 md:h-6"/> Dados Pessoais
@@ -54,11 +49,8 @@ export default function SheetDescription() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           
-          {}
           <div className="space-y-4 md:space-y-6">
               <div className="bg-eden-800 border border-eden-700 p-4 md:p-6 rounded-xl space-y-4 md:space-y-5">
-                  
-                  {}
                   <div className="flex flex-col items-center gap-3 pb-2 border-b border-eden-700/50">
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-eden-600 bg-eden-900 flex items-center justify-center shrink-0 shadow-inner">
                           {editValues.portraitUrl ? (
@@ -77,16 +69,6 @@ export default function SheetDescription() {
                             placeholder="https://site.com/imagem.png"
                           />
                       </div>
-                  </div>
-
-                  <div>
-                      <label className={LABEL_CLASS}><VenetianMask size={12}/> Campanha</label>
-                      <input 
-                        value={editValues.campaign || ''} 
-                        onChange={e => handleChange('campaign', e.target.value)} 
-                        className={INPUT_CLASS} 
-                        style={{ colorScheme: 'dark' }}
-                      />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -113,7 +95,6 @@ export default function SheetDescription() {
               </div>
           </div>
           
-          {}
           <div className="lg:col-span-2 space-y-4 md:space-y-6">
               <div className="bg-eden-800 border border-eden-700 p-4 md:p-6 rounded-xl h-full flex flex-col gap-4 md:gap-6">
                   

@@ -8,8 +8,6 @@ import {
 import type { UserWeapon, UserExplosive, UserAmmo } from '../../types/systemData';
 
 
-
-
 const UNARMED_ATTACK: any = {
     id: 'unarmed_virtual',
     type: 'weapon',
@@ -27,9 +25,6 @@ const UNARMED_ATTACK: any = {
     ammunition: undefined,
     attacks: []
 };
-
-
-
 
 const COMPLEXITY_MAP: Record<string, string> = { simple: 'Simples', tactical: 'Tática', heavy: 'Pesada' };
 const HANDS_MAP: Record<string, string> = { light: 'Leve', one: 'Uma Mão', two: 'Duas Mãos' };
@@ -50,9 +45,13 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
   const injectedItems = (vars.INJECTED_ITEMS || []).map((i: any) => ({ ...i, isInjected: true, isEquipped: true }));
   const fullInventory = [...(character.inventory || []), ...injectedItems];
 
-  const inventoryWeapons = fullInventory.filter(i => i.type === 'weapon') as UserWeapon[];
-  const inventoryExplosives = fullInventory.filter(i => i.type === 'explosive') as UserExplosive[];
-  const inventoryAmmo = fullInventory.filter(i => i.type === 'ammo') as UserAmmo[];
+  // AQUI ESTÁ A CORREÇÃO: Agora só pega se 'isEquipped' for true!
+  const inventoryWeapons = fullInventory.filter((i: any) => i.type === 'weapon' && i.isEquipped) as UserWeapon[];
+  const inventoryExplosives = fullInventory.filter((i: any) => i.type === 'explosive' && i.isEquipped) as UserExplosive[];
+  
+  // Munição não precisa estar "equipada" para aparecer na lista de seleção da arma
+  const inventoryAmmo = fullInventory.filter((i: any) => i.type === 'ammo') as UserAmmo[];
+  
   const allAttacks = [UNARMED_ATTACK, ...inventoryWeapons, ...inventoryExplosives];
 
   
@@ -103,8 +102,6 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
       if(!confirm("Usar explosivo? Quantidade -1.")) return;
       updateCharacter(prev => ({ ...prev, inventory: prev.inventory.map(i => i.id === explosiveId ? { ...i, amount: Math.max(0, (i.amount || 0) - 1) } : i).filter((i: any) => i.amount > 0) }));
   };
-
-  
 
   const renderAttackCard = (item: any) => {
       const isExplosive = item.type === 'explosive';
@@ -184,7 +181,6 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
 
                   {hasDamage ? (
                       <div className="space-y-3">
-                          {}
                           {item.type === 'weapon' && item.attackTest && (
                               <div className="flex justify-between items-center p-3.5 rounded-xl bg-energia/10 border border-energia/20">
                                   <span className="text-xs uppercase font-bold text-energia/70">Teste de Ataque:</span>
@@ -222,7 +218,6 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                               </div>
                           )}
 
-                          {}
                           {damageList.length > 0 && (
                              <div className="bg-black/30 border border-eden-700/50 rounded-xl overflow-hidden flex flex-col gap-[1px] bg-eden-700/50 mt-2">
                                  {(() => {
@@ -286,7 +281,6 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                                          }
 
                                          let totalFixed = itemBonusFixed;
-                                         
                                          
                                          if (wSubtype === 'melee' && i === 0) {
                                              totalFixed += (vars?.ATTRS?.FOR || 0);

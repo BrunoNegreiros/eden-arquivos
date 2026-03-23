@@ -77,8 +77,8 @@ export const solveFormulaNumber = (formula: Formula, context: CalculatedVariable
             case 'defense': val = context.DEF; break;
             case 'dr_value': val = context.RD[term.damageType || 'balistico'] || 0; break;
             case 'load_max': val = context.CARGA.max; break;
-            case 'count_rituals': val = char.rituals.filter(r => !(term.element || 'Sangue') || r.element === term.element).length + context.INJECTED_RITUALS.filter(r => !(term.element || 'Sangue') || r.element === term.element).length; break;
-            case 'count_paranormal_powers': val = ((char as any).abilities || []).filter((p: any) => p.source === 'Paranormal' && (!(term.element || 'Sangue') || p.element === term.element)).length + char.rituals.filter(r => !(term.element || 'Sangue') || r.element === term.element).length; break;
+            case 'count_rituals': val = char.rituals.filter(r => !term.element || r.element === term.element).length + context.INJECTED_RITUALS.filter(r => !term.element || r.element === term.element).length; break;
+            case 'count_paranormal_powers': val = ((char as any).abilities || []).filter((p: any) => p.source === 'Paranormal' && (!term.element || p.element === term.element)).length + char.rituals.filter(r => !term.element || r.element === term.element).length; break;
             case 'count_abilities': val = ((char as any).abilities?.length || 0) + (char.rituals?.length || 0) + (char.classPowers?.length || 0); break;
             case 'count_class_powers': val = ((char as any).abilities || []).filter((a:any) => a.source === 'Classe').length + (char.classPowers?.length || 0); break;
             case 'count_origin_powers': val = ((char as any).abilities || []).filter((a:any) => a.source === 'Origem').length; break;
@@ -100,12 +100,9 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
         PROFICIENCIAS: [], INJECTED_RITUALS: [], INJECTED_ABILITIES: [], INJECTED_ITEMS: [], OVERRIDDEN_RITUALS: {}, OVERRIDDEN_ABILITIES: {}
     };
 
-    
-    
-    
     const allPossibleSources = [
         ...char.inventory.filter(i => (i as any).isEquipped),
-        char.customOrigin ? { effects: (char.customOrigin as any).power?.effects || char.customOrigin.effects || [] } : null,
+        (char.customOrigin && (char.customOrigin as any).power?.isActive !== false) ? { effects: (char.customOrigin as any).power?.effects || char.customOrigin.effects || [] } : null,
         ...(char.conditions || []).filter(c => c.isActive),
         ...(char.classPowers || []).filter(p => p.isActive),
         ...((char as any).abilities || []).filter((p:any) => p.isActive)
@@ -130,14 +127,11 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
         }
     });
 
-    
-    
-    
     const activeEffects: Effect[] = [];
 
     const structuralSources = [
         ...char.inventory.filter(i => (i as any).isEquipped),
-        char.customOrigin ? { effects: (char.customOrigin as any).power?.effects || char.customOrigin.effects || [] } : null,
+        (char.customOrigin && (char.customOrigin as any).power?.isActive !== false) ? { effects: (char.customOrigin as any).power?.effects || char.customOrigin.effects || [] } : null,
         ...(char.conditions || []).filter(c => c.isActive)
     ].filter(Boolean);
     structuralSources.forEach((s: any) => { if (s.effects) activeEffects.push(...s.effects.filter((e:any)=>e.isActive!==false)); });
@@ -176,9 +170,6 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
     });
     ctx.INJECTED_RITUALS.forEach(r => processRitualEffects(r));
 
-    
-    
-    
     const currentActiveIds = new Set(activeEffects.map(e => e.id));
     Object.keys(diceRollCache).forEach(key => { if (!currentActiveIds.has(key.split('_')[0])) delete diceRollCache[key]; });
 
@@ -277,7 +268,6 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
         }
     });
 
-    
     fullInventory.filter(i => i.type === 'weapon' && (i as any).isEquipped).forEach(w => {
         const c = (w as any).complexity || 'simple';
         if (

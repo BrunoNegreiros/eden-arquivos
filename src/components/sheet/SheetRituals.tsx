@@ -138,7 +138,7 @@ interface CastingModalProps { ritual: UserRitual; version: 'normal' | 'discente'
 function CastingModal({ ritual, version, cost, occultismBonus, occultismDice, onConfirm, onCancel }: CastingModalProps) {
     const [rollResult, setRollResult] = useState('');
     const [condition, setCondition] = useState<'normal' | 'hard' | 'extreme'>('normal');
-    const baseDT = 20 + cost; const finalDT = baseDT + (condition === 'hard' ? 5 : condition === 'extreme' ? 10 : 0);
+    const baseDT = 20 + Number(cost); const finalDT = baseDT + (condition === 'hard' ? 5 : condition === 'extreme' ? 10 : 0);
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
@@ -179,7 +179,6 @@ export default function SheetRituals() {
       return { dice: int, bonus };
   };
 
-  
   const baseRituals = (character.rituals || []).map(r => {
       const over = vars.OVERRIDDEN_RITUALS[r.id];
       if (over) {
@@ -215,14 +214,34 @@ export default function SheetRituals() {
 
   const initiateCast = (ritual: UserRitual, versionKey: 'normal' | 'discente' | 'verdadeiro') => {
       const version = ritual[versionKey]; if (!version) return;
+      
+      const pCost = Number(version.cost) || 0;
+
       if (ritual.element === 'Medo') {
-          if (!confirm(`Ritual de Medo! Você perderá ${version.cost} PE e sanidade permanente. Deseja continuar?`)) return;
+          if (!confirm(`Ritual de Medo! Você perderá ${pCost} PE e sanidade permanente. Deseja continuar?`)) return;
           let sanLoss = versionKey === 'discente' ? 2 : versionKey === 'verdadeiro' ? 3 : 1;
 
           updateCharacter(prev => {
               const newStatus = JSON.parse(JSON.stringify(prev.status));
-              const pe = newStatus.pe; const san = newStatus.san;
-              pe.current = Math.max(0, pe.current - version.cost);
+              const pe = newStatus.pe; 
+              const san = newStatus.san;
+              
+              // CORREÇÃO: Puxa o Temp Total (Fixo + Motor)
+              const motorTemp = vars.PE.temp || 0;
+              const currentTemp = (Number(pe.temp) || 0) + motorTemp;
+              const currentPE = Number(pe.current) || 0;
+
+              if (currentTemp > 0) {
+                  if (pCost >= currentTemp) {
+                      pe.current = Math.max(0, currentPE - (pCost - currentTemp));
+                      pe.temp = (Number(pe.temp) || 0) - currentTemp; // Esgota o temp fixo
+                  } else {
+                      pe.temp = (Number(pe.temp) || 0) - pCost;
+                  }
+              } else {
+                  pe.current = Math.max(0, currentPE - pCost);
+              }
+
               san.max = Math.max(0, (typeof san.max === 'number' ? san.max : 99) - sanLoss);
               if (san.current > san.max) san.current = san.max;
 
@@ -234,22 +253,41 @@ export default function SheetRituals() {
           });
           return;
       }
-      setCastingState({ ritual, version: versionKey, cost: version.cost });
+      setCastingState({ ritual, version: versionKey, cost: pCost });
   };
 
   const finalizeCast = (roll: number, condition: 'normal' | 'hard' | 'extreme') => {
       if (!castingState) return;
       const { ritual, version, cost } = castingState;
-      const finalDT = 20 + cost + (condition === 'hard' ? 5 : condition === 'extreme' ? 10 : 0);
+      const pCost = Number(cost) || 0;
+      
+      const finalDT = 20 + pCost + (condition === 'hard' ? 5 : condition === 'extreme' ? 10 : 0);
       const isSuccess = roll >= finalDT;
       const shouldActivate = isSuccess || (!isSuccess && condition === 'normal');
 
       updateCharacter(prev => {
           const newStatus = JSON.parse(JSON.stringify(prev.status));
-          const pe = newStatus.pe; const san = newStatus.san;
-          if (pe.temp > 0) { if (cost >= pe.temp) { pe.current = Math.max(0, pe.current - (cost - pe.temp)); pe.temp = 0; } else { pe.temp -= cost; } } else { pe.current = Math.max(0, pe.current - cost); }
+          const pe = newStatus.pe; 
+          const san = newStatus.san;
+          
+          // CORREÇÃO: Matemática real de fluxo de escudo temporário
+          const motorTemp = vars.PE.temp || 0;
+          const currentTemp = (Number(pe.temp) || 0) + motorTemp;
+          const currentPE = Number(pe.current) || 0;
+
+          if (currentTemp > 0) {
+              if (pCost >= currentTemp) {
+                  pe.current = Math.max(0, currentPE - (pCost - currentTemp));
+                  pe.temp = (Number(pe.temp) || 0) - currentTemp; 
+              } else {
+                  pe.temp = (Number(pe.temp) || 0) - pCost;
+              }
+          } else {
+              pe.current = Math.max(0, currentPE - pCost);
+          }
+
           if (!isSuccess) {
-              san.current = Math.max(0, san.current - cost);
+              san.current = Math.max(0, Number(san.current) - pCost);
               if (finalDT - roll >= 5) { san.max = Math.max(0, (typeof san.max === 'number' ? san.max : 99) - 1); if (san.current > san.max) san.current = san.max; }
           }
           if (shouldActivate) {
@@ -261,7 +299,7 @@ export default function SheetRituals() {
           }
           return { ...prev, status: newStatus };
       });
-      if (!isSuccess) alert(shouldActivate ? `FALHA NO TESTE!\nO ritual funcionou, mas custou ${cost} de Sanidade.` : `FALHA TOTAL!\nGastou ${cost} PE e Sanidade. O ritual NÃO foi conjurado.`);
+      if (!isSuccess) alert(shouldActivate ? `FALHA NO TESTE!\nO ritual funcionou, mas custou ${pCost} de Sanidade.` : `FALHA TOTAL!\nGastou ${pCost} PE e Sanidade. O ritual NÃO foi conjurado.`);
       setCastingState(null);
   };
 
@@ -274,7 +312,6 @@ export default function SheetRituals() {
   };
 
   const toggleActiveEffect = (ritualId: string, versionKey: 'normal'|'discente'|'verdadeiro', effectId: string, isVirtual?: boolean) => {
-      
       if (isVirtual) {
           updateCharacter(prev => deepUpdatePayload(prev, ritualId, (p) => { const v = p[versionKey]; return { ...p, [versionKey]: { ...v, effects: v.effects.map((e:any) => e.id === effectId ? { ...e, isActive: e.isActive === false ? true : false } : e) } }; }));
           return;
@@ -292,7 +329,25 @@ export default function SheetRituals() {
       updateCharacter(prev => ({ ...prev, rituals: prev.rituals.map(r => r.id === ritualId ? { ...r, [versionKey]: { ...r[versionKey], isSustaining: !(r[versionKey] as any).isSustaining } } : r) }));
   };
 
-  const paySustainCost = () => { updateCharacter(prev => { const newStatus = JSON.parse(JSON.stringify(prev.status)); newStatus.pe.current = Math.max(0, newStatus.pe.current - 1); return { ...prev, status: newStatus }; }); };
+  const paySustainCost = () => { 
+      updateCharacter(prev => { 
+          const newStatus = JSON.parse(JSON.stringify(prev.status)); 
+          const pe = newStatus.pe;
+          
+          // CORREÇÃO: Gastar no sustain
+          const motorTemp = vars.PE.temp || 0;
+          const currentTemp = (Number(pe.temp) || 0) + motorTemp;
+          const currentPE = Number(pe.current) || 0;
+
+          if (currentTemp > 0) {
+              pe.temp = (Number(pe.temp) || 0) - 1;
+          } else {
+              pe.current = Math.max(0, currentPE - 1); 
+          }
+
+          return { ...prev, status: newStatus }; 
+      }); 
+  };
 
   const handleSaveRitual = (ritual: UserRitual) => {
       if ((ritual as any).isInjected) {

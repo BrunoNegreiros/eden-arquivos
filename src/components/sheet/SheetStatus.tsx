@@ -58,7 +58,6 @@ export default function SheetStatus() {
         else {
             let remainingDamage = finalValue;
             
-            
             const totalTemp = (currentPool.temp || 0) + motorTemp;
             if (totalTemp > 0) {
                 if (remainingDamage >= totalTemp) {
@@ -112,7 +111,8 @@ export default function SheetStatus() {
         <div className="mb-4 bg-eden-900/50 p-3 rounded-xl border border-eden-700/50 group relative">
           <div className="flex justify-between items-center mb-2">
               <div className="absolute -top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-eden-900 border border-eden-700 rounded-full px-2 py-0.5 z-10">
-                <button onClick={() => updateCharacter(prev => ({ ...prev, status: { ...prev.status, [type]: { ...prev.status[type as 'pv'|'pe'|'san'], current: displayMax, temp: 0 } } }))} className="text-green-400 p-1"><RefreshCw size={12}/></button>
+                {/* CORREÇÃO: O botão de reset agora afeta APENAS a vida "current", ignorando os temp gastos! */}
+                <button onClick={() => updateCharacter(prev => ({ ...prev, status: { ...prev.status, [type]: { ...prev.status[type as 'pv'|'pe'|'san'], current: displayMax } } }))} className="text-green-400 p-1"><RefreshCw size={12}/></button>
                 <button onClick={() => updateCharacter(prev => ({ ...prev, status: { ...prev.status, [type]: { ...prev.status[type as 'pv'|'pe'|'san'], current: 0 } } }))} className="text-red-400 p-1"><Skull size={12}/></button>
               </div>
               <span className={`font-bold flex items-center gap-2 ${color}`}><Icon size={16} /> {label}</span>
@@ -153,14 +153,12 @@ export default function SheetStatus() {
 
   return (
     <div className="flex flex-col gap-6">
-      {}
       <div className="bg-eden-800 border border-eden-700 p-5 rounded-xl shadow-sm">
         <StatRow label="PV" type="pv" icon={Heart} color="text-red-500" bg="bg-red-600" />
         <StatRow label="PE" type="pe" icon={Zap} color="text-yellow-400" bg="bg-yellow-500" />
         <StatRow label="SAN" type="san" icon={Brain} color="text-blue-400" bg="bg-blue-600" />
       </div>
 
-      {}
       <div className="bg-eden-800 border border-eden-700 p-4 rounded-xl shadow-sm">
         <h4 className="text-[10px] font-bold text-eden-100/30 uppercase mb-4 tracking-widest text-center">Calculadora de Fluxo</h4>
         <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-3 text-sm font-medium">
@@ -195,7 +193,6 @@ export default function SheetStatus() {
         </div>
       </div>
       
-      {}
       <div className="bg-eden-800 border border-eden-700 p-4 md:p-5 rounded-xl space-y-4 shadow-sm">
               <div className="flex justify-between items-center pb-4 border-b border-eden-700">
                  <div className="flex items-center gap-3"><div className="p-2 bg-eden-950 rounded-lg border border-eden-600 text-eden-100"><Shield size={20}/></div><div><div className="text-xl md:text-3xl font-black text-white leading-none">{vars.DEF}</div><div className="text-[8px] md:text-[10px] font-bold text-eden-100/40 uppercase mt-1">Defesa</div></div></div>
@@ -221,7 +218,6 @@ export default function SheetStatus() {
                      {(!vars.IMUNIDADES?.length && !vars.VULNERABILIDADES?.length && Object.keys(vars.RD || {}).length === 0 && character.resistances.length === 0) && (<span className="text-[10px] text-eden-100/30 italic">Nenhuma resistência ativa.</span>)}
                  </div>
               </div>
-              {}
               {(vars.IMUNIDADES || []).some(im => CONDITIONS_LIST.some(c => c.name.toLowerCase() === im)) && (
                  <div className="text-[9px] text-green-400/70 italic border-t border-eden-700/50 pt-2">
                      * Suas imunidades a condições atuarão como lembretes visuais durante o combate.

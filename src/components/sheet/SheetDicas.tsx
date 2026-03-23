@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useCharacter } from '../../context/CharacterContext';
-import { Lightbulb, Shield, User as UserIcon, Plus, Trash2, ShieldAlert, Sparkles, Footprints, Target, X, Lock } from 'lucide-react';
+import { Lightbulb, Shield, Plus, Trash2, ShieldAlert, Sparkles, Footprints, Target, X } from 'lucide-react';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 
 export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
     const { character, updateCharacter } = useCharacter();
-    const [mode, setMode] = useState<'select' | 'jogador' | 'mestre'>('select');
 
-    
+    // Inicializa a estrutura de Dicas se não existir na ficha
     useEffect(() => {
         if (!(character as any).dicas) {
             updateCharacter(prev => ({
@@ -25,6 +24,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                 }
             }));
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const dicas = (character as any).dicas || { equipments: [], powers: [], combatStyles: [], nextSteps: [] };
@@ -36,42 +36,8 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
         }));
     };
 
-    const handleSelectMode = (selected: 'jogador' | 'mestre') => {
-        if (selected === 'mestre' && !isMestre) {
-            alert("Acesso Negado: Apenas o Mestre conectado nesta mesa tem permissão para editar as dicas táticas desta ficha.");
-            return;
-        }
-        setMode(selected);
-    };
-
-    
-    if (mode === 'select') {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 animate-in zoom-in-95">
-                <Lightbulb size={64} className="text-energia mb-6 animate-pulse" />
-                <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-widest">Dicas Táticas</h2>
-                <p className="text-eden-100/50 mb-10 max-w-md text-center">Uma área dedicada para anotações e estratégias recomendadas pelo mestre da campanha.</p>
-                
-                <h3 className="text-sm font-bold text-eden-100 uppercase tracking-widest mb-4">Quem está acessando?</h3>
-                <div className="flex gap-4 w-full max-w-md">
-                    <button onClick={() => handleSelectMode('jogador')} className="flex-1 flex flex-col items-center gap-3 bg-eden-800 border border-eden-600 hover:border-cyan-400 p-6 rounded-2xl transition-all hover:-translate-y-1 shadow-lg group">
-                        <UserIcon size={32} className="text-eden-100/50 group-hover:text-cyan-400" />
-                        <span className="font-black text-white uppercase tracking-widest group-hover:text-cyan-400">JOGADOR</span>
-                        <span className="text-[10px] text-eden-100/40 text-center">Modo Leitura. Consultar estratégias.</span>
-                    </button>
-                    
-                    <button onClick={() => handleSelectMode('mestre')} className="flex-1 flex flex-col items-center gap-3 bg-red-950/30 border border-red-900/50 hover:border-red-500 p-6 rounded-2xl transition-all hover:-translate-y-1 shadow-lg group relative overflow-hidden">
-                        {!isMestre && <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10"><LockIcon /></div>}
-                        <Shield size={32} className="text-red-500/50 group-hover:text-red-500" />
-                        <span className="font-black text-red-200 uppercase tracking-widest group-hover:text-red-400">MESTRE</span>
-                        <span className="text-[10px] text-red-200/40 text-center">Modo Edição. Escrever táticas.</span>
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    const isEdit = mode === 'mestre';
+    // Define o modo automaticamente baseado na autenticação
+    const isEdit = isMestre;
 
     return (
         <div className="space-y-8 animate-in fade-in pb-20">
@@ -85,12 +51,11 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                         {isEdit ? 'Adicione orientações para ajudar o jogador.' : 'Estratégias recomendadas pelo seu mestre.'}
                     </p>
                 </div>
-                <button onClick={() => setMode('select')} className="text-xs font-bold text-eden-100/50 hover:text-white border border-eden-700 px-3 py-1.5 rounded-lg transition-colors">TROCAR MODO</button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {}
+                {/* SESSÃO 1: EQUIPAMENTOS */}
                 <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-5 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center border-b border-eden-700 pb-2">
                         <h3 className="font-bold text-white uppercase tracking-widest flex items-center gap-2 text-sm"><Target size={16} className="text-energia"/> Usando Equipamentos</h3>
@@ -137,7 +102,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                     ))}
                 </div>
 
-                {}
+                {/* SESSÃO 2: PODERES E RITUAIS */}
                 <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-5 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center border-b border-eden-700 pb-2">
                         <h3 className="font-bold text-white uppercase tracking-widest flex items-center gap-2 text-sm"><Sparkles size={16} className="text-purple-400"/> Usando Poderes</h3>
@@ -149,6 +114,14 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
 
                     {dicas.powers.map((pw: any, idx: number) => {
                         const allPowers = [...(character.abilities||[]), ...(character.classPowers||[]), ...(character.rituals||[])];
+                        const customOrig = character.customOrigin as any;
+                        if (customOrig && customOrig.power && customOrig.power.name) {
+                            allPowers.push({
+                                id: 'origin_power_virtual',
+                                name: customOrig.power.name,
+                                ...customOrig.power
+                            } as any);
+                        }
                         return (
                         <div key={pw.id} className="bg-eden-900 border border-eden-700 rounded-lg p-3 space-y-3 relative group">
                             {isEdit && <button onClick={() => updateDicaSection('powers', dicas.powers.filter((_:any, i:number) => i !== idx))} className="absolute top-2 right-2 text-red-500/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>}
@@ -168,7 +141,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                                 : <p className="text-xs text-eden-100">{pw.situation || '-'}</p>}
                             </div>
 
-                            {}
+                            {/* Campos Customizados do Mestre */}
                             {(pw.customFields || []).map((cf: any, cIdx: number) => (
                                 <div key={cf.id} className="bg-black/30 p-2 rounded border border-eden-800 relative">
                                     {isEdit && <button onClick={() => { const n = [...dicas.powers]; n[idx].customFields.splice(cIdx,1); updateDicaSection('powers', n); }} className="absolute top-1 right-1 text-red-500/50 hover:text-red-400"><X size={12}/></button>}
@@ -184,7 +157,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                     )})}
                 </div>
 
-                {}
+                {/* SESSÃO 3: ESTILOS DE COMBATE */}
                 <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-5 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center border-b border-eden-700 pb-2">
                         <h3 className="font-bold text-white uppercase tracking-widest flex items-center gap-2 text-sm"><ShieldAlert size={16} className="text-red-400"/> Estilos de Combate</h3>
@@ -203,7 +176,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                     </div>
                 </div>
 
-                {}
+                {/* SESSÃO 4: PRÓXIMOS PASSOS */}
                 <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-5 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center border-b border-eden-700 pb-2">
                         <h3 className="font-bold text-white uppercase tracking-widest flex items-center gap-2 text-sm"><Footprints size={16} className="text-green-400"/> Próximos Passos</h3>
@@ -224,9 +197,4 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
             </div>
         </div>
     );
-}
-
-
-function LockIcon() {
-    return <Lock size={48} className="text-red-500 opacity-80" />;
 }

@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import EffectEditor from '../sheet/EffectEditor';
 
-
 const SKILL_OPTIONS = [
   "Acrobacia", "Adestramento", "Artes", "Atletismo", "Atualidades", 
   "Ciências", "Crime", "Diplomacia", "Enganação", "Fortitude", 
@@ -14,7 +13,6 @@ const SKILL_OPTIONS = [
   "Pontaria", "Profissão", "Reflexos", "Religião", "Sobrevivência", 
   "Tática", "Tecnologia", "Vontade"
 ];
-
 
 interface CustomOriginState {
     id: string;
@@ -25,24 +23,28 @@ interface CustomOriginState {
     power: {
         name: string;
         description: string;
+        cost?: number; // NOVO CAMPO: Custo de PE
         effects: any[];
     };
 }
-
-
-
 
 export default function Step3Origins() {
   const { character, updateCharacter } = useCharacter();
   
   const [origin, setOrigin] = useState<CustomOriginState>({
     id: '', name: '', source: 'Própria', description: '', trainedSkills: [],
-    power: { name: '', description: '', effects: [] }
+    power: { name: '', description: '', cost: 0, effects: [] } // Inicializando com custo 0
   });
 
   useEffect(() => {
     if (character.personal.origin) {
-      setOrigin((prev: any) => ({ ...prev, name: character.personal.origin }));
+        // Se já existir uma origem carregada (ex: voltando no wizard)
+        const customOrig = character.customOrigin;
+        if (customOrig) {
+            setOrigin(customOrig as any);
+        } else {
+            setOrigin((prev: any) => ({ ...prev, name: character.personal.origin }));
+        }
     }
   }, []);
 
@@ -102,8 +104,15 @@ export default function Step3Origins() {
         <div className="space-y-6">
           <div className="bg-eden-900/50 p-6 rounded-2xl border border-eden-700/50 space-y-4 h-full flex flex-col">
              <h3 className="text-sangue font-bold uppercase text-sm flex items-center gap-2"><Zap size={16}/> Poder da Origem</h3>
-             <input type="text" value={origin.power.name} onChange={(e) => setOrigin({...origin, power: {...origin.power, name: e.target.value}})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none font-bold" placeholder="Nome do poder..."/>
+             
+             {/* NOVO: Campo de Custo em PE ao lado do Nome do Poder */}
+             <div className="flex gap-3">
+                 <input type="text" value={origin.power.name} onChange={(e) => setOrigin({...origin, power: {...origin.power, name: e.target.value}})} className="flex-1 bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none font-bold" placeholder="Nome do poder..."/>
+                 <input type="number" value={origin.power.cost || 0} onChange={(e) => setOrigin({...origin, power: {...origin.power, cost: Number(e.target.value)}})} className="w-20 bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 text-center focus:border-sangue outline-none font-bold" title="Custo em PE" placeholder="PE"/>
+             </div>
+
              <textarea value={origin.power.description} onChange={(e) => setOrigin({...origin, power: {...origin.power, description: e.target.value}})} rows={3} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none text-sm resize-none" placeholder="Efeito técnico..."/>
+             
              <div className="flex-1 bg-eden-950/50 rounded-xl border border-eden-800 p-4 flex flex-col gap-3">
                 <div className="flex justify-between items-end border-b border-eden-800 pb-2">
                   <label className="text-[10px] text-eden-100/40 uppercase font-bold tracking-widest">Efeitos (Automação)</label>
@@ -148,7 +157,6 @@ export default function Step3Origins() {
         </div>
       </div>
 
-      {}
       {editingEffectIndex !== null && origin.power.effects?.[editingEffectIndex] && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
               <div className="bg-eden-900 border border-eden-600 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">

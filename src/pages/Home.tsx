@@ -196,7 +196,7 @@ export default function Home() {
           <div className="flex items-center gap-4">
               <Link to="/" className="p-2 bg-eden-900 hover:bg-eden-800 text-eden-100/50 hover:text-energia rounded-xl transition-colors border border-eden-700/50" title="Voltar ao Lobby"><HomeIcon size={18}/></Link>
               <div className="font-black text-white tracking-widest uppercase flex items-center gap-2 hidden md:flex">
-                  <img src="https://img.icons8.com/?size=512&id=8SkEP8nszFSJ&format=png&color=fa8805" alt="Icon" className="w-6 h-6" /> EDEN VTT
+                  <img src="https://img.icons8.com/?size=512&id=8SkEP8nszFSJ&format=png&color=fa8805" alt="Icon" className="w-6 h-6" /> EDEN: ARQUIVOS
               </div>
           </div>
           

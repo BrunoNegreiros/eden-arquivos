@@ -48,6 +48,17 @@ export default function CreateSheet() {
         if (!character.personal.player?.trim()) return setError("O Nome do Jogador é obrigatório.");
     }
 
+    // Step 2: Atributos (Garantir que gastou todos os pontos)
+    if (step === 2) {
+        const attrs = character.attributes.initial;
+        const currentSum = (Object.values(attrs) as number[]).reduce((a, b) => a + b, 0);
+        const pointsRemaining = 4 - (currentSum - 5);
+        
+        if (pointsRemaining > 0) {
+            return setError(`Distribua todos os seus pontos de atributo antes de continuar (Faltam ${pointsRemaining}).`);
+        }
+    }
+
     // Step 3: Origem (Nome, Perícias e Poder)
     if (step === 3) {
         const orig = character.customOrigin as any;

@@ -45,11 +45,11 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
   const injectedItems = (vars.INJECTED_ITEMS || []).map((i: any) => ({ ...i, isInjected: true, isEquipped: true }));
   const fullInventory = [...(character.inventory || []), ...injectedItems];
 
-  // AQUI ESTÁ A CORREÇÃO: Agora só pega se 'isEquipped' for true!
+  
   const inventoryWeapons = fullInventory.filter((i: any) => i.type === 'weapon' && i.isEquipped) as UserWeapon[];
   const inventoryExplosives = fullInventory.filter((i: any) => i.type === 'explosive' && i.isEquipped) as UserExplosive[];
   
-  // Munição não precisa estar "equipada" para aparecer na lista de seleção da arma
+  
   const inventoryAmmo = fullInventory.filter((i: any) => i.type === 'ammo') as UserAmmo[];
   
   const allAttacks = [UNARMED_ATTACK, ...inventoryWeapons, ...inventoryExplosives];

@@ -235,7 +235,7 @@ export default function SheetAbilities() {
             const newStatus = JSON.parse(JSON.stringify(prev.status));
             const pe = newStatus.pe;
             
-            // CORREÇÃO: Gasto de PE incluindo os temporários gerados pelo Motor
+            
             if (isTurningOn && pCost > 0) {
                 const motorTemp = vars.PE.temp || 0;
                 const currentTemp = (Number(pe.temp) || 0) + motorTemp;
@@ -336,7 +336,7 @@ export default function SheetAbilities() {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
-                                            {/* CORREÇÃO: O lápis de edição agora aparece para a Origem! */}
+                                            {}
                                             {(!ability.isInjected || ability.isOrigin) && (
                                                 <>
                                                     <button onClick={() => setEditingAbility(ability)} className="p-1.5 hover:text-energia hover:bg-energia/10 rounded transition-colors"><Edit2 size={16}/></button>
@@ -354,7 +354,7 @@ export default function SheetAbilities() {
                                             {ability.effects!.map((eff: any) => (
                                                 <div key={eff.id} className="flex justify-between items-center text-xs bg-eden-950 p-1.5 rounded border border-eden-700">
                                                     <span className={eff.isActive === false ? "opacity-50 line-through" : ""}>{eff.name || eff.category.replace('_', ' ')}</span>
-                                                    {/* CORREÇÃO: Respeita ativação e desativação de efeitos individuais na Origem */}
+                                                    {}
                                                     <button onClick={() => toggleActiveEffect(ability.id, eff.id, ability.isInjected || ability.isOverridden, ability.isOrigin)} className={`p-1 rounded hover:bg-white/10 ${eff.isActive !== false ? 'text-green-400' : 'text-eden-100/20'}`}><Power size={12}/></button>
                                                 </div>
                                             ))}

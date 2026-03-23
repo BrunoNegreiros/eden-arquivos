@@ -226,7 +226,7 @@ export default function SheetRituals() {
               const pe = newStatus.pe; 
               const san = newStatus.san;
               
-              // CORREÇÃO: Puxa o Temp Total (Fixo + Motor)
+              
               const motorTemp = vars.PE.temp || 0;
               const currentTemp = (Number(pe.temp) || 0) + motorTemp;
               const currentPE = Number(pe.current) || 0;
@@ -234,7 +234,7 @@ export default function SheetRituals() {
               if (currentTemp > 0) {
                   if (pCost >= currentTemp) {
                       pe.current = Math.max(0, currentPE - (pCost - currentTemp));
-                      pe.temp = (Number(pe.temp) || 0) - currentTemp; // Esgota o temp fixo
+                      pe.temp = (Number(pe.temp) || 0) - currentTemp; 
                   } else {
                       pe.temp = (Number(pe.temp) || 0) - pCost;
                   }
@@ -270,7 +270,7 @@ export default function SheetRituals() {
           const pe = newStatus.pe; 
           const san = newStatus.san;
           
-          // CORREÇÃO: Matemática real de fluxo de escudo temporário
+          
           const motorTemp = vars.PE.temp || 0;
           const currentTemp = (Number(pe.temp) || 0) + motorTemp;
           const currentPE = Number(pe.current) || 0;
@@ -334,7 +334,7 @@ export default function SheetRituals() {
           const newStatus = JSON.parse(JSON.stringify(prev.status)); 
           const pe = newStatus.pe;
           
-          // CORREÇÃO: Gastar no sustain
+          
           const motorTemp = vars.PE.temp || 0;
           const currentTemp = (Number(pe.temp) || 0) + motorTemp;
           const currentPE = Number(pe.current) || 0;

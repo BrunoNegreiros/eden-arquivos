@@ -67,7 +67,7 @@ export default function Auth() {
       <div className="w-full max-w-md bg-eden-800 border border-eden-700 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
         
         <div className="bg-eden-950 p-8 text-center border-b border-eden-700">
-            <h1 className="text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-eden-1 to-eden-2">EDEN VTT</h1>
+            <h1 className="text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-eden-1 to-eden-2">EDEN: ARQUIVOS</h1>
             <p className="text-eden-100/40 text-xs uppercase tracking-widest mt-2">
                 {isRegistering ? 'Criar Nova Identidade' : 'Acessar Terminal'}
             </p>

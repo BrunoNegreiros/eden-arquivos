@@ -7,7 +7,7 @@ const generateId = () => Date.now().toString(36) + Math.random().toString(36).su
 export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
     const { character, updateCharacter } = useCharacter();
 
-    // Inicializa a estrutura de Dicas se não existir na ficha
+    
     useEffect(() => {
         if (!(character as any).dicas) {
             updateCharacter(prev => ({
@@ -24,7 +24,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                 }
             }));
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
     }, []);
 
     const dicas = (character as any).dicas || { equipments: [], powers: [], combatStyles: [], nextSteps: [] };
@@ -36,7 +36,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
         }));
     };
 
-    // Define o modo automaticamente baseado na autenticação
+    
     const isEdit = isMestre;
 
     return (
@@ -55,7 +55,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* SESSÃO 1: EQUIPAMENTOS */}
+                {}
                 <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-5 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center border-b border-eden-700 pb-2">
                         <h3 className="font-bold text-white uppercase tracking-widest flex items-center gap-2 text-sm"><Target size={16} className="text-energia"/> Usando Equipamentos</h3>
@@ -102,7 +102,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                     ))}
                 </div>
 
-                {/* SESSÃO 2: PODERES E RITUAIS */}
+                {}
                 <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-5 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center border-b border-eden-700 pb-2">
                         <h3 className="font-bold text-white uppercase tracking-widest flex items-center gap-2 text-sm"><Sparkles size={16} className="text-purple-400"/> Usando Poderes</h3>
@@ -141,7 +141,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                                 : <p className="text-xs text-eden-100">{pw.situation || '-'}</p>}
                             </div>
 
-                            {/* Campos Customizados do Mestre */}
+                            {}
                             {(pw.customFields || []).map((cf: any, cIdx: number) => (
                                 <div key={cf.id} className="bg-black/30 p-2 rounded border border-eden-800 relative">
                                     {isEdit && <button onClick={() => { const n = [...dicas.powers]; n[idx].customFields.splice(cIdx,1); updateDicaSection('powers', n); }} className="absolute top-1 right-1 text-red-500/50 hover:text-red-400"><X size={12}/></button>}
@@ -157,7 +157,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                     )})}
                 </div>
 
-                {/* SESSÃO 3: ESTILOS DE COMBATE */}
+                {}
                 <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-5 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center border-b border-eden-700 pb-2">
                         <h3 className="font-bold text-white uppercase tracking-widest flex items-center gap-2 text-sm"><ShieldAlert size={16} className="text-red-400"/> Estilos de Combate</h3>
@@ -176,7 +176,7 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                     </div>
                 </div>
 
-                {/* SESSÃO 4: PRÓXIMOS PASSOS */}
+                {}
                 <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-5 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center border-b border-eden-700 pb-2">
                         <h3 className="font-bold text-white uppercase tracking-widest flex items-center gap-2 text-sm"><Footprints size={16} className="text-green-400"/> Próximos Passos</h3>

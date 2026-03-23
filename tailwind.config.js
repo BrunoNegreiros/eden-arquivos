@@ -1,8 +1,8 @@
-/** @type {import('tailwindcss').Config} */
+
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -17,11 +17,11 @@ export default {
           1: '#fab005', 
           2: '#ff4800', 
         },
-        // Cores de Elementos Refinadas (Com variantes de brilho e interação)
+        
         sangue: {
           DEFAULT: '#991b1b',
-          light: '#ef4444', // Para efeitos de hover e textos de alerta
-          dark: '#7f1d1d',  // Para bordas e detalhes profundos
+          light: '#ef4444', 
+          dark: '#7f1d1d',  
         },
         morte: {
           DEFAULT: '#1e1e24',
@@ -30,12 +30,12 @@ export default {
         },
         conhecimento: {
           DEFAULT: '#d97706',
-          light: '#fbbf24', // Usado nos botões de "Adicionar" do ConditionsCard
+          light: '#fbbf24', 
           dark: '#92400e',
         },
         energia: {
           DEFAULT: '#7c3aed',
-          light: '#a78bfa', // Usado para destacar o NEX e bônus ativos
+          light: '#a78bfa', 
           dark: '#5b21b6',
         },
         medo: {

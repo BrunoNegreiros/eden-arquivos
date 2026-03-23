@@ -23,7 +23,7 @@ interface CustomOriginState {
     power: {
         name: string;
         description: string;
-        cost?: number; // NOVO CAMPO: Custo de PE
+        cost?: number; 
         effects: any[];
     };
 }
@@ -33,12 +33,12 @@ export default function Step3Origins() {
   
   const [origin, setOrigin] = useState<CustomOriginState>({
     id: '', name: '', source: 'Própria', description: '', trainedSkills: [],
-    power: { name: '', description: '', cost: 0, effects: [] } // Inicializando com custo 0
+    power: { name: '', description: '', cost: 0, effects: [] } 
   });
 
   useEffect(() => {
     if (character.personal.origin) {
-        // Se já existir uma origem carregada (ex: voltando no wizard)
+        
         const customOrig = character.customOrigin;
         if (customOrig) {
             setOrigin(customOrig as any);
@@ -105,7 +105,7 @@ export default function Step3Origins() {
           <div className="bg-eden-900/50 p-6 rounded-2xl border border-eden-700/50 space-y-4 h-full flex flex-col">
              <h3 className="text-sangue font-bold uppercase text-sm flex items-center gap-2"><Zap size={16}/> Poder da Origem</h3>
              
-             {/* NOVO: Campo de Custo em PE ao lado do Nome do Poder */}
+             {}
              <div className="flex gap-3">
                  <input type="text" value={origin.power.name} onChange={(e) => setOrigin({...origin, power: {...origin.power, name: e.target.value}})} className="flex-1 bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none font-bold" placeholder="Nome do poder..."/>
                  <input type="number" value={origin.power.cost || 0} onChange={(e) => setOrigin({...origin, power: {...origin.power, cost: Number(e.target.value)}})} className="w-20 bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 text-center focus:border-sangue outline-none font-bold" title="Custo em PE" placeholder="PE"/>

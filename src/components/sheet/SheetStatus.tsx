@@ -111,7 +111,7 @@ export default function SheetStatus() {
         <div className="mb-4 bg-eden-900/50 p-3 rounded-xl border border-eden-700/50 group relative">
           <div className="flex justify-between items-center mb-2">
               <div className="absolute -top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-eden-900 border border-eden-700 rounded-full px-2 py-0.5 z-10">
-                {/* CORREÇÃO: O botão de reset agora afeta APENAS a vida "current", ignorando os temp gastos! */}
+                {}
                 <button onClick={() => updateCharacter(prev => ({ ...prev, status: { ...prev.status, [type]: { ...prev.status[type as 'pv'|'pe'|'san'], current: displayMax } } }))} className="text-green-400 p-1"><RefreshCw size={12}/></button>
                 <button onClick={() => updateCharacter(prev => ({ ...prev, status: { ...prev.status, [type]: { ...prev.status[type as 'pv'|'pe'|'san'], current: 0 } } }))} className="text-red-400 p-1"><Skull size={12}/></button>
               </div>

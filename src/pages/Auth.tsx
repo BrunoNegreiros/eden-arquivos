@@ -7,17 +7,15 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { LogIn, UserPlus, Mail, Lock, User, ShieldCheck, Info, Loader2 } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, User, Loader2 } from 'lucide-react';
 
 export default function Auth() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState<'mestre' | 'jogador'>('jogador');
   const [rememberMe, setRememberMe] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,25 +24,22 @@ export default function Auth() {
 
     try {
       if (isRegistering) {
-        
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        
         await updateProfile(user, { displayName: username });
 
-        
+        // Gravamos como 'jogador' por padrão, já que o cargo não importa mais
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           username,
           email,
-          role,
+          role: 'jogador',
           joinedMesas: [],
           createdAt: Date.now()
         });
 
       } else {
-        
         await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (error: any) {
@@ -75,20 +70,10 @@ export default function Auth() {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
           {isRegistering && (
-            <>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-eden-100/50 flex items-center gap-2"><User size={12}/> Nome de Usuário</label>
-                <input required type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-eden-900 border border-eden-700 rounded-xl p-3 text-sm focus:border-energia outline-none transition-colors" placeholder="Ex: Mestre_Bruno"/>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-eden-100/50 flex items-center gap-2"><ShieldCheck size={12}/> Tipo de Conta</label>
-                <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => setRole('jogador')} className={`py-2 rounded-lg text-xs font-bold border transition-all ${role === 'jogador' ? 'bg-energia text-eden-900 border-energia' : 'bg-eden-900 border-eden-700 text-eden-100/40'}`}>JOGADOR</button>
-                    <button type="button" onClick={() => setRole('mestre')} className={`py-2 rounded-lg text-xs font-bold border transition-all ${role === 'mestre' ? 'bg-red-600 text-white border-red-500 shadow-lg' : 'bg-eden-900 border-eden-700 text-eden-100/40'}`}>MESTRE</button>
-                </div>
-              </div>
-            </>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase font-bold text-eden-100/50 flex items-center gap-2"><User size={12}/> Nome de Usuário</label>
+              <input required type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-eden-900 border border-eden-700 rounded-xl p-3 text-sm focus:border-energia outline-none transition-colors" placeholder="Ex: Senhor_Verissimo"/>
+            </div>
           )}
 
           <div className="space-y-1">
@@ -119,13 +104,6 @@ export default function Auth() {
             {isRegistering ? 'Já possui uma conta? Login' : 'Não tem conta? Registre-se'}
           </button>
         </form>
-
-        <div className="bg-eden-900/50 p-4 flex gap-3 items-start border-t border-eden-700">
-            <Info size={16} className="text-energia mt-0.5 shrink-0" />
-            <p className="text-[10px] text-eden-100/40 leading-relaxed italic">
-                O acesso à plataforma é restrito. Certifique-se de escolher o cargo correto, pois ele definirá suas permissões de criação de mesas.
-            </p>
-        </div>
       </div>
     </div>
   );

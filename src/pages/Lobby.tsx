@@ -27,19 +27,16 @@ export default function Lobby() {
   const [mesas, setMesas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [mesaName, setMesaName] = useState('');
   const [accessKey, setAccessKey] = useState('');
 
-  
   const [letters, setLetters] = useState<any[]>([]);
   const [letterMode, setLetterMode] = useState<'closed' | 'list' | 'read' | 'edit'>('closed');
   const [activeLetter, setActiveLetter] = useState<any | null>(null);
   const [isSavingLetter, setIsSavingLetter] = useState(false);
 
-  
   const isAdmin = auth.currentUser?.email === 'brunonegreiros1605@gmail.com';
 
   useEffect(() => {
@@ -57,13 +54,11 @@ export default function Lobby() {
               const mesasSnap = await getDocs(q);
               mesasSnap.forEach(d => mesasData.push(d.data()));
               
-              
               mesasData.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
               setMesas(mesasData);
           }
       }
 
-      
       const qLetters = query(collection(db, "edens_letters"), orderBy("createdAt", "desc"));
       const snapLetters = await getDocs(qLetters);
       const news: any[] = [];
@@ -80,9 +75,6 @@ export default function Lobby() {
     loadData();
   }, []);
 
-  
-  
-  
   const handleCreateMesa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mesaName || !accessKey) return;
@@ -128,7 +120,6 @@ export default function Lobby() {
       try {
           const newMesaId = generateId();
           
-          
           const newMesa = {
               ...mesa,
               id: newMesaId,
@@ -140,7 +131,6 @@ export default function Lobby() {
 
           await setDoc(doc(db, 'mesas', newMesaId), newMesa);
           await updateDoc(doc(db, 'users', auth.currentUser!.uid), { joinedMesas: arrayUnion(newMesaId) });
-          
           
           const qChars = query(collection(db, 'characters'), where('mesaId', '==', mesa.id));
           const snapChars = await getDocs(qChars);
@@ -155,7 +145,6 @@ export default function Lobby() {
           });
           await Promise.all(charsPromises);
 
-          
           const qLetters = query(collection(db, 'edens_letters'), where('mesaId', '==', mesa.id));
           const snapLetters = await getDocs(qLetters);
           
@@ -185,25 +174,20 @@ export default function Lobby() {
       
       setLoading(true);
       try {
-          
           await deleteDoc(doc(db, 'mesas', mesaId));
-          
           
           const newUserJoined = userProfile.joinedMesas.filter((id: string) => id !== mesaId);
           await updateDoc(doc(db, 'users', auth.currentUser!.uid), { joinedMesas: newUserJoined });
           setUserProfile({ ...userProfile, joinedMesas: newUserJoined });
 
-          
           const qChars = query(collection(db, 'characters'), where('mesaId', '==', mesaId));
           const snapChars = await getDocs(qChars);
           snapChars.forEach(async (d) => await deleteDoc(doc(db, 'characters', d.id)));
 
-          
           const qLetters = query(collection(db, 'edens_letters'), where('mesaId', '==', mesaId));
           const snapLetters = await getDocs(qLetters);
           snapLetters.forEach(async (d) => await deleteDoc(doc(db, 'edens_letters', d.id)));
 
-          
           setMesas(prev => prev.filter(m => m.id !== mesaId));
       } catch(err) {
           alert("Erro ao excluir mesa.");
@@ -212,9 +196,6 @@ export default function Lobby() {
       }
   };
 
-  
-  
-  
   const handleSaveLetter = async () => {
       if (!activeLetter?.title) return alert("O título é obrigatório!");
       setIsSavingLetter(true);
@@ -263,7 +244,7 @@ export default function Lobby() {
               </div>
               <div>
                 <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Suas Mesas</h1>
-                <p className="text-xs text-eden-100/40 font-bold">Logado como <span className="text-energia">@{userProfile?.username}</span> ({userProfile?.role})</p>
+                <p className="text-xs text-eden-100/40 font-bold">Logado como <span className="text-energia">@{userProfile?.username}</span></p>
               </div>
            </div>
            <button onClick={() => signOut(auth)} className="p-3 text-eden-100/30 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all" title="Sair da Conta">
@@ -272,16 +253,15 @@ export default function Lobby() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {userProfile?.role === 'mestre' && (
-                <button onClick={() => setShowCreate(true)} className="group p-6 bg-eden-800 border border-eden-700 hover:border-energia/50 rounded-2xl flex items-center gap-4 transition-all">
-                    <div className="p-3 bg-eden-900 rounded-xl text-energia group-hover:scale-110 transition-transform"><Plus size={24}/></div>
-                    <div className="text-left">
-                        <h3 className="font-bold text-white">Nova Campanha</h3>
-                        <p className="text-[10px] text-eden-100/40 uppercase tracking-widest">Mestre</p>
-                    </div>
-                </button>
-            )}
-            <button onClick={() => setShowJoin(true)} className={`group p-6 bg-eden-800 border border-eden-700 hover:border-cyan-500/50 rounded-2xl flex items-center gap-4 transition-all ${userProfile?.role !== 'mestre' ? 'md:col-span-2' : ''}`}>
+            <button onClick={() => setShowCreate(true)} className="group p-6 bg-eden-800 border border-eden-700 hover:border-energia/50 rounded-2xl flex items-center gap-4 transition-all">
+                <div className="p-3 bg-eden-900 rounded-xl text-energia group-hover:scale-110 transition-transform"><Plus size={24}/></div>
+                <div className="text-left">
+                    <h3 className="font-bold text-white">Nova Campanha</h3>
+                    <p className="text-[10px] text-eden-100/40 uppercase tracking-widest">Criar Mesa</p>
+                </div>
+            </button>
+
+            <button onClick={() => setShowJoin(true)} className="group p-6 bg-eden-800 border border-eden-700 hover:border-cyan-500/50 rounded-2xl flex items-center gap-4 transition-all">
                 <div className="p-3 bg-eden-900 rounded-xl text-cyan-400 group-hover:scale-110 transition-transform"><Hash size={24}/></div>
                 <div className="text-left">
                     <h3 className="font-bold text-white">Entrar em Mesa</h3>
@@ -338,7 +318,6 @@ export default function Lobby() {
         </div>
       </div>
 
-      {}
       {showCreate && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
               <form onSubmit={handleCreateMesa} className="bg-eden-800 border border-energia/30 w-full max-w-md rounded-3xl p-8 space-y-6 shadow-2xl relative">
@@ -362,7 +341,6 @@ export default function Lobby() {
           </div>
       )}
 
-      {}
       {showJoin && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
               <form onSubmit={handleJoinMesa} className="bg-eden-800 border border-cyan-500/30 w-full max-w-md rounded-3xl p-8 space-y-6 shadow-2xl relative">
@@ -380,7 +358,6 @@ export default function Lobby() {
           </div>
       )}
 
-      {}
       {letterMode !== 'closed' && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm animate-in fade-in">
               <div className="bg-eden-900 w-full max-w-4xl max-h-full rounded-2xl border border-purple-500/50 shadow-2xl flex flex-col overflow-hidden">

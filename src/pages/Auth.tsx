@@ -34,7 +34,6 @@ export default function Auth() {
           uid: user.uid,
           username,
           email,
-          role: 'jogador',
           joinedMesas: [],
           createdAt: Date.now()
         });

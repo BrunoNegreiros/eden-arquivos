@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { 
-  ArrowRight, Zap, Skull, Droplet, Check, Plus, Trash2, ListChecks
+  ArrowRight, Zap, Skull, Droplet, Check, Plus, Trash2, ListChecks, BookOpen
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 
@@ -9,7 +9,6 @@ interface Props {
   onConfirm: () => void;
   onCancel: () => void;
 }
-
 
 const CLASS_STATS: Record<string, { pvNex: number, peNex: number, sanNex: number }> = {
   'combatente': { pvNex: 4, peNex: 2, sanNex: 3 },
@@ -22,7 +21,7 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
   const { character, updateCharacter, vars } = useCharacter();
   const [willTranscend, setWillTranscend] = useState(false);
   
-  
+  // Estado para armazenar as tarefas que o JOGADOR digita
   const [tasks, setTasks] = useState<{id: string, text: string, isDone: boolean}[]>([]);
   const [taskInput, setTaskInput] = useState('');
   
@@ -42,6 +41,26 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
   
   if (isLevelingUp && willTranscend) sanGain -= 2;
 
+  // Lógica Automática do Livro de Regras
+  const getAutomaticMilestones = (start: number, end: number) => {
+    if (start >= end) return [];
+    const milestones = [];
+    for (let i = start + 1; i <= end; i++) {
+        if (i === 10) milestones.push("NEX 10%: Escolher Trilha e adicionar 1º Poder de Trilha.");
+        if ([15, 30, 45, 60, 75, 90].includes(i)) milestones.push(`NEX ${i}%: Adicionar um novo Poder de Classe.`);
+        if ([20, 85, 95].includes(i)) milestones.push(`NEX ${i}%: Aumento de Atributo (+1 ponto).`);
+        if (i === 35) milestones.push("NEX 35%: Grau de Treinamento (Veterano liberado nas Perícias).");
+        if (i === 40) milestones.push("NEX 40%: Adicionar 2º Poder de Trilha.");
+        if (i === 50) milestones.push("NEX 50%: Aumento de Atributo E Versatilidade (Poder de Classe ou 1º Poder de outra Trilha).");
+        if (i === 65) milestones.push("NEX 65%: Adicionar 3º Poder de Trilha.");
+        if (i === 70) milestones.push("NEX 70%: Grau de Treinamento (Expert liberado nas Perícias).");
+        if (i === 99) milestones.push("NEX 99%: Adicionar 4º Poder de Trilha.");
+    }
+    return milestones;
+  };
+
+  const autoMilestones = getAutomaticMilestones(effectiveCurrent, effectiveTarget);
+
   const addTask = () => {
       if (!taskInput.trim()) return;
       setTasks([...tasks, { id: Date.now().toString(), text: taskInput.trim(), isDone: false }]);
@@ -53,32 +72,17 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
   };
 
   const handleConfirm = () => {
-      
       const currentPvMax = (character.status.pv as any).max ?? vars.PV.max;
       const currentPeMax = (character.status.pe as any).max ?? vars.PE.max;
       const currentSanMax = (character.status.san as any).max ?? vars.SAN.max;
 
-      
       const newStatus = { 
           ...character.status,
-          pv: { 
-              ...character.status.pv, 
-              current: character.status.pv.current + pvGain,
-              max: currentPvMax + pvGain
-          },
-          pe: { 
-              ...character.status.pe, 
-              current: character.status.pe.current + peGain,
-              max: currentPeMax + peGain
-          },
-          san: { 
-              ...character.status.san, 
-              current: character.status.san.current + sanGain,
-              max: currentSanMax + sanGain
-          }
+          pv: { ...character.status.pv, current: character.status.pv.current + pvGain, max: currentPvMax + pvGain },
+          pe: { ...character.status.pe, current: character.status.pe.current + peGain, max: currentPeMax + peGain },
+          san: { ...character.status.san, current: character.status.san.current + sanGain, max: currentSanMax + sanGain }
       };
 
-      
       const newAbilities = [...(character.abilities || [])];
       
       if (isLevelingUp && willTranscend) {
@@ -86,26 +90,20 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
               id: 'transcender_' + Date.now(),
               name: `Transcender (${targetNex}%)`,
               description: 'Você transcendeu neste nível, perdendo 2 de Sanidade Máxima permanentemente para acolher o Paranormal.',
-              source: 'Paranormal',
-              cost: 0,              
-              effects: [
-                  {
-                      id: 'eff_' + Date.now(),
-                      name: 'Custo do Paranormal',
-                      category: 'add_fixed',
-                      targets: [{ id: '1', type: 'san_max' }],
-                      value: { terms: [{ id: '1', type: 'fixed', value: -2 }], operations: [] },
-                  }
-              ]
+              source: 'Paranormal', cost: 0,              
+              effects: [{ id: 'eff_' + Date.now(), name: 'Custo do Paranormal', category: 'add_fixed', targets: [{ id: '1', type: 'san_max' }], value: { terms: [{ id: '1', type: 'fixed', value: -2 }], operations: [] } }]
           });
       }
+
+      // Converte os avisos automáticos em tarefas pendentes
+      const autoTasks = autoMilestones.map((text, i) => ({ id: `auto_${i}_${Date.now()}`, text, isDone: false }));
 
       updateCharacter(prev => ({
           ...prev,
           personal: { ...prev.personal, nex: targetNex },
           status: newStatus,
           abilities: newAbilities,
-          levelUpTasks: tasks
+          levelUpTasks: [...autoTasks, ...tasks] // Junta regras automáticas + tarefas manuais do jogador
       } as any));
 
       onConfirm();
@@ -162,10 +160,24 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
                     </label>
                 )}
 
-                {}
-                <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-xl shadow-sm">
-                    <h4 className="text-sm font-bold text-yellow-500 uppercase tracking-wide flex items-center gap-2 mb-2"><ListChecks size={16}/> Checklist do Mestre</h4>
-                    <p className="text-xs text-yellow-200/80 mb-4 leading-relaxed">Insira abaixo as atualizações manuais que você deve fazer (Ex: "+1 de Força", "Novo Poder de Classe"). Elas ficarão salvas na sua ficha para você marcar depois.</p>
+                {autoMilestones.length > 0 && (
+                    <div className="bg-cyan-900/10 border border-cyan-500/30 p-4 rounded-xl shadow-sm">
+                        <h4 className="text-sm font-bold text-cyan-400 uppercase tracking-wide flex items-center gap-2 mb-3"><BookOpen size={16}/> Novas Regras Alcançadas</h4>
+                        <ul className="space-y-2">
+                            {autoMilestones.map((m, i) => (
+                                <li key={i} className="text-xs text-cyan-100/80 flex items-start gap-2 leading-relaxed">
+                                    <div className="mt-1.5 w-1.5 h-1.5 bg-cyan-500 rounded-full shrink-0 shadow-[0_0_5px_rgba(6,182,212,0.8)]"></div>
+                                    {m}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* ABA ATUALIZADA: Focada na Checklist do Jogador */}
+                <div className="bg-energia/10 border border-energia/30 p-4 rounded-xl shadow-sm">
+                    <h4 className="text-sm font-bold text-energia uppercase tracking-wide flex items-center gap-2 mb-2"><ListChecks size={16}/> Sua Checklist Manual (Opcional)</h4>
+                    <p className="text-xs text-eden-100/60 mb-4 leading-relaxed">Anote o que você precisa fazer manualmente na ficha baseada nas regras acima (Ex: Escolher uma nova Magia, Perícia ou Poder).</p>
                     
                     <div className="flex gap-2 mb-4">
                         <input 
@@ -173,20 +185,20 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
                             value={taskInput}
                             onChange={e => setTaskInput(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && addTask()}
-                            className="flex-1 bg-eden-950/80 border border-yellow-500/30 focus:border-yellow-400 rounded-lg p-2.5 text-sm text-yellow-100 outline-none placeholder-yellow-500/30"
-                            placeholder="Descreva a alteração..."
+                            className="flex-1 bg-eden-950/80 border border-eden-700 focus:border-energia rounded-lg p-2.5 text-sm text-eden-100 outline-none placeholder-eden-100/20"
+                            placeholder="Ex: Adicionar Poder 'Ataque Especial'"
                         />
-                        <button onClick={addTask} className="bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500 hover:text-eden-900 px-4 py-2 rounded-lg border border-yellow-500/50 transition-colors font-bold"><Plus size={18}/></button>
+                        <button onClick={addTask} className="bg-energia/20 text-energia hover:bg-energia hover:text-eden-900 px-4 py-2 rounded-lg border border-energia/50 transition-colors font-bold"><Plus size={18}/></button>
                     </div>
 
                     <div className="space-y-2">
                         {tasks.map(t => (
-                            <div key={t.id} className="flex justify-between items-center bg-black/30 p-2.5 rounded-lg border border-yellow-500/20">
-                                <span className="text-sm text-yellow-100 font-medium">{t.text}</span>
+                            <div key={t.id} className="flex justify-between items-center bg-black/30 p-2.5 rounded-lg border border-eden-700">
+                                <span className="text-sm text-eden-100 font-medium">{t.text}</span>
                                 <button onClick={() => removeTask(t.id)} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16}/></button>
                             </div>
                         ))}
-                        {tasks.length === 0 && <p className="text-xs text-yellow-500/50 italic text-center py-2">Nenhuma tarefa adicionada.</p>}
+                        {tasks.length === 0 && <p className="text-xs text-eden-100/30 italic text-center py-2">Nenhuma tarefa manual anotada.</p>}
                     </div>
                 </div>
 

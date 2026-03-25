@@ -1,13 +1,13 @@
-import { User, Scroll, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { useRef } from 'react';
+import { User, Scroll, Image as ImageIcon, Sparkles, Upload } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 
 export default function Step5Details() {
   const { character, updateCharacter } = useCharacter();
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { personal } = character;
 
-  
   const updatePersonal = (field: string, value: string) => {
     updateCharacter((prev) => ({
       ...prev,
@@ -16,6 +16,44 @@ export default function Step5Details() {
         [field]: value
       }
     }));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 300; 
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        updatePersonal('portraitUrl', dataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -28,16 +66,12 @@ export default function Step5Details() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
         
-        {}
         <div className="space-y-4 md:space-y-6">
           
-          {}
           <div className="bg-eden-800 border border-eden-700 rounded-2xl p-4 md:p-6 flex flex-col items-center text-center shadow-lg">
             <div className="relative w-32 h-32 md:w-48 md:h-48 mb-4 md:mb-6 group">
-              {}
               <div className="absolute inset-0 rounded-full border-2 border-eden-600 group-hover:border-energia transition-colors duration-300" />
               
-              {}
               <div className="w-full h-full rounded-full overflow-hidden bg-eden-900 flex items-center justify-center relative">
                 {personal.portraitUrl ? (
                   <img 
@@ -60,25 +94,38 @@ export default function Step5Details() {
               {personal.class} • {personal.origin}
             </p>
 
-            {}
             <div className="w-full space-y-2 text-left">
               <label className="text-[10px] md:text-xs font-bold text-eden-100/50 uppercase flex items-center gap-2">
-                <ImageIcon size={12} /> URL da Imagem
+                <ImageIcon size={12} /> Avatar do Agente
               </label>
               <input
                 type="text"
-                value={personal.portraitUrl || ''}
+                value={personal.portraitUrl?.startsWith('data:image') ? '(Imagem Local)' : (personal.portraitUrl || '')}
                 onChange={(e) => updatePersonal('portraitUrl', e.target.value)}
-                placeholder="https://..."
+                placeholder="https://... (Link da internet)"
                 className="w-full bg-eden-900/50 border border-eden-700 rounded-lg px-3 py-2 text-xs md:text-sm text-eden-100 focus:border-energia focus:ring-1 focus:ring-energia outline-none transition-all placeholder:text-eden-100/20"
+                disabled={personal.portraitUrl?.startsWith('data:image')}
               />
-              <p className="text-[9px] md:text-[10px] text-eden-100/30">
-                Recomendado: Imagens quadradas.
-              </p>
+              
+              <div className="flex items-center gap-2 mt-1">
+                <input 
+                   type="file" 
+                   accept="image/*" 
+                   className="hidden" 
+                   ref={fileInputRef} 
+                   onChange={handleImageUpload} 
+                />
+                <button 
+                   type="button"
+                   onClick={() => fileInputRef.current?.click()}
+                   className="bg-eden-800 hover:bg-energia hover:text-eden-900 border border-eden-700 text-eden-100 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors flex items-center gap-1 w-full justify-center"
+                >
+                  <Upload size={12}/> Enviar do PC
+                </button>
+              </div>
             </div>
           </div>
 
-          {}
           <div className="bg-eden-900/30 border border-eden-700/30 rounded-xl p-3 md:p-4 flex gap-3 items-start">
             <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-conhecimento shrink-0 mt-0.5" />
             <div className="space-y-1">
@@ -91,10 +138,8 @@ export default function Step5Details() {
 
         </div>
 
-        {}
         <div className="lg:col-span-2 space-y-4 md:space-y-6">
           
-          {}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs md:text-sm font-medium text-eden-100/70 uppercase tracking-wider">
               <User className="w-3 h-3 md:w-4 md:h-4 text-energia" /> Aparência Física
@@ -107,7 +152,6 @@ export default function Step5Details() {
             />
           </div>
 
-          {}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs md:text-sm font-medium text-eden-100/70 uppercase tracking-wider">
               <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-conhecimento" /> Personalidade
@@ -120,7 +164,6 @@ export default function Step5Details() {
             />
           </div>
 
-          {}
           <div className="space-y-2 flex-1 flex flex-col">
             <label className="flex items-center gap-2 text-xs md:text-sm font-medium text-eden-100/70 uppercase tracking-wider">
               <Scroll className="w-3 h-3 md:w-4 md:h-4 text-sangue" /> Histórico

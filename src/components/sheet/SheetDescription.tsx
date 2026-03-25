@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { User, Save, Sparkles, Scroll, Book, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { User, Save, Sparkles, Scroll, Book, Image as ImageIcon, Upload } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 
 export default function SheetDescription() {
   const { character, updateCharacter } = useCharacter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const info = character.personal;
   const [editValues, setEditValues] = useState(info);
@@ -28,6 +29,44 @@ export default function SheetDescription() {
     }));
     setHasChanges(false);
     alert("Dados salvos com sucesso!");
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 300; 
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        handleChange('portraitUrl', dataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const INPUT_CLASS = "w-full bg-eden-950 text-eden-100 border border-eden-700 rounded-lg p-3 text-sm outline-none focus:border-energia placeholder-eden-100/30 transition-colors";
@@ -60,14 +99,31 @@ export default function SheetDescription() {
                           )}
                       </div>
                       <div className="w-full">
-                          <label className={LABEL_CLASS}><ImageIcon size={12}/> Link do Retrato</label>
+                          <label className={LABEL_CLASS}><ImageIcon size={12}/> Avatar do Agente</label>
                           <input 
                             type="text"
-                            value={editValues.portraitUrl || ''} 
+                            value={editValues.portraitUrl?.startsWith('data:image') ? '(Imagem Local)' : (editValues.portraitUrl || '')} 
                             onChange={e => handleChange('portraitUrl', e.target.value)} 
                             className={INPUT_CLASS} 
-                            placeholder="https://site.com/imagem.png"
+                            placeholder="https://... (Link da internet)"
+                            disabled={editValues.portraitUrl?.startsWith('data:image')}
                           />
+                          <div className="flex items-center gap-2 mt-2">
+                              <input 
+                                 type="file" 
+                                 accept="image/*" 
+                                 className="hidden" 
+                                 ref={fileInputRef} 
+                                 onChange={handleImageUpload} 
+                              />
+                              <button 
+                                 type="button"
+                                 onClick={() => fileInputRef.current?.click()}
+                                 className="bg-eden-950 hover:bg-energia hover:text-eden-900 border border-eden-700 text-eden-100 px-3 py-2 rounded-lg text-[10px] font-bold uppercase transition-colors flex items-center justify-center gap-2 w-full"
+                              >
+                                <Upload size={14}/> Enviar do Computador
+                              </button>
+                          </div>
                       </div>
                   </div>
                   

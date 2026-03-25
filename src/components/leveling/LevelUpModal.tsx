@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { 
-  ArrowRight, Zap, Skull, Droplet, Check, Plus, Trash2, ListChecks, BookOpen
+  ArrowRight, Zap, Skull, Droplet, Check, Plus, Trash2, ListChecks
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 
@@ -21,7 +21,7 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
   const { character, updateCharacter, vars } = useCharacter();
   const [willTranscend, setWillTranscend] = useState(false);
   
-  // Estado para armazenar as tarefas que o JOGADOR digita
+  // Estado para armazenar as tarefas que o usuário digita
   const [tasks, setTasks] = useState<{id: string, text: string, isDone: boolean}[]>([]);
   const [taskInput, setTaskInput] = useState('');
   
@@ -40,26 +40,6 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
   let sanGain = (stats.sanNex) * steps;
   
   if (isLevelingUp && willTranscend) sanGain -= 2;
-
-  // Lógica Automática do Livro de Regras
-  const getAutomaticMilestones = (start: number, end: number) => {
-    if (start >= end) return [];
-    const milestones = [];
-    for (let i = start + 1; i <= end; i++) {
-        if (i === 10) milestones.push("NEX 10%: Escolher Trilha e adicionar 1º Poder de Trilha.");
-        if ([15, 30, 45, 60, 75, 90].includes(i)) milestones.push(`NEX ${i}%: Adicionar um novo Poder de Classe.`);
-        if ([20, 85, 95].includes(i)) milestones.push(`NEX ${i}%: Aumento de Atributo (+1 ponto).`);
-        if (i === 35) milestones.push("NEX 35%: Grau de Treinamento (Veterano liberado nas Perícias).");
-        if (i === 40) milestones.push("NEX 40%: Adicionar 2º Poder de Trilha.");
-        if (i === 50) milestones.push("NEX 50%: Aumento de Atributo E Versatilidade (Poder de Classe ou 1º Poder de outra Trilha).");
-        if (i === 65) milestones.push("NEX 65%: Adicionar 3º Poder de Trilha.");
-        if (i === 70) milestones.push("NEX 70%: Grau de Treinamento (Expert liberado nas Perícias).");
-        if (i === 99) milestones.push("NEX 99%: Adicionar 4º Poder de Trilha.");
-    }
-    return milestones;
-  };
-
-  const autoMilestones = getAutomaticMilestones(effectiveCurrent, effectiveTarget);
 
   const addTask = () => {
       if (!taskInput.trim()) return;
@@ -95,15 +75,12 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
           });
       }
 
-      // Converte os avisos automáticos em tarefas pendentes
-      const autoTasks = autoMilestones.map((text, i) => ({ id: `auto_${i}_${Date.now()}`, text, isDone: false }));
-
       updateCharacter(prev => ({
           ...prev,
           personal: { ...prev.personal, nex: targetNex },
           status: newStatus,
           abilities: newAbilities,
-          levelUpTasks: [...autoTasks, ...tasks] // Junta regras automáticas + tarefas manuais do jogador
+          levelUpTasks: [...tasks] // Apenas as tarefas manuais enviadas
       } as any));
 
       onConfirm();
@@ -160,24 +137,9 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
                     </label>
                 )}
 
-                {autoMilestones.length > 0 && (
-                    <div className="bg-cyan-900/10 border border-cyan-500/30 p-4 rounded-xl shadow-sm">
-                        <h4 className="text-sm font-bold text-cyan-400 uppercase tracking-wide flex items-center gap-2 mb-3"><BookOpen size={16}/> Novas Regras Alcançadas</h4>
-                        <ul className="space-y-2">
-                            {autoMilestones.map((m, i) => (
-                                <li key={i} className="text-xs text-cyan-100/80 flex items-start gap-2 leading-relaxed">
-                                    <div className="mt-1.5 w-1.5 h-1.5 bg-cyan-500 rounded-full shrink-0 shadow-[0_0_5px_rgba(6,182,212,0.8)]"></div>
-                                    {m}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* ABA ATUALIZADA: Focada na Checklist do Jogador */}
                 <div className="bg-energia/10 border border-energia/30 p-4 rounded-xl shadow-sm">
                     <h4 className="text-sm font-bold text-energia uppercase tracking-wide flex items-center gap-2 mb-2"><ListChecks size={16}/> Sua Checklist Manual (Opcional)</h4>
-                    <p className="text-xs text-eden-100/60 mb-4 leading-relaxed">Anote o que você precisa fazer manualmente na ficha baseada nas regras acima (Ex: Escolher uma nova Magia, Perícia ou Poder).</p>
+                    <p className="text-xs text-eden-100/60 mb-4 leading-relaxed">Anote o que você precisa fazer manualmente na ficha para este novo nível (Ex: Escolher uma nova Magia, Perícia ou Poder).</p>
                     
                     <div className="flex gap-2 mb-4">
                         <input 

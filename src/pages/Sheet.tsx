@@ -178,7 +178,6 @@ function SheetSettings({ isMestre }: { isMestre: boolean }) {
 
             <div className="space-y-4 max-w-xl">
                 
-                {}
                 <div className="bg-eden-950/50 p-4 md:p-6 rounded-xl border border-eden-700/50 space-y-5">
                     <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 border-b border-eden-700 pb-2"><Settings size={16} className="text-energia"/> Preferências</h3>
                     
@@ -199,7 +198,6 @@ function SheetSettings({ isMestre }: { isMestre: boolean }) {
                     </div>
                 </div>
 
-                {}
                 <div className="bg-eden-950/50 p-4 md:p-6 rounded-xl border border-eden-700/50 space-y-5">
                     <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 border-b border-eden-700 pb-2"><Lock size={16} className="text-energia"/> Controle de Acesso</h3>
                     
@@ -227,7 +225,6 @@ function SheetSettings({ isMestre }: { isMestre: boolean }) {
                     </div>
                 </div>
 
-                {}
                 {isMestre && (
                     <div className="bg-red-950/20 p-4 md:p-6 rounded-xl border border-red-900/50 flex items-center justify-between">
                         <div>
@@ -539,23 +536,27 @@ function SheetContent() {
   return (
     <div className="h-screen bg-eden-800 text-eden-100 flex flex-col font-sans overflow-hidden relative selection:bg-energia selection:text-eden-900">
       
-      <header className="bg-eden-900 border-b border-eden-700 p-3 md:p-4 shrink-0 shadow-lg z-20">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-3 md:gap-4 justify-between items-center">
+      {/* CABEÇALHO REVISADO (BEM MAIOR NO MOBILE) */}
+      <header className="bg-eden-900 border-b border-eden-700 p-4 md:p-5 shrink-0 shadow-lg z-20">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-5 justify-between items-center">
           
-          <div className="flex items-center gap-2 md:gap-4 w-full lg:w-auto">
-            <button onClick={handleBackToHome} className="p-1.5 md:p-2 hover:bg-eden-800 rounded-lg transition-colors text-eden-100/50 hover:text-energia shrink-0"><ArrowLeft size={20} /></button>
-            <div className="w-10 h-10 md:w-14 md:h-14 rounded-full overflow-hidden border-2 border-eden-600 shrink-0 bg-eden-800 flex items-center justify-center shadow-md">
-                {character.personal.portraitUrl ? <img src={character.personal.portraitUrl} className="w-full h-full object-cover" alt="Avatar" /> : <User size={20} className="text-eden-100/50" />}
+          {/* Identidade */}
+          <div className="flex items-center gap-3 md:gap-4 w-full lg:w-auto">
+            <button onClick={handleBackToHome} className="p-2 md:p-3 hover:bg-eden-800 rounded-xl transition-colors text-eden-100/50 hover:text-energia shrink-0">
+                <ArrowLeft size={24} />
+            </button>
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden border-2 border-eden-600 shrink-0 bg-eden-800 flex items-center justify-center shadow-md">
+                {character.personal.portraitUrl ? <img src={character.personal.portraitUrl} className="w-full h-full object-cover" alt="Avatar" /> : <User size={24} className="text-eden-100/50" />}
             </div>
             <div className="flex-1 min-w-0 flex flex-col justify-center">
               <div className="flex items-center gap-2 md:gap-3">
-                <input type="text" value={character.personal.name} onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, name: e.target.value}}))} placeholder="Nome do Personagem" className="bg-transparent border-b-2 border-transparent hover:border-eden-600 focus:border-energia outline-none text-lg md:text-2xl font-black text-white tracking-wide uppercase truncate flex-1 min-w-[80px] transition-colors" />
-                <div className="flex items-center bg-yellow-500/10 border border-yellow-500/50 rounded-lg px-1.5 py-0.5 md:px-2 md:py-1 shadow-inner shrink-0" title="Pontos de Prestígio">
-                    <span className="text-[9px] md:text-[10px] font-black text-yellow-500 uppercase mr-1 md:mr-2 tracking-widest drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]">PP</span>
-                    <input type="number" value={character.personal.prestigePoints} onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, prestigePoints: Number(e.target.value)}}))} className="bg-transparent border-none outline-none text-xs md:text-base text-yellow-400 font-black w-8 md:w-12 text-center"/>
+                <input type="text" value={character.personal.name} onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, name: e.target.value}}))} placeholder="Nome do Personagem" className="bg-transparent border-b-2 border-transparent hover:border-eden-600 focus:border-energia outline-none text-xl md:text-3xl font-black text-white tracking-wide uppercase truncate flex-1 min-w-[100px] transition-colors" />
+                <div className="flex items-center bg-yellow-500/10 border border-yellow-500/50 rounded-lg px-2 py-1 md:px-3 md:py-1.5 shadow-inner shrink-0" title="Pontos de Prestígio">
+                    <span className="text-[10px] md:text-xs font-black text-yellow-500 uppercase mr-1.5 tracking-widest drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]">PP</span>
+                    <input type="number" value={character.personal.prestigePoints} onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, prestigePoints: Number(e.target.value)}}))} className="bg-transparent border-none outline-none text-sm md:text-lg text-yellow-400 font-black w-10 md:w-14 text-center"/>
                 </div>
               </div>
-              <div className="text-[9px] md:text-xs text-eden-100/50 font-mono mt-0.5 md:mt-1 capitalize tracking-widest flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <div className="text-[11px] md:text-sm text-eden-100/50 font-mono mt-1 capitalize tracking-widest flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-white font-bold lowercase">@{character.personal.player || 'jogador'}</span>
                 <span className="hidden sm:inline">•</span>
                 <span className="text-eden-100/80">{character.personal.origin || 'Sem Origem'}</span>
@@ -570,7 +571,7 @@ function SheetContent() {
                         value={character.personal.trail || ''} 
                         onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, trail: e.target.value}}))} 
                         placeholder="Definir Trilha" 
-                        className="bg-transparent border-b border-dashed border-eden-700 hover:border-energia focus:border-energia outline-none text-energia font-bold w-20 md:w-32 transition-colors placeholder:text-eden-100/30"
+                        className="bg-transparent border-b border-dashed border-eden-700 hover:border-energia focus:border-energia outline-none text-energia font-bold w-24 md:w-32 transition-colors placeholder:text-eden-100/30"
                     />
                   </>
                 )}
@@ -578,28 +579,30 @@ function SheetContent() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between w-full lg:w-auto gap-2 md:gap-5">
-             <div className="flex items-center gap-1 md:gap-2 bg-eden-950/50 border border-eden-700/80 p-1 md:p-1.5 rounded-xl shadow-inner shrink-0">
-               <button onClick={() => { setTargetLevel(Math.max(5, character.personal.nex - 5)); setShowLevelUp(true); }} disabled={character.personal.nex <= 5} className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded text-eden-100/30 hover:bg-red-900/30 hover:text-red-400 disabled:opacity-20 transition-all" title="Reduzir NEX"><span className="font-black text-lg md:text-xl leading-none mb-1">-</span></button>
-               <div className="flex flex-col items-center px-1 md:px-2 min-w-[3rem] md:min-w-[3.5rem]"><span className="text-[8px] md:text-[9px] uppercase font-black text-energia/80 tracking-widest">NEX</span><span className="font-black text-base md:text-xl leading-none text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{character.personal.nex}%</span></div>
-               <button onClick={() => { setTargetLevel(Math.min(99, character.personal.nex + 5)); setShowLevelUp(true); }} disabled={character.personal.nex >= 99} className="flex items-center justify-center gap-1 bg-energia text-eden-900 hover:bg-yellow-400 px-2 py-1 md:px-3 md:py-1.5 rounded-lg font-black text-[9px] md:text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(250,176,5,0.4)] hover:shadow-[0_0_25px_rgba(250,176,5,0.6)] hover:scale-110 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none" title="Aumentar NEX">UP <Zap size={12} className="fill-eden-900 md:w-3.5 md:h-3.5"/></button>
+          {/* Controles de Evolução e Salvar */}
+          <div className="flex items-center justify-between w-full lg:w-auto gap-3 md:gap-5">
+             <div className="flex items-center gap-2 md:gap-3 bg-eden-950/50 border border-eden-700/80 p-1.5 md:p-2 rounded-xl shadow-inner shrink-0">
+               <button onClick={() => { setTargetLevel(Math.max(5, character.personal.nex - 5)); setShowLevelUp(true); }} disabled={character.personal.nex <= 5} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded text-eden-100/30 hover:bg-red-900/30 hover:text-red-400 disabled:opacity-20 transition-all" title="Reduzir NEX"><span className="font-black text-2xl md:text-3xl leading-none mb-1">-</span></button>
+               <div className="flex flex-col items-center px-2 md:px-3 min-w-[4rem] md:min-w-[5rem]"><span className="text-[10px] md:text-xs uppercase font-black text-energia/80 tracking-widest">NEX</span><span className="font-black text-xl md:text-2xl leading-none text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{character.personal.nex}%</span></div>
+               <button onClick={() => { setTargetLevel(Math.min(99, character.personal.nex + 5)); setShowLevelUp(true); }} disabled={character.personal.nex >= 99} className="flex items-center justify-center gap-1.5 bg-energia text-eden-900 hover:bg-yellow-400 px-3 py-2 md:px-4 md:py-2.5 rounded-lg font-black text-xs md:text-sm uppercase tracking-widest shadow-[0_0_15px_rgba(250,176,5,0.4)] hover:shadow-[0_0_25px_rgba(250,176,5,0.6)] hover:scale-110 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none" title="Aumentar NEX">UP <Zap size={16} className="fill-eden-900 md:w-4 md:h-4"/></button>
              </div>
              
              {autoSaveEnabled ? (
-                 <div className="flex-1 lg:flex-none flex items-center justify-center bg-eden-900/50 border border-eden-700 text-eden-100/50 px-3 py-2 md:px-6 md:py-2.5 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest gap-2 shadow-inner">
-                   {autoSaveStatus === 'saving' && <><Loader2 size={14} className="animate-spin text-energia"/> Salvando...</>}
-                   {autoSaveStatus === 'saved' && <><Check size={14} className="text-green-500"/> Salvo na Nuvem</>}
-                   {autoSaveStatus === 'idle' && <><Check size={14} className="text-eden-100/30"/> Salvo na Nuvem</>}
+                 <div className="flex-1 lg:flex-none flex items-center justify-center bg-eden-900/50 border border-eden-700 text-eden-100/50 px-4 py-3 md:px-6 md:py-3.5 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest gap-2 shadow-inner">
+                   {autoSaveStatus === 'saving' && <><Loader2 size={18} className="animate-spin text-energia"/> Salvando...</>}
+                   {autoSaveStatus === 'saved' && <><Check size={18} className="text-green-500"/> Salvo na Nuvem</>}
+                   {autoSaveStatus === 'idle' && <><Check size={18} className="text-eden-100/30"/> Salvo na Nuvem</>}
                  </div>
              ) : (
-                 <button onClick={handleSave} disabled={isSaving} className="flex-1 lg:flex-none justify-center bg-eden-800 border border-eden-600 hover:bg-energia hover:text-eden-900 text-white px-3 py-2 md:px-6 md:py-2.5 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-lg hover:shadow-[0_0_20px_rgba(250,176,5,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none group">
-                   {isSaving ? <><Loader2 size={14} className="animate-spin text-energia md:w-4 md:h-4"/> Salvando</> : <><Save size={14} className="text-energia group-hover:text-eden-900 transition-colors md:w-4 md:h-4"/> Salvar Ficha</>}
+                 <button onClick={handleSave} disabled={isSaving} className="flex-1 lg:flex-none justify-center bg-eden-800 border border-eden-600 hover:bg-energia hover:text-eden-900 text-white px-4 py-3 md:px-6 md:py-3.5 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg hover:shadow-[0_0_20px_rgba(250,176,5,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none group">
+                   {isSaving ? <><Loader2 size={18} className="animate-spin text-energia"/> Salvando</> : <><Save size={18} className="text-energia group-hover:text-eden-900 transition-colors"/> Salvar Ficha</>}
                  </button>
              )}
 
           </div>
         </div>
       </header>
+      {/* ==================================================== */}
 
       <main className="flex-1 overflow-auto custom-scrollbar p-4 md:p-8 bg-eden-900 relative">
         <div className="max-w-7xl mx-auto space-y-6">

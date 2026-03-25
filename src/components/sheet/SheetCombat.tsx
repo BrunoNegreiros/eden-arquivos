@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import type { UserWeapon, UserExplosive, UserAmmo } from '../../types/systemData';
 
-
 const UNARMED_ATTACK: any = {
     id: 'unarmed_virtual',
     type: 'weapon',
@@ -45,16 +44,13 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
   const injectedItems = (vars.INJECTED_ITEMS || []).map((i: any) => ({ ...i, isInjected: true, isEquipped: true }));
   const fullInventory = [...(character.inventory || []), ...injectedItems];
 
-  
   const inventoryWeapons = fullInventory.filter((i: any) => i.type === 'weapon' && i.isEquipped) as UserWeapon[];
   const inventoryExplosives = fullInventory.filter((i: any) => i.type === 'explosive' && i.isEquipped) as UserExplosive[];
-  
   
   const inventoryAmmo = fullInventory.filter((i: any) => i.type === 'ammo') as UserAmmo[];
   
   const allAttacks = [UNARMED_ATTACK, ...inventoryWeapons, ...inventoryExplosives];
 
-  
   const handleAttachAmmo = (weaponId: string, ammoId: string) => { setAttachedAmmo(prev => ({ ...prev, [weaponId]: ammoId })); };
 
   const handleShoot = (_weaponId: string, ammoId: string, isBurst: boolean) => {
@@ -142,27 +138,32 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
       return (
           <div key={item.id} className="bg-eden-900/50 border border-eden-700 rounded-2xl overflow-hidden hover:border-eden-500 transition-all flex flex-col shadow-lg">
               
-              <div className="p-4 md:p-5 bg-eden-950/80 border-b border-eden-700/50 flex justify-between items-start md:items-center gap-4">
-                  <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl bg-black/40 shadow-inner border border-white/5 ${isExplosive ? 'text-red-400' : isVirtual ? 'text-eden-100' : 'text-energia'}`}>
-                          <Icon size={24} />
+              {/* === CABEÇALHO CORRIGIDO PARA MOBILE === */}
+              <div className="p-4 md:p-5 bg-eden-950/80 border-b border-eden-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  
+                  <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto min-w-0">
+                      <div className={`p-2.5 md:p-3 rounded-xl bg-black/40 shadow-inner border border-white/5 shrink-0 ${isExplosive ? 'text-red-400' : isVirtual ? 'text-eden-100' : 'text-energia'}`}>
+                          <Icon size={24} className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
-                      <div className="space-y-1.5">
-                          <h3 className="text-lg font-black text-white leading-none">{item.name}</h3>
-                          <div className="flex flex-wrap gap-1.5">
-                              <span className="text-[10px] bg-eden-800 text-eden-100/70 px-2 py-0.5 rounded border border-eden-700 uppercase font-bold tracking-wider">{subtype}</span>
-                              <span className="text-[10px] bg-eden-800 text-eden-100/70 px-2 py-0.5 rounded border border-eden-700 uppercase font-bold tracking-wider">{complexity}</span>
-                              <span className="text-[10px] bg-eden-800 text-eden-100/70 px-2 py-0.5 rounded border border-eden-700 uppercase font-bold tracking-wider">{hands}</span>
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                          <h3 className="text-base md:text-lg font-black text-white leading-tight break-words">{item.name}</h3>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                              <span className="text-[9px] md:text-[10px] bg-eden-800 text-eden-100/70 px-1.5 py-0.5 rounded border border-eden-700 uppercase font-bold tracking-wider whitespace-nowrap">{subtype}</span>
+                              <span className="text-[9px] md:text-[10px] bg-eden-800 text-eden-100/70 px-1.5 py-0.5 rounded border border-eden-700 uppercase font-bold tracking-wider whitespace-nowrap">{complexity}</span>
+                              <span className="text-[9px] md:text-[10px] bg-eden-800 text-eden-100/70 px-1.5 py-0.5 rounded border border-eden-700 uppercase font-bold tracking-wider whitespace-nowrap">{hands}</span>
                           </div>
                       </div>
                   </div>
+
                   {hasDamage && (
-                      <div className="flex flex-col items-end shrink-0">
-                          <div className="text-sm font-black text-red-400 flex items-center gap-1.5"><Target size={16}/> Margem {critRange}</div>
-                          <div className="text-xs font-mono font-bold text-eden-100/70 bg-black/40 px-2.5 py-1 rounded mt-1.5 border border-white/5">x{critMult} Crítico</div>
+                      <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto shrink-0 bg-red-950/10 sm:bg-transparent p-2.5 sm:p-0 rounded-lg sm:rounded-none border sm:border-0 border-red-900/30">
+                          <div className="text-xs md:text-sm font-black text-red-400 flex items-center gap-1.5"><Target size={14} className="md:w-4 md:h-4"/> Margem {critRange}</div>
+                          <div className="text-[10px] md:text-xs font-mono font-bold text-eden-100/70 sm:bg-black/40 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded sm:mt-1.5 sm:border sm:border-white/5">x{critMult} Crítico</div>
                       </div>
                   )}
+
               </div>
+              {/* ======================================= */}
 
               <div className="p-4 md:p-5 space-y-5 flex-1 flex flex-col">
                   

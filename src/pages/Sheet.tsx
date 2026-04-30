@@ -4,7 +4,7 @@ import { doc, getDoc, updateDoc, collection, query, where, onSnapshot } from 'fi
 import { auth, db } from '../config/firebase';
 import { 
   Shield, Brain, Zap, Eye, BicepsFlexed, ArrowLeft, Save, 
-  Swords, Backpack, Dice5, BookOpen, User, PenTool, Loader2, Ghost, RefreshCw, AlertTriangle, Check, Asterisk, Settings, Lock, Users, BookText, Lightbulb
+  Swords, Backpack, Dice5, BookOpen, User, PenTool, Loader2, Ghost, RefreshCw, AlertTriangle, Check, Asterisk, Settings, Lock, Users, BookText, Lightbulb, Info
 } from 'lucide-react';
 
 import { CharacterProvider, useCharacter } from '../context/CharacterContext';
@@ -34,17 +34,17 @@ const ATTR_CONFIG: Record<string, { label: string, color: string, border: string
 };
 
 const TABS = [
-  { id: 'combat', label: 'Combate', icon: Swords },
   { id: 'skills', label: 'Perícias', icon: Dice5 },
-  { id: 'abilities', label: 'Habilidades', icon: Zap },
   { id: 'inventory', label: 'Inventário', icon: Backpack },
+  { id: 'combat', label: 'Combate', icon: Swords },
   { id: 'rituals', label: 'Rituais', icon: BookOpen },
-  { id: 'description', label: 'Roleplay', icon: User },
-  { id: 'notes', label: 'Anotações', icon: PenTool },
+  { id: 'abilities', label: 'Habilidades', icon: Zap },
   { id: 'manual', label: 'Efeitos Ocultos', icon: Asterisk },
+  { id: 'group', label: 'Grupo', icon: Users },
   { id: 'resumo', label: 'Resumo', icon: BookText },
   { id: 'dicas', label: 'Dicas Mestre', icon: Lightbulb },
-  { id: 'group', label: 'Grupo', icon: Users },
+  { id: 'notes', label: 'Anotações', icon: PenTool },
+  { id: 'description', label: 'Roleplay', icon: User },
   { id: 'settings', label: 'Config.', icon: Settings },
 ];
 
@@ -54,32 +54,24 @@ function SheetGroup({ mesaId, currentId }: { mesaId: string, currentId: string }
 
     useEffect(() => {
         if(!mesaId) return;
-        
         const q = query(collection(db, 'characters'), where('mesaId', '==', mesaId));
-        
         const unsubscribe = onSnapshot(q, (snap) => {
             const chars: any[] = [];
             snap.forEach(doc => {
                 const data = doc.data();
                 if (data.isPrivate) return;
                 if (doc.id === currentId) return;
-
                 chars.push({ id: doc.id, ...data });
             });
             setGroupChars(chars);
             setLoading(false);
-        }, (error) => {
-            console.error("Erro ao sincronizar o grupo:", error);
-            setLoading(false);
         });
-
         return () => unsubscribe();
     }, [mesaId, currentId]);
 
     const getStatusInfo = (current: number, max: number) => {
         if (max <= 0) return { text: 'N/A', class: 'text-eden-100/30' };
         const pct = Math.max(0, Math.min(100, (current / max) * 100));
-        
         if (pct <= 0) return { text: 'Crítico', class: 'text-red-500 font-black animate-pulse drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]' };
         if (pct <= 25) return { text: 'Grave', class: 'text-orange-500 font-bold drop-shadow-[0_0_3px_rgba(249,115,22,0.5)]' };
         if (pct <= 50) return { text: 'Ruim', class: 'text-yellow-400 font-bold' };
@@ -116,15 +108,19 @@ function SheetGroup({ mesaId, currentId }: { mesaId: string, currentId: string }
                             attributes: char.attributes || { initial: { AGI: 1, FOR: 1, INT: 1, PRE: 1, VIG: 1 } }
                         };
                         
-                        let pvMax = 1, peMax = 1, sanMax = 1;
+                        let pvMaxCalc = 1, peMaxCalc = 1, sanMaxCalc = 1;
                         try {
                             const charVars = calculateVariables(safeChar as any);
-                            pvMax = charVars.PV?.max || 1;
-                            peMax = charVars.PE?.max || 1;
-                            sanMax = charVars.SAN?.max || 1;
+                            pvMaxCalc = charVars.PV?.max || 1;
+                            peMaxCalc = charVars.PE?.max || 1;
+                            sanMaxCalc = charVars.SAN?.max || 1;
                         } catch(e) {
                             console.error("Falha ao processar os status de", char.personal?.name);
                         }
+
+                        const pvMax = char.status?.pv?.max ?? pvMaxCalc;
+                        const peMax = char.status?.pe?.max ?? peMaxCalc;
+                        const sanMax = char.status?.san?.max ?? sanMaxCalc;
 
                         const currentPV = char.status?.pv?.current ?? pvMax;
                         const currentPE = char.status?.pe?.current ?? peMax;
@@ -162,6 +158,18 @@ function SheetGroup({ mesaId, currentId }: { mesaId: string, currentId: string }
                     })}
                 </div>
             )}
+
+            <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-4 mt-6">
+                <h4 className="text-[10px] uppercase font-black text-eden-100/40 mb-3 flex items-center gap-2"><Info size={14}/> Glossário de Monitoramento</h4>
+                <div className="flex flex-wrap gap-y-3 gap-x-6">
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-teal-400"></div><span className="text-[10px] text-eden-100/60 uppercase">Ileso (100%)</span></div>
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"></div><span className="text-[10px] text-eden-100/60 uppercase">Ok (90%+)</span></div>
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-lime-400"></div><span className="text-[10px] text-eden-100/60 uppercase">Moderado (75%+)</span></div>
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-yellow-400"></div><span className="text-[10px] text-eden-100/60 uppercase">Ruim (50%+)</span></div>
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[10px] text-eden-100/60 uppercase">Grave (25%+)</span></div>
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div><span className="text-[10px] text-eden-100/60 uppercase">Crítico (0%)</span></div>
+                </div>
+            </div>
         </div>
     );
 }
@@ -536,11 +544,9 @@ function SheetContent() {
   return (
     <div className="h-screen bg-eden-800 text-eden-100 flex flex-col font-sans overflow-hidden relative selection:bg-energia selection:text-eden-900">
       
-      {/* CABEÇALHO REVISADO (BEM MAIOR NO MOBILE) */}
       <header className="bg-eden-900 border-b border-eden-700 p-4 md:p-5 shrink-0 shadow-lg z-20">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-5 justify-between items-center">
           
-          {/* Identidade */}
           <div className="flex items-center gap-3 md:gap-4 w-full lg:w-auto">
             <button onClick={handleBackToHome} className="p-2 md:p-3 hover:bg-eden-800 rounded-xl transition-colors text-eden-100/50 hover:text-energia shrink-0">
                 <ArrowLeft size={24} />
@@ -579,7 +585,6 @@ function SheetContent() {
             </div>
           </div>
 
-          {/* Controles de Evolução e Salvar */}
           <div className="flex items-center justify-between w-full lg:w-auto gap-3 md:gap-5">
              <div className="flex items-center gap-2 md:gap-3 bg-eden-950/50 border border-eden-700/80 p-1.5 md:p-2 rounded-xl shadow-inner shrink-0">
                <button onClick={() => { setTargetLevel(Math.max(5, character.personal.nex - 5)); setShowLevelUp(true); }} disabled={character.personal.nex <= 5} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded text-eden-100/30 hover:bg-red-900/30 hover:text-red-400 disabled:opacity-20 transition-all" title="Reduzir NEX"><span className="font-black text-2xl md:text-3xl leading-none mb-1">-</span></button>
@@ -602,7 +607,6 @@ function SheetContent() {
           </div>
         </div>
       </header>
-      {/* ==================================================== */}
 
       <main className="flex-1 overflow-auto custom-scrollbar p-4 md:p-8 bg-eden-900 relative">
         <div className="max-w-7xl mx-auto space-y-6">

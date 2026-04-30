@@ -5,7 +5,6 @@ import type { Effect, TermType, Operation } from '../../types/systemData';
 import { SKILL_MAP } from '../../utils/characterFormulas';
 import { CONDITIONS_LIST } from '../../data/referenceData';
 
-
 import { RitualForm } from './SheetRituals';
 import { AbilityForm } from './SheetAbilities';
 import { ItemForm } from './SheetInventory';
@@ -26,7 +25,6 @@ const getDefaultTargetType = (cat: string): string => {
 
 export default function EffectEditor({ effect, onChange, onRemove, isNested = false }: Props) {
   const { character } = useCharacter();
-  
   
   const virtualUnarmed = { id: 'unarmed_virtual', name: 'Ataque Desarmado', type: 'weapon', damage: [{ type: 'impacto' }] };
   const weapons = [virtualUnarmed, ...character.inventory.filter((i: any) => i.type === 'weapon')];
@@ -49,9 +47,9 @@ export default function EffectEditor({ effect, onChange, onRemove, isNested = fa
       
       if (newType === 'test_skill') newTarget.skill = 'Luta';
       if (newType === 'attribute' || newType === 'test_attribute') newTarget.attribute = 'PRE';
-      if (['dr', 'immunity_damage', 'vulnerability', 'damage_roll', 'damage_increase', 'change_damage'].includes(newType)) newTarget.damageType = 'balistico';
+      if (['dr', 'immunity_damage', 'vulnerability', 'damage_roll', 'damage_increase', 'change_damage'].includes(newType)) newTarget.damageType = 'primario';
       if (newType === 'immunity_condition') newTarget.condition = 'Agarrado';
-      if (['test_attack', 'damage_roll', 'damage_increase', 'change_damage'].includes(newType)) newTarget.weaponFilter = 'all';
+      if (['test_attack', 'damage_roll', 'damage_increase', 'change_damage', 'critical_range'].includes(newType)) newTarget.weaponFilter = 'all';
       if (newType === 'ritual_dt') newTarget.ritualId = 'all';
       if (newType === 'proficiency') newTarget.proficiencyType = 'simples';
 
@@ -68,7 +66,7 @@ export default function EffectEditor({ effect, onChange, onRemove, isNested = fa
           if (newType === 'test_skill') nt.skill = 'Luta';
           if (newType === 'dr') nt.damageType = 'balistico';
           if (newType === 'proficiency') nt.proficiencyType = 'simples';
-          if (newType === 'damage_roll') nt.weaponFilter = 'all';
+          if (['damage_roll', 'test_attack', 'critical_range'].includes(newType)) nt.weaponFilter = 'all';
           return nt;
       });
 
@@ -273,19 +271,50 @@ export default function EffectEditor({ effect, onChange, onRemove, isNested = fa
           const selectedWeapon = weapons.find((w: any) => w.id === target.weaponId) as any;
           return (
           <div key={target.id} className="flex flex-wrap gap-2 items-center bg-eden-900/50 p-2 rounded-lg border border-eden-700/50">
-            <select value={target.type} onChange={e => { const val = e.target.value as any; const nt: any = { id: target.id, type: val }; if (val === 'test_skill') nt.skill = 'Luta'; if (val === 'attribute' || val === 'test_attribute') nt.attribute = 'PRE'; if (['dr', 'immunity_damage', 'vulnerability', 'damage_roll', 'damage_increase', 'change_damage'].includes(val)) nt.damageType = 'balistico'; if (val === 'immunity_condition') nt.condition = 'Agarrado'; if (['test_attack', 'damage_roll', 'damage_increase', 'change_damage'].includes(val)) nt.weaponFilter = 'all'; if (val === 'ritual_dt') nt.ritualId = 'all'; if (val === 'proficiency') nt.proficiencyType = 'simples'; updateTargetFull(idx, nt); }} className="flex-1 min-w-[140px] bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-white outline-none font-bold">
-              {effect.category === 'change_dice' ? ( <><option value="test_skill">Aumento de Dados da Perícia</option><option value="test_attribute">Aumento de Dados do Atributo</option><option value="test_attack">Aumento de Dados de Ataque</option><option value="damage_increase">Aumento de Dano (Qtd de Dados)</option></> ) : effect.category === 'add_resistance' ? ( <><option value="dr">Resistência a Dano (RD)</option><option value="immunity_damage">Imunidade a Dano</option><option value="vulnerability">Vulnerabilidade a Dano</option><option value="immunity_condition">Imunidade a Condição</option></> ) : effect.category === 'change_damage' ? ( <option value="damage_roll">Substituir Dano da Arma</option> ) : effect.category === 'gain_proficiency' ? ( <option value="proficiency">Nova Proficiência</option> ) : effect.category === 'instant_heal_damage' ? ( <><option value="pv_current">Alterar PV Atual</option><option value="pe_current">Alterar PE Atual</option><option value="san_current">Alterar SAN Atual</option></> ) : ( <><optgroup label="Combate & Status"><option value="pv_max">PV Máximo</option><option value="pe_max">PE Máximo</option><option value="san_max">SAN Máxima</option><option value="pv_temp">PV Temporário</option><option value="pe_temp">PE Temporário</option><option value="san_temp">SAN Temporário</option><option value="defense">Defesa</option><option value="test_attack">Bônus de Ataque (+X)</option><option value="damage_roll">Adicionar Novo Dano na Arma</option></optgroup><optgroup label="Atributos & Perícias"><option value="attribute">Bônus em Atributo Específico</option><option value="test_skill">Bônus em Perícia (+X)</option></optgroup><optgroup label="Mobilidade & Rituais"><option value="displacement">Deslocamento (Metros)</option><option value="load_max">Carga Máxima</option><option value="ritual_dt">DT dos Rituais</option></optgroup></> )}
+            <select value={target.type} onChange={e => { const val = e.target.value as any; const nt: any = { id: target.id, type: val }; if (val === 'test_skill') nt.skill = 'Luta'; if (val === 'attribute' || val === 'test_attribute') nt.attribute = 'PRE'; if (['dr', 'immunity_damage', 'vulnerability', 'damage_roll', 'damage_increase', 'change_damage'].includes(val)) nt.damageType = 'primario'; if (val === 'immunity_condition') nt.condition = 'Agarrado'; if (['test_attack', 'damage_roll', 'damage_increase', 'change_damage', 'critical_range'].includes(val)) nt.weaponFilter = 'all'; if (val === 'ritual_dt') nt.ritualId = 'all'; if (val === 'proficiency') nt.proficiencyType = 'simples'; updateTargetFull(idx, nt); }} className="flex-1 min-w-[140px] bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-white outline-none font-bold">
+              {effect.category === 'change_dice' ? ( <><option value="test_skill">Aumento de Dados da Perícia</option><option value="test_attribute">Aumento de Dados do Atributo</option><option value="test_attack">Aumento de Dados de Ataque</option><option value="damage_increase">Aumento de Dano (Qtd de Dados)</option></> ) : effect.category === 'add_resistance' ? ( <><option value="dr">Resistência a Dano (RD)</option><option value="immunity_damage">Imunidade a Dano</option><option value="vulnerability">Vulnerabilidade a Dano</option><option value="immunity_condition">Imunidade a Condição</option></> ) : effect.category === 'change_damage' ? ( <option value="damage_roll">Substituir Dano da Arma</option> ) : effect.category === 'gain_proficiency' ? ( <option value="proficiency">Nova Proficiência</option> ) : effect.category === 'instant_heal_damage' ? ( <><option value="pv_current">Alterar PV Atual</option><option value="pe_current">Alterar PE Atual</option><option value="san_current">Alterar SAN Atual</option></> ) : ( 
+                  <>
+                      <optgroup label="Combate & Status">
+                          <option value="pv_max">PV Máximo</option>
+                          <option value="pe_max">PE Máximo</option>
+                          <option value="san_max">SAN Máxima</option>
+                          <option value="pv_temp">PV Temporário</option>
+                          <option value="pe_temp">PE Temporário</option>
+                          <option value="san_temp">SAN Temporário</option>
+                          <option value="defense">Defesa</option>
+                          <option value="test_attack">Bônus de Ataque (+X)</option>
+                          <option value="damage_roll">Adicionar Novo Dano na Arma</option>
+                          <option value="critical_range">Margem de Ameaça (Crítico)</option>
+                          <option value="explosive_dt">DT de Explosivos</option>
+                      </optgroup>
+                      <optgroup label="Atributos & Perícias">
+                          <option value="attribute">Bônus em Atributo Específico</option>
+                          <option value="test_skill">Bônus em Perícia (+X)</option>
+                      </optgroup>
+                      <optgroup label="Mobilidade & Rituais">
+                          <option value="displacement">Deslocamento (Metros)</option>
+                          <option value="load_max">Carga Máxima</option>
+                          <option value="ritual_dt">DT dos Rituais</option>
+                      </optgroup>
+                  </> 
+              )}
             </select>
 
             {target.type === 'proficiency' && ( <select value={target.proficiencyType || 'simples'} onChange={e => updateTargetField(idx, 'proficiencyType', e.target.value)} className="bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-white"><option value="simples">Armas Simples</option><option value="taticas">Armas Táticas</option><option value="pesadas">Armas Pesadas</option><option value="leves_armor">Proteções Leves</option><option value="pesadas_armor">Proteções Pesadas</option></select> )}
             {target.type === 'test_skill' && <select value={target.skill || 'Luta'} onChange={e => updateTargetField(idx, 'skill', e.target.value)} className="w-full md:w-32 bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-white">{Object.keys(SKILL_MAP).map(s => <option key={s} value={s}>{s}</option>)}</select>}
             {((target.type as string) === 'attribute' || (target.type as string) === 'test_attribute') && <select value={target.attribute || 'PRE'} onChange={e => updateTargetField(idx, 'attribute', e.target.value)} className="w-full md:w-32 bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-white">{['AGI', 'FOR', 'INT', 'PRE', 'VIG'].map(a => <option key={a} value={a}>{a}</option>)}</select>}
             
-            {(['test_attack', 'damage_roll', 'damage_increase'].includes(target.type) || effect.category === 'change_damage') && (
+            {(['test_attack', 'damage_roll', 'damage_increase', 'critical_range'].includes(target.type) || effect.category === 'change_damage') && (
                 <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto flex-1">
                     <select value={target.weaponId || target.weaponFilter || 'all'} onChange={e => { const val = e.target.value; const nt = { ...target }; if (['all', 'melee', 'ranged'].includes(val)) { nt.weaponFilter = val as any; delete nt.weaponId; } else { nt.weaponId = val; delete nt.weaponFilter; } updateTargetFull(idx, nt); }} className="bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-energia"><optgroup label="Filtros Gerais"><option value="all">Todas as Armas</option><option value="melee">Corpo a Corpo</option><option value="ranged">À Distância</option></optgroup>{weapons.length > 0 && <optgroup label="Ataques & Armas">{weapons.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}</optgroup>}</select>
                     {(target.type === 'damage_increase' || effect.category === 'change_damage') && selectedWeapon && <select value={target.damageIndex ?? -1} onChange={e => updateTargetField(idx, 'damageIndex', Number(e.target.value))} className="bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-red-300">{effect.category !== 'change_damage' && <option value={-1}>Todos os danos</option>}{selectedWeapon.damage?.map((dmg: any, i: number) => <option key={i} value={i}>Dano {i+1} ({dmg.type})</option>)}</select>}
-                    {['damage_roll', 'damage_increase'].includes(target.type) && <select value={target.damageType || 'balistico'} onChange={e => updateTargetField(idx, 'damageType', e.target.value)} className="bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-red-300 capitalize">{ALL_DAMAGE_TYPES.map(d => <option key={d} value={d}>{d}</option>)}</select>}
+    
+                    {['damage_roll', 'damage_increase'].includes(target.type) && (
+                        <select value={target.damageType || 'primario'} onChange={e => updateTargetField(idx, 'damageType', e.target.value)} className="bg-eden-950 border border-eden-700 rounded p-1.5 text-xs text-red-300 capitalize">
+                            <option value="primario">Igual ao Dano Primário</option>
+                            {ALL_DAMAGE_TYPES.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    )}
                 </div>
             )}
 

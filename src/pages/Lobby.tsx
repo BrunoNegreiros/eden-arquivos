@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../config/firebase';
 import { signOut } from 'firebase/auth';
 import { 
-  collection, query, where, getDocs, doc, getDoc, updateDoc, arrayUnion, setDoc, deleteDoc, orderBy 
+  collection, query, where, getDocs, doc, getDoc, updateDoc, arrayUnion, arrayRemove, setDoc, deleteDoc, orderBy, getCountFromServer 
 } from 'firebase/firestore';
 import { 
   Plus, Hash, LogOut, ChevronRight, Users, 
   Shield, BookOpen, Loader2, X, Ghost,
-  Newspaper, Calendar, Edit2, Trash2, Save, Palette, Image as ImageIcon, ChevronLeft, Copy
+  Newspaper, Calendar, Edit2, Trash2, Save, Palette, Image as ImageIcon, ChevronLeft, Copy, LogOut as LeaveIcon, BarChart3, MessageSquare, Send
 } from 'lucide-react';
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -26,6 +26,7 @@ export default function Lobby() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [mesas, setMesas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [globalMesaCount, setGlobalMesaCount] = useState(0);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -33,9 +34,12 @@ export default function Lobby() {
   const [accessKey, setAccessKey] = useState('');
 
   const [letters, setLetters] = useState<any[]>([]);
+  const [readLettersIds, setReadLettersIds] = useState<string[]>([]);
+  
   const [letterMode, setLetterMode] = useState<'closed' | 'list' | 'read' | 'edit'>('closed');
   const [activeLetter, setActiveLetter] = useState<any | null>(null);
   const [isSavingLetter, setIsSavingLetter] = useState(false);
+  const [newComment, setNewComment] = useState('');
 
   const isAdmin = auth.currentUser?.email === 'brunonegreiros1605@gmail.com';
 
@@ -57,6 +61,16 @@ export default function Lobby() {
               mesasData.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
               setMesas(mesasData);
           }
+      }
+
+      const coll = collection(db, "mesas");
+      const snapshot = await getCountFromServer(coll);
+      setGlobalMesaCount(snapshot.data().count);
+
+      const readRef = doc(db, 'users', auth.currentUser.uid, 'settings', 'read_letters');
+      const readSnap = await getDoc(readRef);
+      if (readSnap.exists()) {
+          setReadLettersIds(readSnap.data().ids || []);
       }
 
       const qLetters = query(collection(db, "edens_letters"), orderBy("createdAt", "desc"));
@@ -196,6 +210,30 @@ export default function Lobby() {
       }
   };
 
+  const handleLeaveMesa = async (mesaId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!confirm("Deseja realmente sair desta mesa? Suas fichas continuarão lá, mas você perderá o acesso rápido.")) return;
+      setLoading(true);
+      try {
+          await updateDoc(doc(db, 'mesas', mesaId), { members: arrayRemove(auth.currentUser!.uid) });
+          await updateDoc(doc(db, 'users', auth.currentUser!.uid), { joinedMesas: arrayRemove(mesaId) });
+          setMesas(prev => prev.filter(m => m.id !== mesaId));
+      } catch (err) { alert("Erro ao sair da mesa."); } finally { setLoading(false); }
+  };
+
+  const handlePostComment = async () => {
+      if (!newComment.trim() || !activeLetter) return;
+      const usernameDisplay = userProfile?.username || auth.currentUser?.displayName || 'Agente';
+      const comment = { id: generateId(), userId: auth.currentUser!.uid, username: usernameDisplay, text: newComment.trim(), createdAt: Date.now() };
+      
+      const updatedComments = [...(activeLetter.comments || []), comment];
+      await updateDoc(doc(db, "edens_letters", activeLetter.id), { comments: updatedComments });
+      
+      setActiveLetter({ ...activeLetter, comments: updatedComments });
+      setLetters(prev => prev.map(l => l.id === activeLetter.id ? { ...l, comments: updatedComments } : l));
+      setNewComment('');
+  };
+
   const handleSaveLetter = async () => {
       if (!activeLetter?.title) return alert("O título é obrigatório!");
       setIsSavingLetter(true);
@@ -226,6 +264,22 @@ export default function Lobby() {
       setLetterMode('edit');
   };
 
+  const markLetterAsRead = async (letterId: string) => {
+      if (readLettersIds.includes(letterId)) return; 
+      
+      const newIds = [...readLettersIds, letterId];
+      setReadLettersIds(newIds); 
+
+      try {
+          const readRef = doc(db, 'users', auth.currentUser!.uid, 'settings', 'read_letters');
+          await setDoc(readRef, { ids: newIds }, { merge: true });
+      } catch (error) {
+          console.error("Falha ao registrar recibo de leitura:", error);
+      }
+  };
+
+  const unreadCount = letters.filter(l => !readLettersIds.includes(l.id)).length;
+
   if (loading) return (
     <div className="min-h-screen bg-eden-900 flex flex-col items-center justify-center gap-4">
         <Loader2 className="text-energia animate-spin" size={40}/>
@@ -244,7 +298,10 @@ export default function Lobby() {
               </div>
               <div>
                 <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Suas Mesas</h1>
-                <p className="text-xs text-eden-100/40 font-bold">Logado como <span className="text-energia">@{userProfile?.username}</span></p>
+                <div className="flex items-center gap-3 text-[10px] font-bold text-eden-100/40 uppercase mt-1">
+                    <span>Logado como <span className="text-energia">@{userProfile?.username}</span></span>
+                    <span className="flex items-center gap-1 bg-eden-950 px-2 py-0.5 rounded border border-eden-700"><BarChart3 size={10}/> {globalMesaCount} Campanhas no Sistema</span>
+                </div>
               </div>
            </div>
            <button onClick={() => signOut(auth)} className="p-3 text-eden-100/30 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all" title="Sair da Conta">
@@ -275,7 +332,7 @@ export default function Lobby() {
                     <h3 className="font-bold text-white group-hover:text-purple-300">Eden's Letter</h3>
                     <p className="text-[10px] text-purple-200/50 uppercase tracking-widest">Avisos do Sistema</p>
                 </div>
-                {letters.length > 0 && <div className="absolute top-4 right-4 bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">{letters.length}</div>}
+                {unreadCount > 0 && <div className="absolute top-4 right-4 bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">{unreadCount} Novas</div>}
             </button>
         </div>
 
@@ -301,12 +358,14 @@ export default function Lobby() {
                                         <Shield size={10} className={isMestre ? "text-red-500" : "text-cyan-500"}/> Mestre: {mesa.mestreName}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                    {isMestre && (
-                                        <div className="flex items-center gap-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {isMestre ? (
+                                        <>
                                             <button onClick={(e) => handleDuplicateMesa(mesa, e)} className="p-2 bg-eden-900 text-eden-100/50 hover:text-energia rounded-lg transition-colors border border-eden-700 hover:border-energia" title="Duplicar Mesa Completa"><Copy size={16}/></button>
                                             <button onClick={(e) => handleDeleteMesa(mesa.id, e)} className="p-2 bg-eden-900 text-eden-100/50 hover:text-red-400 rounded-lg transition-colors border border-eden-700 hover:border-red-400" title="Excluir Mesa Permanentemente"><Trash2 size={16}/></button>
-                                        </div>
+                                        </>
+                                    ) : (
+                                        <button onClick={(e) => handleLeaveMesa(mesa.id, e)} className="p-2 bg-eden-900 text-eden-100/50 hover:text-red-400 rounded-lg border border-eden-700 transition-colors hover:border-red-400" title="Sair da Mesa"><LeaveIcon size={16}/></button>
                                     )}
                                     <ChevronRight size={20} className="text-eden-100/20 group-hover:text-energia group-hover:translate-x-1 transition-all"/>
                                 </div>
@@ -359,7 +418,7 @@ export default function Lobby() {
       )}
 
       {letterMode !== 'closed' && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm animate-in fade-in">
               <div className="bg-eden-900 w-full max-w-4xl max-h-full rounded-2xl border border-purple-500/50 shadow-2xl flex flex-col overflow-hidden">
                   <div className="p-4 border-b border-purple-500/30 bg-purple-950/20 flex justify-between items-center shrink-0">
                       <div className="flex items-center gap-3">
@@ -372,32 +431,44 @@ export default function Lobby() {
                   {letterMode === 'list' && (
                       <div className="flex-1 overflow-y-auto p-6 space-y-4">
                           <div className="flex justify-between items-center mb-4">
-                              <p className="text-sm text-eden-100/60 italic">Avisos globais e atualizações do sistema.</p>
+                              <p className="text-sm text-eden-100/60 italic">Fique por dentro das atualizações da campanha.</p>
                               {isAdmin && <button onClick={() => openEditMode()} className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2"><Plus size={16}/> Escrever Edição</button>}
                           </div>
                           {letters.length === 0 ? (
                               <div className="text-center py-20 border-2 border-dashed border-purple-500/20 rounded-xl text-purple-200/40">Nenhuma edição publicada.</div>
                           ) : (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {letters.map(letter => (
-                                      <div key={letter.id} onClick={() => { setActiveLetter(letter); setLetterMode('read'); }} className="group bg-eden-950/50 border border-purple-900/50 hover:border-purple-500/50 rounded-xl overflow-hidden cursor-pointer flex flex-col transition-all hover:-translate-y-1 shadow-lg">
-                                          {letter.headerUrl && <div className="h-24 w-full bg-black shrink-0"><img src={letter.headerUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100" alt="Capa" /></div>}
-                                          <div className="p-4 flex-1 flex flex-col">
-                                              <div className="text-[10px] text-purple-300 font-bold mb-2 flex flex-col gap-1">
-                                                  <span className="flex items-center gap-1"><Calendar size={12}/> {formatDateTime(letter.createdAt)}</span>
-                                              </div>
-                                              <h3 className="font-black text-lg leading-tight mb-1" style={{ color: letter.titleColor || '#ffffff' }}>{letter.title}</h3>
-                                              <p className="text-xs text-eden-100/70 line-clamp-2 flex-1">{letter.subtitle}</p>
+                                  {letters.map(letter => {
+                                      const isRead = readLettersIds.includes(letter.id);
+                                      return (
+                                          <div key={letter.id} 
+                                               onClick={() => { 
+                                                    setActiveLetter(letter); 
+                                                    setLetterMode('read'); 
+                                                    markLetterAsRead(letter.id);
+                                               }} 
+                                               className={`group bg-eden-950/50 border hover:border-purple-500/50 rounded-xl overflow-hidden cursor-pointer flex flex-col transition-all hover:-translate-y-1 shadow-lg relative ${!isRead ? 'border-purple-400/80 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'border-purple-900/50'}`}>
                                               
-                                              {isAdmin && (
-                                                  <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-purple-900/30">
-                                                      <button onClick={(e) => { e.stopPropagation(); openEditMode(letter); }} className="p-1.5 text-purple-400 hover:bg-purple-500/20 rounded"><Edit2 size={16}/></button>
-                                                      <button onClick={(e) => handleDeleteLetter(letter.id, e)} className="p-1.5 text-red-400 hover:bg-red-500/20 rounded"><Trash2 size={16}/></button>
+                                              {!isRead && <div className="absolute top-4 right-4 w-3 h-3 bg-purple-500 rounded-full animate-pulse z-10 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></div>}
+
+                                              {letter.headerUrl && <div className="h-24 w-full bg-black shrink-0"><img src={letter.headerUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100" alt="Capa" /></div>}
+                                              <div className="p-4 flex-1 flex flex-col">
+                                                  <div className="text-[10px] text-purple-300 font-bold mb-2 flex flex-col gap-1">
+                                                      <span className="flex items-center gap-1"><Calendar size={12}/> {formatDateTime(letter.createdAt)}</span>
                                                   </div>
-                                              )}
+                                                  <h3 className="font-black text-lg leading-tight mb-1" style={{ color: letter.titleColor || '#ffffff' }}>{letter.title}</h3>
+                                                  <p className="text-xs text-eden-100/70 line-clamp-2 flex-1">{letter.subtitle}</p>
+                                                  
+                                                  {isAdmin && (
+                                                      <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-purple-900/30">
+                                                          <button onClick={(e) => { e.stopPropagation(); openEditMode(letter); }} className="p-1.5 text-purple-400 hover:bg-purple-500/20 rounded"><Edit2 size={16}/></button>
+                                                          <button onClick={(e) => handleDeleteLetter(letter.id, e)} className="p-1.5 text-red-400 hover:bg-red-500/20 rounded"><Trash2 size={16}/></button>
+                                                      </div>
+                                                  )}
+                                              </div>
                                           </div>
-                                      </div>
-                                  ))}
+                                      );
+                                  })}
                               </div>
                           )}
                       </div>
@@ -427,11 +498,33 @@ export default function Lobby() {
                                       </div>
                                   ))}
                               </div>
+                              
+                              <div className="mt-12 pt-8 border-t border-white/10 space-y-6">
+                                  <h3 className="text-xl font-bold flex items-center gap-2 text-white"><MessageSquare size={20}/> Comentários ({activeLetter.comments?.length || 0})</h3>
+                                  <div className="space-y-4">
+                                      {(activeLetter.comments || []).map((c: any) => (
+                                          <div key={c.id} className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                              <div className="flex justify-between text-[10px] font-bold text-eden-100/40 uppercase mb-2">
+                                                  <span>@{c.username}</span>
+                                                  <span>{formatDateTime(c.createdAt)}</span>
+                                              </div>
+                                              <p className="text-sm text-eden-100/80">{c.text}</p>
+                                          </div>
+                                      ))}
+                                      {(!activeLetter.comments || activeLetter.comments.length === 0) && (
+                                          <p className="text-xs text-eden-100/40 italic">Nenhum comentário ainda. Seja o primeiro a comentar!</p>
+                                      )}
+                                  </div>
+                                  <div className="flex gap-2 sticky bottom-0 bg-eden-950 py-4 mt-4">
+                                      <input value={newComment} onChange={e => setNewComment(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-purple-500" placeholder="Escreva algo..."/>
+                                      <button onClick={handlePostComment} className="p-3 bg-purple-600 text-white rounded-xl hover:bg-purple-500 transition-colors shadow-lg"><Send size={20}/></button>
+                                  </div>
+                              </div>
                           </div>
                       </div>
                   )}
 
-                  {letterMode === 'edit' && activeLetter && isAdmin && (
+                  {letterMode === 'edit' && isAdmin && (
                       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 bg-eden-900">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="space-y-1 md:col-span-2">

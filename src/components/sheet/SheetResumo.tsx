@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { BookOpen, Plus, Trash2, Edit2, Calendar, Hash, Save, X, Ghost, Scroll } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Edit2, Calendar, Hash, Save, X, Ghost, Scroll, ChevronDown } from 'lucide-react';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 
@@ -12,6 +12,9 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
     const [isEditing, setIsEditing] = useState(false);
     const [currentResumo, setCurrentResumo] = useState<any>(null);
 
+    // ATUALIZADO: Estado que controla quais resumos estão expandidos (abertos)
+    const [expandedIds, setExpandedIds] = useState<string[]>([]);
+
     useEffect(() => {
         if (!mesaId) {
             setLoading(false);
@@ -21,9 +24,13 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
         const unsubscribe = onSnapshot(doc(db, 'mesas', mesaId), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                
                 const sorted = (data.resumos || []).sort((a: any, b: any) => b.sessionNumber - a.sessionNumber);
                 setResumos(sorted);
+                
+                // Se a pessoa acabou de carregar a página e tem resumos, expande o mais recente por padrão
+                if (sorted.length > 0 && expandedIds.length === 0) {
+                    setExpandedIds([sorted[0].id]);
+                }
             }
             setLoading(false);
         });
@@ -54,13 +61,20 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
             await updateDoc(doc(db, 'mesas', mesaId), { resumos: newResumos });
             setIsEditing(false);
             setCurrentResumo(null);
+            
+            // Ao salvar um resumo novo (ou editado), expande ele automaticamente para leitura
+            if (!expandedIds.includes(finalResumo.id)) {
+                setExpandedIds(prev => [...prev, finalResumo.id]);
+            }
+
         } catch (error) {
             alert("Erro ao salvar resumo.");
             console.error(error);
         }
     };
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Evita que clicar em "excluir" expanda/colapse o card
         if (!confirm("Tem certeza que deseja apagar este resumo? Ele sumirá para todos da mesa.")) return;
         try {
             const newResumos = resumos.filter(r => r.id !== id);
@@ -70,13 +84,23 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
         }
     };
 
-    const openEdit = (resumo?: any) => {
+    const openEdit = (resumo?: any, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation(); // Evita que clicar em "editar" expanda/colapse o card
         if (resumo) {
             setCurrentResumo({ ...resumo });
         } else {
-            setCurrentResumo({ id: '', title: '', campaign: '', sessionNumber: resumos.length + 1, date: '', content: '' });
+            setCurrentResumo({ id: '', title: '', sessionNumber: resumos.length + 1, date: '', content: '' });
         }
         setIsEditing(true);
+    };
+
+    // ATUALIZADO: Função para alternar entre mostrar ou esconder o texto do resumo
+    const toggleExpand = (id: string) => {
+        setExpandedIds(prev => 
+            prev.includes(id) 
+            ? prev.filter(expandedId => expandedId !== id) 
+            : [...prev, id]
+        );
     };
 
     if (!mesaId) {
@@ -122,10 +146,6 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
                             <input type="date" value={currentResumo.date} onChange={e => setCurrentResumo({...currentResumo, date: e.target.value})} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-2.5 text-sm text-white outline-none focus:border-conhecimento" style={{colorScheme: 'dark'}}/>
                         </div>
                         <div className="md:col-span-4 space-y-1">
-                            <label className="text-[10px] uppercase font-bold text-eden-100/50">Nome da Campanha (Opcional)</label>
-                            <input type="text" value={currentResumo.campaign} onChange={e => setCurrentResumo({...currentResumo, campaign: e.target.value})} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-2.5 text-sm text-white outline-none focus:border-conhecimento" placeholder="Ex: Segredo da Ilha"/>
-                        </div>
-                        <div className="md:col-span-4 space-y-1">
                             <label className="text-[10px] uppercase font-bold text-eden-100/50">Resumo dos Acontecimentos</label>
                             <textarea value={currentResumo.content} onChange={e => setCurrentResumo({...currentResumo, content: e.target.value})} className="w-full min-h-[200px] bg-eden-900 border border-eden-700 rounded-lg p-3 text-sm text-eden-100 outline-none focus:border-conhecimento resize-none" placeholder="O que aconteceu nesta sessão...?"/>
                         </div>
@@ -141,29 +161,51 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
                 <div className="text-center py-20 border-2 border-dashed border-eden-800 rounded-xl text-eden-100/30">Nenhum resumo publicado ainda.</div>
             )}
 
-            <div className="space-y-6">
-                {resumos.map((resumo: any) => (
-                    <div key={resumo.id} className="bg-eden-900/50 border border-eden-700/50 rounded-xl overflow-hidden shadow-lg group">
-                        <div className="bg-eden-950 p-4 border-b border-eden-700/50 flex justify-between items-center">
-                            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                                <div className="flex items-center gap-1.5 text-conhecimento bg-conhecimento/10 px-2 py-1 rounded border border-conhecimento/20 text-xs font-black uppercase tracking-widest"><Hash size={14}/> SESSÃO {resumo.sessionNumber}</div>
-                                <h3 className="font-black text-lg text-white">{resumo.title}</h3>
+            <div className="space-y-4">
+                {resumos.map((resumo: any) => {
+                    const isExpanded = expandedIds.includes(resumo.id);
+                    
+                    return (
+                        <div key={resumo.id} className="bg-eden-900/50 border border-eden-700/50 rounded-xl overflow-hidden shadow-lg group transition-all">
+                            {/* ATUALIZADO: Cabeçalho agora é clicável e muda de cor se estiver aberto */}
+                            <div 
+                                onClick={() => toggleExpand(resumo.id)}
+                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isExpanded ? 'bg-conhecimento/10 border-b border-conhecimento/20' : 'bg-eden-950 hover:bg-eden-800 border-b border-transparent'}`}
+                            >
+                                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                                    <div className="flex items-center gap-1.5 text-conhecimento bg-conhecimento/10 px-2 py-1 rounded border border-conhecimento/20 text-xs font-black uppercase tracking-widest"><Hash size={14}/> SESSÃO {resumo.sessionNumber}</div>
+                                    <h3 className={`font-black text-lg transition-colors ${isExpanded ? 'text-conhecimento' : 'text-white'}`}>{resumo.title}</h3>
+                                    
+                                    {/* Data real mostrada no cabeçalho se ele estiver colapsado, pro player se achar melhor */}
+                                    {!isExpanded && resumo.date && (
+                                        <span className="text-[10px] uppercase font-bold text-eden-100/30 ml-2 hidden md:flex items-center gap-1">
+                                            <Calendar size={12}/> {new Date(resumo.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className={`flex items-center gap-1 transition-opacity ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                        <button onClick={(e) => openEdit(resumo, e)} className="p-1.5 hover:text-conhecimento hover:bg-conhecimento/10 rounded transition-colors" title="Editar"><Edit2 size={16}/></button>
+                                        <button onClick={(e) => handleDelete(resumo.id, e)} className="p-1.5 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors" title="Excluir"><Trash2 size={16}/></button>
+                                    </div>
+                                    <div className={`text-eden-100/50 transition-transform ${isExpanded ? 'rotate-180 text-conhecimento' : ''}`}>
+                                        <ChevronDown size={20} />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => openEdit(resumo)} className="p-1.5 hover:text-conhecimento hover:bg-conhecimento/10 rounded transition-colors"><Edit2 size={16}/></button>
-                                <button onClick={() => handleDelete(resumo.id)} className="p-1.5 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={16}/></button>
-                            </div>
+                            
+                            {/* ATUALIZADO: Corpo do resumo some ou aparece baseado no estado `isExpanded` */}
+                            {isExpanded && (
+                                <div className="p-5 space-y-4 bg-eden-900/20 animate-in slide-in-from-top-2">
+                                    <div className="flex gap-4 text-[10px] uppercase font-bold text-conhecimento/60">
+                                        {resumo.date && <span className="flex items-center gap-1"><Calendar size={12}/> Ocorrida em: {new Date(resumo.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+                                    </div>
+                                    <p className="text-sm md:text-base text-eden-100/80 leading-relaxed whitespace-pre-wrap">{resumo.content}</p>
+                                </div>
+                            )}
                         </div>
-                        
-                        <div className="p-5 space-y-4">
-                            <div className="flex gap-4 text-[10px] uppercase font-bold text-eden-100/40">
-                                {resumo.date && <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(resumo.date).toLocaleDateString('pt-BR')}</span>}
-                                {resumo.campaign && <span className="flex items-center gap-1"><Scroll size={12}/> Campanha: {resumo.campaign}</span>}
-                            </div>
-                            <p className="text-sm md:text-base text-eden-100/80 leading-relaxed whitespace-pre-wrap">{resumo.content}</p>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

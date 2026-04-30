@@ -1,10 +1,14 @@
-import { useState } from 'react';
-import { Book, Plus, Trash2, Zap, Ghost, X, Edit2, GraduationCap, Power, Settings } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Book, Plus, Trash2, Zap, Ghost, X, Edit2, GraduationCap, Power, Settings, Copy, Search, Tag, Filter } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import type { UserAbility } from '../../types/systemData';
 import EffectEditor from './EffectEditor';
 
-type AppAbility = UserAbility & { isActive?: boolean; isInjected?: boolean; isOverridden?: boolean; element?: string; cost?: number; isOrigin?: boolean };
+type AppAbility = UserAbility & { 
+    isActive?: boolean; isInjected?: boolean; isOverridden?: boolean; 
+    element?: string; cost?: number; isOrigin?: boolean;
+    tags?: { id: string, name: string, color: string }[];
+};
 
 const SOURCE_COLORS: Record<string, string> = {
     'Origem': 'text-emerald-400 border-emerald-500 bg-emerald-500/10',
@@ -15,24 +19,55 @@ const SOURCE_COLORS: Record<string, string> = {
     'Outro': 'text-zinc-400 border-zinc-500 bg-zinc-500/10'
 };
 
+const DEFAULT_TAGS = [
+    { id: 'atk', name: 'Ataque', color: '#8B4513' },
+    { id: 'dmg', name: 'Dano', color: '#EF4444' },
+    { id: 'def', name: 'Defesa', color: '#3B82F6' },
+    { id: 'heal', name: 'Cura', color: '#10B981' }
+];
+
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 
 export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: AppAbility, onSave: (a: AppAbility) => void, onCancel: () => void }) => {
     const [formData, setFormData] = useState<AppAbility>(initialData || {
-        id: generateId(),
-        name: '',
-        description: '',
-        source: 'Outro',
-        effects: [],
-        isActive: true,
-        cost: 0
+        id: generateId(), name: '', description: '', source: 'Outro',
+        effects: [], isActive: true, cost: 0, tags: []
     });
 
+    const { character } = useCharacter();
     const [editingEffectIndex, setEditingEffectIndex] = useState<number | null>(null);
+    const [showTagMenu, setShowTagMenu] = useState(false);
+    const [newTagName, setNewTagName] = useState('');
+    const [newTagColor, setNewTagColor] = useState('#A855F7');
+
+    const globalTags = useMemo(() => {
+        const tagMap = new Map();
+        DEFAULT_TAGS.forEach(t => tagMap.set(t.id, t));
+        const customOrig = character.customOrigin as any;
+        if (customOrig?.power?.tags) customOrig.power.tags.forEach((t: any) => tagMap.set(t.id, t));
+        (character.classPowers || []).forEach(a => { if (a.tags) a.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        ((character as any).abilities || []).forEach((a: any) => { if (a.tags) a.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        (character.rituals || []).forEach((r: any) => { if (r.tags) r.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        return Array.from(tagMap.values());
+    }, [character]);
 
     const handleSave = () => {
         if (!formData.name.trim()) return alert("O nome é obrigatório!");
         onSave(formData);
+    };
+
+    const addTag = (tag: {id: string, name: string, color: string}) => {
+        if (formData.tags?.some(t => t.id === tag.id)) return;
+        setFormData(prev => ({ ...prev, tags: [...(prev.tags || []), tag] }));
+        setShowTagMenu(false);
+    };
+
+    const createAndAddTag = () => {
+        if (!newTagName.trim()) return;
+        const newTag = { id: generateId(), name: newTagName.trim(), color: newTagColor };
+        setFormData(prev => ({ ...prev, tags: [...(prev.tags || []), newTag] }));
+        setNewTagName('');
+        setShowTagMenu(false);
     };
 
     return (
@@ -49,7 +84,43 @@ export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: A
                         <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-sm text-white outline-none focus:border-energia font-bold" placeholder="Ex: Ataque Especial"/>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-eden-100/40 uppercase flex items-center gap-1"><Tag size={12}/> Tags de Filtro</label>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {(formData.tags || []).map(tag => (
+                                <span key={tag.id} className="text-[10px] font-black uppercase px-2 py-1 rounded-md flex items-center gap-1 border border-white/20" style={{ backgroundColor: `${tag.color}30`, color: tag.color, borderColor: `${tag.color}50` }}>
+                                    {tag.name}
+                                    <button onClick={() => setFormData(p => ({...p, tags: p.tags?.filter(t => t.id !== tag.id)}))} className="hover:text-white ml-1"><X size={10}/></button>
+                                </span>
+                            ))}
+                            
+                            <div className="relative">
+                                <button onClick={() => setShowTagMenu(!showTagMenu)} className="text-[10px] font-bold uppercase text-eden-100/50 hover:text-white bg-eden-950 border border-eden-700 px-2 py-1 rounded-md flex items-center gap-1">
+                                    <Plus size={12}/> Tag
+                                </button>
+                                
+                                {showTagMenu && (
+                                    <div className="absolute top-full mt-2 left-0 w-64 bg-eden-800 border border-eden-600 rounded-xl p-3 shadow-xl z-20 space-y-3 animate-in fade-in zoom-in-95">
+                                        <div className="flex flex-wrap gap-2 border-b border-eden-700 pb-3">
+                                            {globalTags.map((t: any) => (
+                                                <button key={t.id} onClick={() => addTag(t)} className="text-[9px] font-bold uppercase px-2 py-1 rounded border border-white/20 hover:scale-105 transition-transform" style={{ backgroundColor: `${t.color}30`, color: t.color }}>{t.name}</button>
+                                            ))}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="text-[9px] uppercase font-bold text-eden-100/50">Criar Customizada</p>
+                                            <div className="flex items-center gap-2">
+                                                <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0" />
+                                                <input type="text" value={newTagName} onChange={e => setNewTagName(e.target.value)} placeholder="Nome da Tag..." className="flex-1 bg-eden-950 border border-eden-700 rounded-lg p-2 text-xs text-white outline-none" />
+                                            </div>
+                                            <button onClick={createAndAddTag} disabled={!newTagName} className="w-full bg-energia text-eden-900 font-bold text-[10px] py-1.5 rounded uppercase disabled:opacity-50">Adicionar</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
                             <label className="text-[10px] font-bold text-eden-100/40 uppercase">Fonte</label>
                             <select disabled={formData.isOrigin} value={formData.source} onChange={e => setFormData({...formData, source: e.target.value as any})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-sm text-white outline-none focus:border-energia disabled:opacity-50">
@@ -65,6 +136,15 @@ export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: A
                             <label className="text-[10px] font-bold text-eden-100/40 uppercase">Custo (PE) - Opcional</label>
                             <input type="number" value={formData.cost || 0} onChange={e => setFormData({...formData, cost: Number(e.target.value)})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-sm text-white outline-none focus:border-energia" placeholder="0"/>
                         </div>
+                        {formData.source === 'Paranormal' && (
+                            <div className="space-y-1 animate-in fade-in zoom-in duration-300">
+                                <label className="text-[10px] font-bold text-purple-400 uppercase">Elemento</label>
+                                <select value={formData.element || 'Medo'} onChange={e => setFormData({...formData, element: e.target.value})} className="w-full bg-eden-950 border border-purple-500/50 rounded-xl p-3 text-sm text-white outline-none focus:border-purple-400">
+                                    <option value="Sangue">Sangue</option><option value="Morte">Morte</option><option value="Conhecimento">Conhecimento</option>
+                                    <option value="Energia">Energia</option><option value="Medo">Medo</option>
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-1">
@@ -90,12 +170,21 @@ export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: A
                                         <span className="text-[10px] text-eden-100/50">{eff.targets?.length || 0} alvo(s) configurado(s)</span>
                                     </div>
                                     <div className="flex gap-1">
-                                        <button onClick={() => setEditingEffectIndex(idx)} className="p-2 hover:bg-eden-800 rounded text-eden-100/50 hover:text-white"><Edit2 size={14}/></button>
+                                        <button onClick={() => setEditingEffectIndex(idx)} className="p-2 hover:bg-eden-800 rounded text-eden-100/50 hover:text-white" title="Editar Efeito"><Edit2 size={14}/></button>
+                                        
+                                        <button onClick={() => {
+                                            const copy = JSON.parse(JSON.stringify(eff));
+                                            copy.id = Date.now().toString() + Math.random().toString(36).substring(2);
+                                            const newEffects = [...(formData.effects || [])];
+                                            newEffects.splice(idx + 1, 0, copy);
+                                            setFormData(prev => ({ ...prev, effects: newEffects }));
+                                        }} className="p-2 hover:bg-cyan-900/30 rounded text-eden-100/50 hover:text-cyan-400" title="Duplicar Efeito"><Copy size={14}/></button>
+                                        
                                         <button onClick={() => {
                                             const newEffects = [...(formData.effects || [])];
                                             newEffects.splice(idx, 1);
                                             setFormData(prev => ({ ...prev, effects: newEffects }));
-                                        }} className="p-2 hover:bg-red-900/30 rounded text-eden-100/50 hover:text-red-400"><Trash2 size={14}/></button>
+                                        }} className="p-2 hover:bg-red-900/30 rounded text-eden-100/50 hover:text-red-400" title="Apagar"><Trash2 size={14}/></button>
                                     </div>
                                 </div>
                             ))}
@@ -150,26 +239,47 @@ export default function SheetAbilities() {
     const [isCreating, setIsCreating] = useState(false);
     const [editingAbility, setEditingAbility] = useState<AppAbility | null>(null);
 
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sourceFilter, setSourceFilter] = useState('all');
+    const [costFilter, setCostFilter] = useState(false);
+    const [selectedTagsFilter, setSelectedTagsFilter] = useState<string[]>([]);
+
     let allAbilities: AppAbility[] = [...(character.classPowers || []), ...((character as any).abilities || [])];
 
     const customOrig = character.customOrigin as any;
     if (customOrig && customOrig.power && customOrig.power.name) {
         allAbilities.unshift({
-            id: 'origin_power_virtual',
-            name: customOrig.power.name,
-            description: customOrig.power.description,
-            cost: Number(customOrig.power.cost) || 0,
-            source: 'Origem',
-            isActive: customOrig.power.isActive !== false,
-            isInjected: false, 
-            isOrigin: true,
-            effects: customOrig.power.effects || []
+            id: 'origin_power_virtual', name: customOrig.power.name, description: customOrig.power.description,
+            cost: Number(customOrig.power.cost) || 0, source: 'Origem', isActive: customOrig.power.isActive !== false,
+            isInjected: false, isOrigin: true, effects: customOrig.power.effects || [], tags: customOrig.power.tags || []
         } as unknown as AppAbility);
     }
 
     const injectedAbilities = (vars.INJECTED_ABILITIES || []).map((a: any) => ({ ...a, isInjected: true }));
     const allAbilitiesRaw = allAbilities.map(a => vars.OVERRIDDEN_ABILITIES[a.id] ? { ...vars.OVERRIDDEN_ABILITIES[a.id], id: a.id, isActive: a.isActive, isOverridden: true } : a);
     const finalAbilities = [...allAbilitiesRaw, ...injectedAbilities];
+
+    // O globalTags é extraído e lido por toda a aplicação para não perdermos nenhuma tag criada no Grimório ou Ficha
+    const globalTags = useMemo(() => {
+        const tagMap = new Map();
+        DEFAULT_TAGS.forEach(t => tagMap.set(t.id, t));
+        if (customOrig?.power?.tags) customOrig.power.tags.forEach((t: any) => tagMap.set(t.id, t));
+        (character.classPowers || []).forEach(a => { if (a.tags) a.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        ((character as any).abilities || []).forEach((a: any) => { if (a.tags) a.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        (character.rituals || []).forEach((r: any) => { if (r.tags) r.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        return Array.from(tagMap.values());
+    }, [character]);
+
+    const filteredAbilities = finalAbilities.filter(a => {
+        if (searchTerm && !a.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        if (sourceFilter !== 'all' && a.source !== sourceFilter) return false;
+        if (costFilter && !(a.cost && a.cost > 0)) return false;
+        if (selectedTagsFilter.length > 0) {
+            if (!a.tags || a.tags.length === 0) return false;
+            if (!selectedTagsFilter.some(filterId => a.tags!.some((t: any) => t.id === filterId))) return false;
+        }
+        return true;
+    });
 
     const deepUpdatePayload = (prev: any, payloadId: string, mutator: (payload: any) => any) => {
         const scan = (items: any[]) => items.map(item => {
@@ -191,7 +301,7 @@ export default function SheetAbilities() {
                 ...prev,
                 customOrigin: {
                     ...((prev as any).customOrigin || {}),
-                    power: { name: ability.name, description: ability.description, cost: ability.cost, effects: ability.effects, isActive: ability.isActive }
+                    power: { name: ability.name, description: ability.description, cost: ability.cost, effects: ability.effects, isActive: ability.isActive, tags: ability.tags }
                 }
             }));
             setIsCreating(false); setEditingAbility(null); return;
@@ -214,7 +324,7 @@ export default function SheetAbilities() {
     const handleDelete = (id: string) => {
         if (confirm('Tem certeza que deseja apagar esta habilidade?')) {
             if (id === 'origin_power_virtual') {
-                updateCharacter(prev => ({ ...prev, customOrigin: { ...((prev as any).customOrigin || {}), power: { name: '', description: '', effects: [], cost: 0 } } }));
+                updateCharacter(prev => ({ ...prev, customOrigin: { ...((prev as any).customOrigin || {}), power: { name: '', description: '', effects: [], cost: 0, tags: [] } } }));
                 return;
             }
             const isClassPower = character.classPowers?.some(p => p.id === id);
@@ -235,7 +345,6 @@ export default function SheetAbilities() {
             const newStatus = JSON.parse(JSON.stringify(prev.status));
             const pe = newStatus.pe;
             
-            
             if (isTurningOn && pCost > 0) {
                 const motorTemp = vars.PE.temp || 0;
                 const currentTemp = (Number(pe.temp) || 0) + motorTemp;
@@ -245,12 +354,8 @@ export default function SheetAbilities() {
                     if (pCost >= currentTemp) {
                         pe.current = Math.max(0, currentPE - (pCost - currentTemp));
                         pe.temp = (Number(pe.temp) || 0) - currentTemp;
-                    } else {
-                        pe.temp = (Number(pe.temp) || 0) - pCost;
-                    }
-                } else {
-                    pe.current = Math.max(0, currentPE - pCost);
-                }
+                    } else { pe.temp = (Number(pe.temp) || 0) - pCost; }
+                } else { pe.current = Math.max(0, currentPE - pCost); }
             }
 
             if (ability.isOrigin) {
@@ -274,10 +379,7 @@ export default function SheetAbilities() {
             updateCharacter(prev => {
                 const cOrig = prev.customOrigin as any;
                 if (!cOrig || !cOrig.power) return prev;
-                return {
-                    ...prev,
-                    customOrigin: { ...cOrig, power: { ...cOrig.power, effects: (cOrig.power.effects || []).map((e: any) => e.id === effectId ? { ...e, isActive: e.isActive === false ? true : false } : e) } }
-                };
+                return { ...prev, customOrigin: { ...cOrig, power: { ...cOrig.power, effects: (cOrig.power.effects || []).map((e: any) => e.id === effectId ? { ...e, isActive: e.isActive === false ? true : false } : e) } } };
             });
             return;
         }
@@ -294,25 +396,69 @@ export default function SheetAbilities() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in pb-20">
-            <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg sticky top-0 z-10 flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-black text-white flex items-center gap-2"><Zap className="text-energia" /> Habilidades</h2>
-                    <p className="text-[10px] uppercase text-eden-100/50 font-bold mt-1">Gerencie poderes e características especiais.</p>
+        <div className="space-y-6 animate-in fade-in pb-20 relative">
+            <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg sticky top-0 z-20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex justify-between w-full md:w-auto">
+                    <div>
+                        <h2 className="text-xl font-black text-white flex items-center gap-2"><Zap className="text-energia" /> Habilidades <span className="text-xs bg-eden-950 px-2 py-0.5 rounded-full text-eden-100/50">{filteredAbilities.length}</span></h2>
+                        <p className="text-[10px] uppercase text-eden-100/50 font-bold mt-1">Gerencie poderes e características especiais.</p>
+                    </div>
+                    <button onClick={() => setIsCreating(true)} className="md:hidden bg-energia text-eden-900 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1 hover:bg-yellow-400 shadow-lg"><Plus size={14}/> Nova</button>
                 </div>
-                <button onClick={() => setIsCreating(true)} className="bg-energia text-eden-900 px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 hover:bg-yellow-400 transition-colors shadow-lg">
-                    <Plus size={16}/> <span className="hidden md:inline">NOVA HABILIDADE</span><span className="md:hidden">NOVA</span>
-                </button>
+                
+                <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
+                        <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-xs text-eden-100 outline-none flex-1 md:w-32 shrink-0">
+                            <option value="all">Todas Fontes</option>
+                            <option value="Classe">Classe</option>
+                            <option value="Origem">Origem</option>
+                            <option value="Trilha">Trilha</option>
+                            <option value="Equipe">Equipe</option>                            
+                            <option value="Paranormal">Paranormal</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                        <button onClick={() => setCostFilter(!costFilter)} className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1 shrink-0 ${costFilter ? 'bg-energia/20 border-energia/50 text-energia' : 'bg-eden-950 border-eden-700 text-eden-100/50'}`}>
+                            <Filter size={12}/> Com Custo
+                        </button>
+                    </div>
+                    <div className="relative flex-1 md:w-48 shrink-0">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
+                        <input type="text" placeholder="Buscar habilidade..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:border-energia"/>
+                    </div>
+                    <button onClick={() => setIsCreating(true)} className="hidden md:flex bg-energia text-eden-900 px-4 py-1.5 rounded-lg text-xs font-black items-center gap-2 hover:bg-yellow-400 shadow-lg shrink-0"><Plus size={16}/> Nova</button>
+                </div>
             </div>
 
-            {finalAbilities.length === 0 ? (
+            {globalTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 px-1">
+                    <span className="text-[10px] uppercase font-bold text-eden-100/30 mt-1 flex items-center gap-1"><Tag size={10}/> Tags:</span>
+                    {globalTags.map((tag: any) => {
+                        const isSelected = selectedTagsFilter.includes(tag.id);
+                        return (
+                            <button 
+                                key={tag.id}
+                                onClick={() => setSelectedTagsFilter(p => isSelected ? p.filter(id => id !== tag.id) : [...p, tag.id])}
+                                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border transition-all ${isSelected ? 'opacity-100 scale-105 shadow-md' : 'opacity-40 hover:opacity-80'}`}
+                                style={{ backgroundColor: `${tag.color}30`, color: tag.color, borderColor: `${tag.color}50` }}
+                            >
+                                {tag.name}
+                            </button>
+                        );
+                    })}
+                    {selectedTagsFilter.length > 0 && (
+                        <button onClick={() => setSelectedTagsFilter([])} className="text-[9px] font-bold text-eden-100/50 hover:text-white px-2 py-0.5 rounded border border-eden-700">Limpar Filtros</button>
+                    )}
+                </div>
+            )}
+
+            {filteredAbilities.length === 0 ? (
                 <div className="text-center py-20 border-2 border-dashed border-eden-800 rounded-xl text-eden-100/30">
                     <Ghost size={48} className="mx-auto mb-4 opacity-50"/>
-                    <p className="text-sm font-bold uppercase tracking-widest">Nenhuma habilidade registrada.</p>
+                    <p className="text-sm font-bold uppercase tracking-widest">Nenhuma habilidade encontrada.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {finalAbilities.map(ability => {
+                    {filteredAbilities.map(ability => {
                         const sourceKey = ability.source || 'Outro';
                         const colors = SOURCE_COLORS[sourceKey] || SOURCE_COLORS['Outro'];
                         
@@ -322,21 +468,26 @@ export default function SheetAbilities() {
 
                                 <div className="p-4 space-y-3">
                                     <div className="flex justify-between items-start">
-                                        <div>
+                                        <div className="flex-1 pr-2">
                                             <h3 className="font-black text-white text-lg leading-tight">{ability.name}</h3>
-                                            <div className="flex items-center gap-2 mt-1">
+                                            <div className="flex flex-wrap items-center gap-2 mt-1">
                                                 <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded border ${colors}`}>
-                                                    {ability.source}
+                                                    {ability.source} {ability.source === 'Paranormal' && ability.element ? `• ${ability.element}` : ''}
                                                 </span>
                                                 {ability.cost && ability.cost > 0 ? (
                                                     <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded border border-energia/50 bg-energia/10 text-energia">
                                                         Custo: {ability.cost} PE
                                                     </span>
                                                 ) : null}
+                                                
+                                                {(ability.tags || []).map((tag: any) => (
+                                                    <span key={tag.id} className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded border" style={{ backgroundColor: `${tag.color}20`, color: tag.color, borderColor: `${tag.color}40` }}>
+                                                        {tag.name}
+                                                    </span>
+                                                ))}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
-                                            {}
                                             {(!ability.isInjected || ability.isOrigin) && (
                                                 <>
                                                     <button onClick={() => setEditingAbility(ability)} className="p-1.5 hover:text-energia hover:bg-energia/10 rounded transition-colors"><Edit2 size={16}/></button>
@@ -354,7 +505,6 @@ export default function SheetAbilities() {
                                             {ability.effects!.map((eff: any) => (
                                                 <div key={eff.id} className="flex justify-between items-center text-xs bg-eden-950 p-1.5 rounded border border-eden-700">
                                                     <span className={eff.isActive === false ? "opacity-50 line-through" : ""}>{eff.name || eff.category.replace('_', ' ')}</span>
-                                                    {}
                                                     <button onClick={() => toggleActiveEffect(ability.id, eff.id, ability.isInjected || ability.isOverridden, ability.isOrigin)} className={`p-1 rounded hover:bg-white/10 ${eff.isActive !== false ? 'text-green-400' : 'text-eden-100/20'}`}><Power size={12}/></button>
                                                 </div>
                                             ))}

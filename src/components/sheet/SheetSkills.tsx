@@ -1,14 +1,22 @@
 import { useState } from 'react';
 import { Zap, BicepsFlexed, Brain, Eye, Shield, Edit2, Pencil, Info } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
-import { SKILL_LIST } from '../../data/referenceData';
 import type { Attribute } from '../../types/systemData';
 
+// Lista de perícias atualizada com as 3 profissões
+const SKILL_LIST = [
+  "Acrobacia", "Adestramento", "Artes", "Atletismo", "Atualidades", 
+  "Ciências", "Crime", "Diplomacia", "Enganação", "Fortitude", 
+  "Furtividade", "Iniciativa", "Intimidação", "Intuição", "Investigação", 
+  "Luta", "Medicina", "Ocultismo", "Percepção", "Pilotagem", 
+  "Pontaria", "Profissão 1", "Profissão 2", "Profissão 3", "Reflexos", 
+  "Religião", "Sobrevivência", "Tática", "Tecnologia", "Vontade"
+];
 
 const SKILL_MAP: Record<string, Attribute> = {
   'Acrobacia': 'AGI', 'Furtividade': 'AGI', 'Iniciativa': 'AGI', 'Pilotagem': 'AGI', 'Pontaria': 'AGI', 'Reflexos': 'AGI', 'Crime': 'AGI',
   'Atletismo': 'FOR', 'Luta': 'FOR',
-  'Atualidades': 'INT', 'Ciências': 'INT', 'Investigação': 'INT', 'Medicina': 'INT', 'Ocultismo': 'INT', 'Profissão': 'INT', 'Sobrevivência': 'INT', 'Tática': 'INT', 'Tecnologia': 'INT',
+  'Atualidades': 'INT', 'Ciências': 'INT', 'Investigação': 'INT', 'Medicina': 'INT', 'Ocultismo': 'INT', 'Profissão 1': 'INT', 'Profissão 2': 'INT', 'Profissão 3': 'INT', 'Sobrevivência': 'INT', 'Tática': 'INT', 'Tecnologia': 'INT',
   'Adestramento': 'PRE', 'Artes': 'PRE', 'Diplomacia': 'PRE', 'Enganação': 'PRE', 'Intimidação': 'PRE', 'Intuição': 'PRE', 'Percepção': 'PRE', 'Religião': 'PRE', 'Vontade': 'PRE',
   'Fortitude': 'VIG'
 };
@@ -59,7 +67,6 @@ export default function SheetSkills() {
 
   return (
     <div className="space-y-4">
-      {}
       <div className="flex justify-between items-center px-2 py-1 bg-eden-950/30 rounded-lg border border-eden-700/50">
         <span className="text-[10px] font-bold text-eden-100/40 uppercase tracking-widest">Painel de Perícias</span>
         <span className="text-[10px] font-bold text-energia uppercase">
@@ -72,10 +79,7 @@ export default function SheetSkills() {
             const attrKey = SKILL_MAP[skill] || 'INT';
             const { icon: Icon, color } = ATTR_ICONS[attrKey];
             
-            
             const charSkillData = character.skills[skill] || { training: 0, otherBonus: 0 };
-            
-            
             const calculated = vars.SKILLS[skill] || { total: 0, dice: 0, trainingBonus: 0, otherBonus: 0 };
             
             const isTrained = charSkillData.training > 0;
@@ -104,20 +108,17 @@ export default function SheetSkills() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            {}
                             <div className="text-center">
                                 <div className="text-xs font-black text-eden-100/40 leading-none">{calculated.dice}d20</div>
                                 <div className="text-[8px] font-bold text-eden-100/20 uppercase">Dados</div>
                             </div>
                             
-                            {}
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl border-2 ${isTrained ? 'bg-eden-950 text-white border-eden-600 shadow-lg' : 'text-eden-100/10 border-eden-800/50'}`}>
                                 {calculated.total >= 0 ? `+${calculated.total}` : calculated.total}
                             </div>
                         </div>
                     </div>
                     
-                    {}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {isProfession && (
                             <button onClick={() => renameSkill(skill)} className="p-1.5 rounded bg-eden-900 text-eden-100/50 hover:text-energia border border-eden-700" title="Anotar Especialidade"><Pencil size={12} /></button>
@@ -125,7 +126,6 @@ export default function SheetSkills() {
                         <button onClick={() => setEditingSkill(editingSkill === skill ? null : skill)} className={`p-1.5 rounded bg-eden-900 border border-eden-700 transition-colors ${editingSkill === skill ? 'text-energia border-energia' : 'text-eden-100/50 hover:text-white'}`} title="Mudar Treinamento"><Edit2 size={12} /></button>
                     </div>
 
-                    {}
                     {editingSkill === skill && (
                         <div className="p-3 border-t border-eden-700 bg-eden-950/80 rounded-b-xl animate-in slide-in-from-top-1">
                             <div className="flex justify-between gap-1">

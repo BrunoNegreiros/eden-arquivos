@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { useCharacter } from '../../context/CharacterContext';
 import type { UserRitual, ElementType, RitualVersion } from '../../types/systemData';
-import { 
-  Flame, Skull, Eye, Zap, Ghost, 
-  BookOpen, Plus, X, Search, Settings, Trash2, AlertCircle, Edit2, Power
-} from 'lucide-react';
+import { Plus, X, Search, Settings, Trash2, AlertCircle, Edit2, Power } from 'lucide-react';
 import EffectEditor from '../sheet/EffectEditor';
 
 const ELEMENTS: ElementType[] = ['Conhecimento', 'Energia', 'Morte', 'Sangue', 'Medo'];
@@ -17,37 +14,13 @@ const ELEMENT_STYLES: Record<string, { color: string; border: string; bg: string
   Medo: { color: 'text-white', border: 'border-white', bg: 'bg-eden-950' },
 };
 
-const ELEMENT_ICONS: Record<string, any> = {
-    Conhecimento: Eye,
-    Energia: Zap,
-    Morte: Skull,
-    Sangue: Flame,
-    Medo: Ghost
-};
-
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-
-
-
-
-
-
-
-const RitualVersionEditor = ({ 
-    label, 
-    version, 
-    onChange,
-    baseVersion
-}: { 
-    label: string; 
-    version: RitualVersion; 
-    onChange: (v: RitualVersion) => void;
-    baseVersion?: RitualVersion;
-}) => {
+const RitualVersionEditor = ({ label, version, onChange, baseVersion }: { label: string; version: RitualVersion; onChange: (v: RitualVersion) => void; baseVersion?: RitualVersion; }) => {
     const [editingEffectIndex, setEditingEffectIndex] = useState<number | null>(null);
     const [showPrereqs, setShowPrereqs] = useState(!!version.requiredCircle || !!version.affinity);
     
+    // Agora avaliamos se está ativa
     if (!version.isActive && label !== 'Normal') {
         return (
             <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-eden-700/50 rounded-xl bg-eden-900/20 gap-3">
@@ -67,7 +40,6 @@ const RitualVersionEditor = ({
 
     return (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {}
             <div className="bg-eden-900/50 p-4 rounded-xl border border-eden-700 space-y-3">
                 <div className="flex justify-between items-start">
                     <div className="space-y-1">
@@ -128,7 +100,6 @@ const RitualVersionEditor = ({
                 )}
             </div>
 
-            {}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-black/20 p-4 rounded-xl border border-white/5">
                 <div className="space-y-1">
                     <label className="text-[9px] uppercase font-bold text-eden-100/50">Execução</label>
@@ -161,10 +132,9 @@ const RitualVersionEditor = ({
                 />
             </div>
             
-            {}
             <div className="bg-black/20 rounded-xl border border-eden-700/50 p-4 space-y-3">
                  <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-bold text-eden-100/50 uppercase flex items-center gap-2"><Zap size={14}/> Efeitos Mecânicos</h4>
+                    <h4 className="text-xs font-bold text-eden-100/50 uppercase flex items-center gap-2">Efeitos Mecânicos</h4>
                     <button 
                         onClick={() => {
                             const newEffect = { id: Date.now().toString(), name: 'Novo Efeito', category: 'add_fixed', value: { terms: [{ id: '1', type: 'fixed', value: 1 }], operations: [] }, targets: [] } as any;
@@ -212,12 +182,11 @@ const RitualVersionEditor = ({
                  </div>
             </div>
 
-            {}
             {editingEffectIndex !== null && version.effects?.[editingEffectIndex] && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-eden-900 border border-eden-600 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
                         <div className="p-4 border-b border-eden-700 bg-eden-800 flex justify-between items-center shrink-0">
-                            <h3 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2"><Settings size={16} className="text-energia"/> Configurar Efeito do Ritual</h3>
+                            <h3 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2">Configurar Efeito do Ritual</h3>
                             <button onClick={() => setEditingEffectIndex(null)} className="text-eden-100/50 hover:text-white"><X size={20}/></button>
                         </div>
                         
@@ -250,15 +219,15 @@ const RitualVersionEditor = ({
     );
 };
 
-const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: UserRitual, onSave: (r: UserRitual) => void, onCancel: () => void }) => {
-    
+export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: UserRitual, onSave: (r: UserRitual) => void, onCancel: () => void }) => {
+    // ATUALIZADO: Valores Padrão ("Nenhuma" para resistência, e isActive false para todos)
     const defaultVersion: RitualVersion = { 
-        isActive: false, cost: 1, execution: 'Padrão', range: 'Curto', target: '1 ser', duration: 'Instantânea', resistance: '', description: '', effects: [] 
+        isActive: false, cost: 1, execution: 'Padrão', range: 'Curto', target: '1 ser', duration: 'Instantânea', resistance: 'Nenhuma', description: '', effects: [] 
     };
     
     const defaultRitual: UserRitual = {
         id: '', name: '', element: 'Conhecimento', circle: 1,
-        normal: { ...defaultVersion, isActive: false },
+        normal: { ...defaultVersion, isActive: true }, // O normal começa ativo
         discente: { ...defaultVersion },
         verdadeiro: { ...defaultVersion }
     };
@@ -272,10 +241,12 @@ const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: UserRitua
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
              <div className={`bg-eden-900 w-full max-w-4xl max-h-[95vh] rounded-2xl border ${style.border} shadow-2xl flex flex-col`}>
                 
-                {}
                 <div className={`p-4 border-b ${style.border} ${style.bg} rounded-t-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4`}>
                     <div className="flex items-center gap-3 w-full">
-                        <div className={`p-2 rounded-lg bg-black/20 ${style.color}`}><BookOpen size={24}/></div>
+                        {/* ATUALIZADO: Imagem do Elemento no Header */}
+                        <div className={`w-12 h-12 p-1.5 rounded-lg bg-black/20 ${style.border} border flex items-center justify-center`}>
+                            <img src={`/elementos/${data.element.toLowerCase()}.png`} alt={data.element} className="w-full h-full object-contain drop-shadow-md" />
+                        </div>
                         <div className="flex-1 space-y-1">
                             <input 
                                 type="text" value={data.name} onChange={e => setData({...data, name: e.target.value})}
@@ -301,7 +272,6 @@ const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: UserRitua
                     <button onClick={onCancel} className="text-eden-100/50 hover:text-white absolute top-4 right-4 md:static"><X size={24}/></button>
                 </div>
 
-                {}
                 <div className="flex border-b border-eden-700 bg-eden-900/50 px-4 pt-4 gap-1">
                     <button 
                         onClick={() => setActiveTab('normal')}
@@ -323,7 +293,6 @@ const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: UserRitua
                     </button>
                 </div>
 
-                {}
                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-eden-800/30">
                     {activeTab === 'normal' && <RitualVersionEditor label="Normal" version={data.normal} onChange={v => setData({...data, normal: v})} />}
                     {activeTab === 'discente' && <RitualVersionEditor label="Discente" version={data.discente} baseVersion={data.normal} onChange={v => setData({...data, discente: v})} />}
@@ -362,7 +331,6 @@ export default function Step7Rituals() {
 
   const handleDelete = (id: string) => {
       if (confirm("Remover este ritual?")) {
-           
            updateCharacter(prev => ({ ...prev, rituals: rituals.filter(r => r.id !== id) }));
       }
   };
@@ -405,12 +373,14 @@ export default function Step7Rituals() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto custom-scrollbar pr-1 pb-4 flex-1 min-h-[400px]">
           {filteredRituals.map(ritual => {
               const style = ELEMENT_STYLES[ritual.element] || ELEMENT_STYLES.Medo;
-              const Icon = ELEMENT_ICONS[ritual.element] || Ghost;
               return (
                   <div key={ritual.id} className={`group relative bg-eden-800/40 border ${style.border} rounded-xl p-4 overflow-hidden hover:bg-eden-800 transition-all`}>
+                      
+                      {/* ATUALIZADO: Imagem do Elemento gigante de fundo */}
                       <div className={`absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity transform rotate-12`}>
-                          <Icon size={100} className={style.color.replace('text-', '')} /> 
+                          <img src={`/elementos/${ritual.element.toLowerCase()}.png`} alt={ritual.element} className="w-32 h-32 object-contain grayscale invert opacity-50" />
                       </div>
+
                       <div className="relative z-10">
                           <div className="flex justify-between items-start mb-2">
                               <h4 className={`font-bold text-lg leading-tight ${style.color}`}>{ritual.name}</h4>
@@ -419,8 +389,12 @@ export default function Step7Rituals() {
                                   <button onClick={() => handleDelete(ritual.id)} className="p-1.5 hover:bg-eden-900/50 rounded text-eden-100/50 hover:text-red-400"><Trash2 size={14}/></button>
                               </div>
                           </div>
-                          <div className="flex flex-wrap gap-2 mb-3">
-                              <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${style.border} ${style.bg} ${style.color}`}>{ritual.element}</span>
+                          <div className="flex flex-wrap gap-2 mb-3 items-center">
+                              {/* ATUALIZADO: Imagem Pequena ao lado do nome do elemento */}
+                              <div className={`flex items-center gap-1.5 text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${style.border} ${style.bg} ${style.color}`}>
+                                  <img src={`/elementos/${ritual.element.toLowerCase()}.png`} alt="" className="w-3 h-3 object-contain" />
+                                  {ritual.element}
+                              </div>
                               <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border border-eden-600 text-eden-100/70">{ritual.circle}º Círculo</span>
                           </div>
                           <p className="text-xs text-eden-100/70 line-clamp-3 italic">"{ritual.normal.description}"</p>

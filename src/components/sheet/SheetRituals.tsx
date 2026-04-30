@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCharacter } from '../../context/CharacterContext';
 import type { 
   UserRitual, ElementType, RitualVersion
 } from '../../types/systemData';
 import { 
-  Flame, Skull, Eye, Zap, Ghost, Settings,
-  BookOpen, Plus, X, Search, Trash2, 
-  Edit2, Book, Dices, StopCircle, Power, RefreshCw
+  Settings, Zap, Plus, X, Search, Trash2, Ghost,
+  Edit2, Book, Dices, StopCircle, Power, RefreshCw, Tag
 } from 'lucide-react';
 import EffectEditor from './EffectEditor';
 
@@ -20,7 +19,12 @@ const ELEMENT_STYLES: Record<string, { color: string; border: string; bg: string
   Medo: { color: 'text-white', border: 'border-white', bg: 'bg-eden-950' },
 };
 
-const ELEMENT_ICONS: Record<string, any> = { Conhecimento: Eye, Energia: Zap, Morte: Skull, Sangue: Flame, Medo: Ghost };
+const DEFAULT_TAGS = [
+    { id: 'atk', name: 'Ataque', color: '#8B4513' },
+    { id: 'dmg', name: 'Dano', color: '#EF4444' },
+    { id: 'def', name: 'Defesa', color: '#3B82F6' },
+    { id: 'heal', name: 'Cura', color: '#10B981' }
+];
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
@@ -28,14 +32,12 @@ const RitualVersionEditor = ({ label, version, onChange, baseVersion }: { label:
     const [editingEffectIndex, setEditingEffectIndex] = useState<number | null>(null);
     const [showPrereqs, setShowPrereqs] = useState(!!version.requiredCircle || !!version.affinity);
 
-    const isUnlocked = version.cost > 0 || (version.description && version.description.length > 0);
-
-    if (!isUnlocked && label !== 'Normal') {
+    if (!version.isActive && label !== 'Normal') {
         return (
             <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-eden-700/50 rounded-xl bg-eden-900/20 gap-3">
                 <p className="text-eden-100/40 text-sm">Versão {label} não habilitada.</p>
                 <button 
-                    onClick={() => { const base = baseVersion || version; onChange({ ...base, isActive: false, cost: (base.cost || 1) + (label === 'Discente' ? 2 : 5), description: ' ' }); }}
+                    onClick={() => { const base = baseVersion || version; onChange({ ...base, isActive: true, cost: (base.cost || 1) + (label === 'Discente' ? 2 : 5) }); }}
                     className="flex items-center gap-2 px-4 py-2 bg-eden-800 hover:bg-eden-700 rounded-lg text-xs font-bold text-eden-100 transition-colors"
                 ><Plus size={14}/> Habilitar {label}</button>
             </div>
@@ -47,7 +49,7 @@ const RitualVersionEditor = ({ label, version, onChange, baseVersion }: { label:
             <div className="bg-eden-900/50 p-4 rounded-xl border border-eden-700 space-y-3">
                 <div className="flex justify-between items-start">
                     <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-eden-100/50 block">Custo (PE)</label><input type="number" value={version.cost} onChange={e => onChange({...version, cost: Number(e.target.value)})} className="w-20 bg-eden-950 border border-eden-600 rounded p-1.5 text-center font-bold text-sm text-white focus:border-energia outline-none" /></div>
-                    {label !== 'Normal' && (<div className="flex flex-col items-end gap-2"><button onClick={() => onChange({...version, cost: 0, description: ''})} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1 transition-colors"><Trash2 size={12}/> Desabilitar Versão</button><label className="flex items-center gap-2 cursor-pointer text-xs text-eden-100/60 select-none"><input type="checkbox" checked={showPrereqs} onChange={(e) => { setShowPrereqs(e.target.checked); if (!e.target.checked) onChange({...version, requiredCircle: undefined, affinity: undefined}); }} className="rounded bg-eden-950 border-eden-600" /> Definir Pré-requisitos</label></div>)}
+                    {label !== 'Normal' && (<div className="flex flex-col items-end gap-2"><button onClick={() => onChange({...version, isActive: false})} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1 transition-colors"><Trash2 size={12}/> Desabilitar Versão</button><label className="flex items-center gap-2 cursor-pointer text-xs text-eden-100/60 select-none"><input type="checkbox" checked={showPrereqs} onChange={(e) => { setShowPrereqs(e.target.checked); if (!e.target.checked) onChange({...version, requiredCircle: undefined, affinity: undefined}); }} className="rounded bg-eden-950 border-eden-600" /> Definir Pré-requisitos</label></div>)}
                 </div>
                 {showPrereqs && label !== 'Normal' && (
                     <div className="pt-3 border-t border-eden-700/50 grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
@@ -64,7 +66,7 @@ const RitualVersionEditor = ({ label, version, onChange, baseVersion }: { label:
             <div className="space-y-1"><label className="text-xs font-bold text-eden-100/60 uppercase">Descrição & Efeitos</label><textarea value={version.description} onChange={e => onChange({...version, description: e.target.value})} className="w-full h-32 bg-eden-950 border border-eden-700 rounded-lg p-3 text-sm text-eden-100 outline-none resize-none" placeholder={`Descreva o que acontece na versão ${label}...`} /></div>
             
             <div className="bg-black/20 rounded-xl border border-eden-700/50 p-4 space-y-3">
-                 <div className="flex justify-between items-center"><h4 className="text-xs font-bold text-eden-100/50 uppercase flex items-center gap-2"><Zap size={14}/> Efeitos Mecânicos</h4><button onClick={() => { const newEffect = { id: Date.now().toString(), name: 'Novo Efeito', category: 'add_fixed', value: { terms: [{ id: '1', type: 'fixed', value: 1 }], operations: [] }, targets: [] } as any; const newEffectsList = [...(version.effects || []), newEffect]; onChange({ ...version, effects: newEffectsList }); setEditingEffectIndex(newEffectsList.length - 1); }} className="text-xs bg-eden-800 text-energia px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-eden-700 transition-colors shadow-sm border border-eden-700"><Plus size={12}/> Novo Efeito</button></div>
+                 <div className="flex justify-between items-center"><h4 className="text-xs font-bold text-eden-100/50 uppercase flex items-center gap-2">Efeitos Mecânicos</h4><button onClick={() => { const newEffect = { id: Date.now().toString(), name: 'Novo Efeito', category: 'add_fixed', value: { terms: [{ id: '1', type: 'fixed', value: 1 }], operations: [] }, targets: [] } as any; const newEffectsList = [...(version.effects || []), newEffect]; onChange({ ...version, effects: newEffectsList }); setEditingEffectIndex(newEffectsList.length - 1); }} className="text-xs bg-eden-800 text-energia px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-eden-700 transition-colors shadow-sm border border-eden-700"><Plus size={12}/> Novo Efeito</button></div>
                  <div className="space-y-2">
                     {(version.effects || []).map((eff: any, idx: number) => (
                        <div key={eff.id} className={`flex justify-between items-center bg-eden-900/50 p-3 rounded-lg border ${eff.isActive !== false ? 'border-eden-700/30 hover:border-eden-600' : 'border-eden-800 opacity-50'} transition-colors`}>
@@ -94,19 +96,52 @@ const RitualVersionEditor = ({ label, version, onChange, baseVersion }: { label:
 };
 
 export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: UserRitual, onSave: (r: UserRitual) => void, onCancel: () => void }) => {
-    const defaultVersion: RitualVersion = { isActive: false, cost: 1, execution: 'Padrão', range: 'Curto', target: '1 ser', duration: 'Instantânea', resistance: '', description: '', effects: [] };
-    const defaultRitual: UserRitual = { id: '', name: '', element: 'Conhecimento', circle: 1, normal: { ...defaultVersion, isActive: false, description: ' ' }, discente: { ...defaultVersion }, verdadeiro: { ...defaultVersion } };
-    const [data, setData] = useState<UserRitual>(initialData || defaultRitual);
+    const defaultVersion: RitualVersion = { isActive: false, cost: 1, execution: 'Padrão', range: 'Curto', target: '1 ser', duration: 'Instantânea', resistance: 'Nenhuma', description: '', effects: [] };
+    const defaultRitual = { id: '', name: '', element: 'Conhecimento', circle: 1, normal: { ...defaultVersion, isActive: true }, discente: { ...defaultVersion }, verdadeiro: { ...defaultVersion } } as any;
+    
+    const [data, setData] = useState<UserRitual>(initialData || defaultRitual as any);
     const [activeTab, setActiveTab] = useState<'normal' | 'discente' | 'verdadeiro'>('normal');
+    
+    const { character } = useCharacter();
+    const [showTagMenu, setShowTagMenu] = useState(false);
+    const [newTagName, setNewTagName] = useState('');
+    const [newTagColor, setNewTagColor] = useState('#A855F7');
+
+    const globalTags = useMemo(() => {
+        const tagMap = new Map();
+        DEFAULT_TAGS.forEach(t => tagMap.set(t.id, t));
+        const customOrig = character.customOrigin as any;
+        if (customOrig?.power?.tags) customOrig.power.tags.forEach((t: any) => tagMap.set(t.id, t));
+        (character.classPowers || []).forEach(a => { if (a.tags) a.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        ((character as any).abilities || []).forEach((a: any) => { if (a.tags) a.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        (character.rituals || []).forEach((r: any) => { if (r.tags) r.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+        return Array.from(tagMap.values());
+    }, [character]);
+
     const style = ELEMENT_STYLES[data.element] || ELEMENT_STYLES.Medo;
-    const isTabUnlocked = (key: 'normal'|'discente'|'verdadeiro') => { const v = data[key]; return v.cost > 0 || (v.description && v.description.length > 0); };
+
+    const addTag = (tag: {id: string, name: string, color: string}) => {
+        if ((data as any).tags?.some((t: any) => t.id === tag.id)) return;
+        setData(prev => ({ ...prev, tags: [...((prev as any).tags || []), tag] }) as any);
+        setShowTagMenu(false);
+    };
+
+    const createAndAddTag = () => {
+        if (!newTagName.trim()) return;
+        const newTag = { id: generateId(), name: newTagName.trim(), color: newTagColor };
+        setData(prev => ({ ...prev, tags: [...((prev as any).tags || []), newTag] }) as any);
+        setNewTagName('');
+        setShowTagMenu(false);
+    };
 
     return (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
              <div className={`bg-eden-900 w-full max-w-4xl max-h-[95vh] rounded-2xl border ${style.border} shadow-2xl flex flex-col`}>
                 <div className={`p-4 border-b ${style.border} ${style.bg} rounded-t-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4`}>
                     <div className="flex items-center gap-3 w-full">
-                        <div className={`p-2 rounded-lg bg-black/20 ${style.color}`}><BookOpen size={24}/></div>
+                        <div className={`w-12 h-12 p-1.5 rounded-lg bg-black/20 ${style.border} border flex items-center justify-center`}>
+                            <img src={`/elementos/${data.element.toLowerCase()}.png`} alt={data.element} className="w-full h-full object-contain drop-shadow-md" />
+                        </div>
                         <div className="flex-1 space-y-1">
                             <input type="text" value={data.name} onChange={e => setData({...data, name: e.target.value})} className="bg-transparent border-b border-white/20 w-full text-xl font-black text-white placeholder-white/30 focus:border-white outline-none" placeholder="Nome do Ritual" />
                             <div className="flex gap-2">
@@ -117,10 +152,47 @@ export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: Us
                     </div>
                     <button onClick={onCancel} className="text-eden-100/50 hover:text-white absolute top-4 right-4 md:static"><X size={24}/></button>
                 </div>
+                
+                <div className={`px-4 pt-3 pb-3 border-b ${style.border} bg-eden-950`}>
+                    <label className="text-[10px] font-bold text-eden-100/40 uppercase flex items-center gap-1 mb-1"><Tag size={12}/> Tags do Ritual</label>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {((data as any).tags || []).map((tag: any) => (
+                            <span key={tag.id} className="text-[10px] font-black uppercase px-2 py-1 rounded-md flex items-center gap-1 border border-white/20" style={{ backgroundColor: `${tag.color}30`, color: tag.color, borderColor: `${tag.color}50` }}>
+                                {tag.name}
+                                <button onClick={() => setData(p => ({...p, tags: (p as any).tags?.filter((t: any) => t.id !== tag.id)}) as any)} className="hover:text-white ml-1"><X size={10}/></button>
+                            </span>
+                        ))}
+                        
+                        <div className="relative">
+                            <button onClick={() => setShowTagMenu(!showTagMenu)} className="text-[10px] font-bold uppercase text-eden-100/50 hover:text-white bg-eden-900 border border-eden-700 px-2 py-1 rounded-md flex items-center gap-1">
+                                <Plus size={12}/> Tag
+                            </button>
+                            
+                            {showTagMenu && (
+                                <div className="absolute top-full mt-2 left-0 w-64 bg-eden-800 border border-eden-600 rounded-xl p-3 shadow-xl z-20 space-y-3 animate-in fade-in zoom-in-95">
+                                    <div className="flex flex-wrap gap-2 border-b border-eden-700 pb-3">
+                                        {globalTags.map((t: any) => (
+                                            <button key={t.id} onClick={() => addTag(t)} className="text-[9px] font-bold uppercase px-2 py-1 rounded border border-white/20 hover:scale-105 transition-transform" style={{ backgroundColor: `${t.color}30`, color: t.color }}>{t.name}</button>
+                                        ))}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-[9px] uppercase font-bold text-eden-100/50">Criar Customizada</p>
+                                        <div className="flex items-center gap-2">
+                                            <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0" />
+                                            <input type="text" value={newTagName} onChange={e => setNewTagName(e.target.value)} placeholder="Nome da Tag..." className="flex-1 bg-eden-950 border border-eden-700 rounded-lg p-2 text-xs text-white outline-none" />
+                                        </div>
+                                        <button onClick={createAndAddTag} disabled={!newTagName} className="w-full bg-energia text-eden-900 font-bold text-[10px] py-1.5 rounded uppercase disabled:opacity-50">Adicionar</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 <div className="flex border-b border-eden-700 bg-eden-900/50 px-4 pt-4 gap-1">
                     <button onClick={() => setActiveTab('normal')} className={`px-4 py-2 rounded-t-lg text-sm font-bold transition-all ${activeTab === 'normal' ? 'bg-eden-800 text-white border-t border-x border-eden-700' : 'text-eden-100/50 hover:text-eden-100 hover:bg-eden-800/50'}`}>Normal</button>
-                    <button onClick={() => setActiveTab('discente')} className={`px-4 py-2 rounded-t-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'discente' ? 'bg-eden-800 text-white border-t border-x border-eden-700' : 'text-eden-100/50 hover:text-eden-100 hover:bg-eden-800/50'}`}>Discente {isTabUnlocked('discente') && <span className="w-2 h-2 rounded-full bg-cyan-500"/>}</button>
-                    <button onClick={() => setActiveTab('verdadeiro')} className={`px-4 py-2 rounded-t-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'verdadeiro' ? 'bg-eden-800 text-white border-t border-x border-eden-700' : 'text-eden-100/50 hover:text-eden-100 hover:bg-eden-800/50'}`}>Verdadeiro {isTabUnlocked('verdadeiro') && <span className="w-2 h-2 rounded-full bg-yellow-500"/>}</button>
+                    <button onClick={() => setActiveTab('discente')} className={`px-4 py-2 rounded-t-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'discente' ? 'bg-eden-800 text-white border-t border-x border-eden-700' : 'text-eden-100/50 hover:text-eden-100 hover:bg-eden-800/50'}`}>Discente {data.discente.isActive && <span className="w-2 h-2 rounded-full bg-cyan-500"/>}</button>
+                    <button onClick={() => setActiveTab('verdadeiro')} className={`px-4 py-2 rounded-t-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'verdadeiro' ? 'bg-eden-800 text-white border-t border-x border-eden-700' : 'text-eden-100/50 hover:text-eden-100 hover:bg-eden-800/50'}`}>Verdadeiro {data.verdadeiro.isActive && <span className="w-2 h-2 rounded-full bg-yellow-500"/>}</button>
                 </div>
                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-eden-800/30">
                     {activeTab === 'normal' && <RitualVersionEditor label="Normal" version={data.normal} onChange={v => setData({...data, normal: v})} />}
@@ -170,9 +242,11 @@ export default function SheetRituals() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingRitual, setEditingRitual] = useState<UserRitual | null>(null);
 
+  const [elementFilter, setElementFilter] = useState('all');
+  const [selectedTagsFilter, setSelectedTagsFilter] = useState<string[]>([]);
+
   const getOccultismStats = () => {
       const int = character.attributes?.initial?.INT || 0;
-      
       const occultData = character.skills ? (character.skills['Ocultismo'] || character.skills['ocultismo']) : undefined;
       const degree = occultData?.training || 0;
       const bonus = (degree * 5) + (occultData?.otherBonus || 0);
@@ -183,9 +257,7 @@ export default function SheetRituals() {
       const over = vars.OVERRIDDEN_RITUALS[r.id];
       if (over) {
           return {
-              ...over,
-              id: r.id,
-              isOverridden: true,
+              ...over, id: r.id, isOverridden: true,
               normal: { ...over.normal, isActive: r.normal?.isActive, isSustaining: (r.normal as any)?.isSustaining },
               discente: { ...over.discente, isActive: r.discente?.isActive, isSustaining: (r.discente as any)?.isSustaining },
               verdadeiro: { ...over.verdadeiro, isActive: r.verdadeiro?.isActive, isSustaining: (r.verdadeiro as any)?.isSustaining }
@@ -196,7 +268,27 @@ export default function SheetRituals() {
   
   const injectedRituals = (vars.INJECTED_RITUALS || []).map((r: any) => ({ ...r, isInjected: true }));
   const allRituals = [...baseRituals, ...injectedRituals];
-  const filteredRituals = allRituals.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const globalTags = useMemo(() => {
+    const tagMap = new Map();
+    DEFAULT_TAGS.forEach(t => tagMap.set(t.id, t));
+    const customOrig = character.customOrigin as any;
+    if (customOrig?.power?.tags) customOrig.power.tags.forEach((t: any) => tagMap.set(t.id, t));
+    (character.classPowers || []).forEach(a => { if (a.tags) a.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+    ((character as any).abilities || []).forEach((a: any) => { if (a.tags) a.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+    (character.rituals || []).forEach((r: any) => { if (r.tags) r.tags.forEach((t: any) => tagMap.set(t.id, t)); });
+    return Array.from(tagMap.values());
+}, [character]);
+
+  const filteredRituals = allRituals.filter(r => {
+      if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) && !(r.normal.description || '').toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      if (elementFilter !== 'all' && r.element !== elementFilter) return false;
+      if (selectedTagsFilter.length > 0) {
+          if (!(r as any).tags || (r as any).tags.length === 0) return false;
+          if (!selectedTagsFilter.some(filterId => (r as any).tags!.some((t: any) => t.id === filterId))) return false;
+      }
+      return true;
+  });
 
   const deepUpdatePayload = (prev: any, payloadId: string, mutator: (payload: any) => any) => {
       const scan = (items: any[]) => items.map(item => {
@@ -214,7 +306,6 @@ export default function SheetRituals() {
 
   const initiateCast = (ritual: UserRitual, versionKey: 'normal' | 'discente' | 'verdadeiro') => {
       const version = ritual[versionKey]; if (!version) return;
-      
       const pCost = Number(version.cost) || 0;
 
       if (ritual.element === 'Medo') {
@@ -225,8 +316,6 @@ export default function SheetRituals() {
               const newStatus = JSON.parse(JSON.stringify(prev.status));
               const pe = newStatus.pe; 
               const san = newStatus.san;
-              
-              
               const motorTemp = vars.PE.temp || 0;
               const currentTemp = (Number(pe.temp) || 0) + motorTemp;
               const currentPE = Number(pe.current) || 0;
@@ -235,12 +324,8 @@ export default function SheetRituals() {
                   if (pCost >= currentTemp) {
                       pe.current = Math.max(0, currentPE - (pCost - currentTemp));
                       pe.temp = (Number(pe.temp) || 0) - currentTemp; 
-                  } else {
-                      pe.temp = (Number(pe.temp) || 0) - pCost;
-                  }
-              } else {
-                  pe.current = Math.max(0, currentPE - pCost);
-              }
+                  } else { pe.temp = (Number(pe.temp) || 0) - pCost; }
+              } else { pe.current = Math.max(0, currentPE - pCost); }
 
               san.max = Math.max(0, (typeof san.max === 'number' ? san.max : 99) - sanLoss);
               if (san.current > san.max) san.current = san.max;
@@ -269,22 +354,14 @@ export default function SheetRituals() {
           const newStatus = JSON.parse(JSON.stringify(prev.status));
           const pe = newStatus.pe; 
           const san = newStatus.san;
-          
-          
           const motorTemp = vars.PE.temp || 0;
           const currentTemp = (Number(pe.temp) || 0) + motorTemp;
           const currentPE = Number(pe.current) || 0;
 
           if (currentTemp > 0) {
-              if (pCost >= currentTemp) {
-                  pe.current = Math.max(0, currentPE - (pCost - currentTemp));
-                  pe.temp = (Number(pe.temp) || 0) - currentTemp; 
-              } else {
-                  pe.temp = (Number(pe.temp) || 0) - pCost;
-              }
-          } else {
-              pe.current = Math.max(0, currentPE - pCost);
-          }
+              if (pCost >= currentTemp) { pe.current = Math.max(0, currentPE - (pCost - currentTemp)); pe.temp = (Number(pe.temp) || 0) - currentTemp; }
+              else { pe.temp = (Number(pe.temp) || 0) - pCost; }
+          } else { pe.current = Math.max(0, currentPE - pCost); }
 
           if (!isSuccess) {
               san.current = Math.max(0, Number(san.current) - pCost);
@@ -333,17 +410,12 @@ export default function SheetRituals() {
       updateCharacter(prev => { 
           const newStatus = JSON.parse(JSON.stringify(prev.status)); 
           const pe = newStatus.pe;
-          
-          
           const motorTemp = vars.PE.temp || 0;
           const currentTemp = (Number(pe.temp) || 0) + motorTemp;
           const currentPE = Number(pe.current) || 0;
 
-          if (currentTemp > 0) {
-              pe.temp = (Number(pe.temp) || 0) - 1;
-          } else {
-              pe.current = Math.max(0, currentPE - 1); 
-          }
+          if (currentTemp > 0) pe.temp = (Number(pe.temp) || 0) - 1;
+          else pe.current = Math.max(0, currentPE - 1); 
 
           return { ...prev, status: newStatus }; 
       }); 
@@ -364,87 +436,143 @@ export default function SheetRituals() {
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in h-full relative">
-      <div className="bg-eden-800 border border-eden-700 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-0 z-20 shadow-md">
-          <div className="flex items-center gap-2"><Book className="text-energia" size={20}/><h2 className="font-bold text-lg text-white">Grimório <span className="text-xs bg-eden-950 px-2 py-0.5 rounded-full text-eden-100/50">{filteredRituals.length}</span></h2></div>
-          <div className="flex gap-2 w-full md:w-auto">
-              <div className="relative flex-1 md:w-64"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/><input type="text" placeholder="Buscar ritual..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:border-energia outline-none"/></div>
-              <button onClick={() => setIsCreating(true)} className="bg-energia text-eden-900 px-3 py-2 rounded-lg font-bold flex items-center gap-1 hover:bg-yellow-400 text-xs shadow-lg"><Plus size={16}/> Novo</button>
+      <div className="bg-eden-800 border border-eden-700 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between sticky top-0 z-20 shadow-md">
+          <div className="flex justify-between w-full md:w-auto">
+              <div className="flex items-center gap-2"><Book className="text-energia" size={20}/><h2 className="font-bold text-lg text-white">Grimório <span className="text-xs bg-eden-950 px-2 py-0.5 rounded-full text-eden-100/50">{filteredRituals.length}</span></h2></div>
+              <button onClick={() => setIsCreating(true)} className="md:hidden bg-energia text-eden-900 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-yellow-400 text-xs shadow-lg"><Plus size={14}/> Novo</button>
+          </div>
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+              <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
+                  <select value={elementFilter} onChange={e => setElementFilter(e.target.value)} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-xs text-eden-100 outline-none flex-1 md:w-32 shrink-0">
+                      <option value="all">Todos Elementos</option>
+                      {ELEMENTS.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+              </div>
+              <div className="relative flex-1 md:w-48 shrink-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
+                  <input type="text" placeholder="Buscar ritual..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white focus:border-energia outline-none"/>
+              </div>
+              <button onClick={() => setIsCreating(true)} className="hidden md:flex bg-energia text-eden-900 px-4 py-1.5 rounded-lg font-bold items-center gap-2 hover:bg-yellow-400 text-xs shadow-lg shrink-0"><Plus size={16}/> Novo</button>
           </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
-          {filteredRituals.map((ritual: any) => {
-              const style = ELEMENT_STYLES[ritual.element] || ELEMENT_STYLES['Conhecimento'];
-              const Icon = ELEMENT_ICONS[ritual.element] || Ghost;
-              const activeVersionKey = ritual.normal.isActive ? 'normal' : ritual.discente.isActive ? 'discente' : ritual.verdadeiro.isActive ? 'verdadeiro' : null;
-              const activeVersion = activeVersionKey ? ritual[activeVersionKey] : null;
-              const isSustainedDuration = activeVersion && activeVersion.duration.toLowerCase().includes('sustentada');
-              const isSustainingState = activeVersion && !!activeVersion.isSustaining;
+      {globalTags.length > 0 && (
+          <div className="flex flex-wrap gap-2 px-1">
+              <span className="text-[10px] uppercase font-bold text-eden-100/30 mt-1 flex items-center gap-1"><Tag size={10}/> Tags:</span>
+              {globalTags.map((tag: any) => {
+                  const isSelected = selectedTagsFilter.includes(tag.id);
+                  return (
+                      <button 
+                          key={tag.id}
+                          onClick={() => setSelectedTagsFilter(p => isSelected ? p.filter(id => id !== tag.id) : [...p, tag.id])}
+                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border transition-all ${isSelected ? 'opacity-100 scale-105 shadow-md' : 'opacity-40 hover:opacity-80'}`}
+                          style={{ backgroundColor: `${tag.color}30`, color: tag.color, borderColor: `${tag.color}50` }}
+                      >
+                          {tag.name}
+                      </button>
+                  );
+              })}
+              {selectedTagsFilter.length > 0 && (
+                  <button onClick={() => setSelectedTagsFilter([])} className="text-[9px] font-bold text-eden-100/50 hover:text-white px-2 py-0.5 rounded border border-eden-700">Limpar Filtros</button>
+              )}
+          </div>
+      )}
 
-              return (
-                  <div key={ritual.id} className={`group bg-eden-900/40 border rounded-xl overflow-hidden transition-all flex flex-col ${activeVersion ? 'ring-1 ring-energia bg-energia/5' : ''} ${ritual.isInjected ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'border-eden-700 hover:border-eden-600'}`}>
-                      {ritual.isInjected && <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg uppercase z-10">Concedido por Efeito</div>}
-                      <div className={`p-3 border-b flex justify-between items-start ${style.bg} ${style.border.replace('border-', 'border-b-')}`}>
-                          <div className="flex items-center gap-2">
-                              <div className={`p-1.5 rounded-lg border ${style.border} bg-black/20 ${style.color}`}><Icon size={16} /></div>
-                              <div><h3 className="font-bold text-eden-100 leading-none">{ritual.name}</h3><div className="flex items-center gap-2 mt-1"><span className={`text-[10px] uppercase font-bold opacity-70 ${style.color}`}>{ritual.element} • {ritual.circle}º Círculo</span><span className="text-[10px] uppercase font-bold text-eden-100/50 bg-black/20 px-1.5 rounded border border-white/5">DT {vars.DT_RITUAL.global + (vars.DT_RITUAL.specific[ritual.id] || 0)}</span></div></div>
-                          </div>
-                          <div className="flex gap-1">
-                              {activeVersion ? ( <div className="px-2 py-0.5 bg-energia text-eden-950 text-[10px] font-black uppercase rounded animate-pulse">Ativo ({activeVersionKey})</div> ) : (
-                                  <>
-                                    <button onClick={() => setEditingRitual(ritual)} className="p-1 rounded bg-black/20 text-eden-100/50 hover:text-white hover:bg-black/40"><Edit2 size={12}/></button>
-                                    {!ritual.isInjected && <button onClick={() => handleDeleteRitual(ritual.id)} className="p-1 rounded bg-black/20 text-eden-100/50 hover:text-red-400 hover:bg-black/40"><Trash2 size={12}/></button>}
-                                  </>
-                              )}
-                          </div>
-                      </div>
+      {filteredRituals.length === 0 ? (
+          <div className="text-center py-20 border-2 border-dashed border-eden-800 rounded-xl text-eden-100/30">
+              <Ghost size={48} className="mx-auto mb-4 opacity-50"/>
+              <p className="text-sm font-bold uppercase tracking-widest">Nenhum ritual encontrado.</p>
+          </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
+            {filteredRituals.map((ritual: any) => {
+                const style = ELEMENT_STYLES[ritual.element] || ELEMENT_STYLES['Conhecimento'];
+                const activeVersionKey = ritual.normal.isActive ? 'normal' : ritual.discente.isActive ? 'discente' : ritual.verdadeiro.isActive ? 'verdadeiro' : null;
+                const activeVersion = activeVersionKey ? ritual[activeVersionKey] : null;
+                const isSustainedDuration = activeVersion && activeVersion.duration.toLowerCase().includes('sustentada');
+                const isSustainingState = activeVersion && !!activeVersion.isSustaining;
 
-                      <div className="p-4 space-y-3 flex-1">
-                          <div className="grid grid-cols-2 gap-2 text-[10px] text-eden-100/60">
-                              <div><span className="font-bold text-eden-100 uppercase">Exec:</span> {ritual.normal.execution || '-'}</div><div><span className="font-bold text-eden-100 uppercase">Alcance:</span> {ritual.normal.range || '-'}</div>
-                              <div><span className="font-bold text-eden-100 uppercase">Alvo:</span> {ritual.normal.target || '-'}</div><div><span className="font-bold text-eden-100 uppercase">Duração:</span> {ritual.normal.duration || '-'}</div>
-                          </div>
-                          <p className="text-xs text-eden-100/80 line-clamp-4 italic bg-black/20 p-2 rounded border border-eden-700/30">"{ritual.normal.description}"</p>
-                          
-                          {activeVersion && isSustainedDuration && (
-                              <div className={`border rounded-lg p-2 flex items-center justify-between gap-2 animate-in slide-in-from-left-2 transition-all ${isSustainingState ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-black/20 border-eden-700/50'}`}>
-                                  <div className="flex items-center gap-2"><RefreshCw size={14} className={isSustainingState ? "text-yellow-500 animate-spin-slow" : "text-eden-100/30"}/><label className="flex items-center gap-2 cursor-pointer select-none"><div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isSustainingState ? 'bg-yellow-500' : 'bg-eden-800'}`}><div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${isSustainingState ? 'translate-x-4' : 'translate-x-0'}`}/></div><input type="checkbox" className="hidden" checked={isSustainingState} onChange={() => toggleSustain(ritual.id, activeVersionKey as any, ritual.isInjected)}/><span className={`text-[10px] font-bold uppercase ${isSustainingState ? 'text-yellow-200' : 'text-eden-100/50'}`}>{isSustainingState ? 'Sustentando' : 'Sustentar?'}</span></label></div>
-                                  {isSustainingState && <button onClick={paySustainCost} className="p-1.5 bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-200 rounded text-[10px] font-bold transition-colors"><RefreshCw size={12}/> -1 PE</button>}
-                              </div>
-                          )}
+                return (
+                    <div key={ritual.id} className={`group relative bg-eden-900/40 border rounded-xl overflow-hidden transition-all flex flex-col ${activeVersion ? 'ring-1 ring-energia bg-energia/5' : ''} ${ritual.isInjected ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'border-eden-700 hover:border-eden-600'}`}>
+                        <div className={`absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity transform rotate-12`}>
+                            <img src={`/elementos/${ritual.element.toLowerCase()}.png`} alt={ritual.element} className="w-32 h-32 object-contain grayscale invert opacity-50" />
+                        </div>
 
-                          {activeVersion && activeVersion.effects?.length > 0 && (
-                              <div className="space-y-1 pt-2 border-t border-eden-700/50 px-2 pb-2">
-                                  <div className="text-[10px] font-bold text-energia uppercase flex items-center gap-1"><Zap size={10}/> Efeitos Ativos</div>
-                                  {activeVersion.effects.map((eff: any, idx: number) => (
-                                      <div key={idx} className="flex justify-between items-center text-xs bg-eden-950 p-1.5 rounded border border-eden-700">
-                                          <span className={eff.isActive === false ? "opacity-50 line-through" : ""}>{eff.name || eff.category.replace('_', ' ')}</span>
-                                          <button onClick={() => activeVersionKey && toggleActiveEffect(ritual.id, activeVersionKey as any, eff.id, ritual.isInjected || ritual.isOverridden)} className={`p-1 rounded hover:bg-white/10 ${eff.isActive !== false ? 'text-green-400' : 'text-eden-100/20'}`}><Power size={12}/></button>
-                                      </div>
-                                  ))}
-                              </div>
-                          )}
-                      </div>
+                        {ritual.isInjected && <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg uppercase z-10">Concedido por Efeito</div>}
+                        
+                        <div className={`p-3 border-b flex justify-between items-start relative z-10 ${style.bg} ${style.border.replace('border-', 'border-b-')}`}>
+                            <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 p-1 rounded-lg border ${style.border} bg-black/20 flex items-center justify-center`}>
+                                    <img src={`/elementos/${ritual.element.toLowerCase()}.png`} alt="" className="w-full h-full object-contain" />
+                                </div>
+                                <div className="pr-1">
+                                    <h3 className="font-bold text-eden-100 leading-none">{ritual.name}</h3>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                        <span className={`text-[9px] uppercase font-bold opacity-70 ${style.color}`}>{ritual.element} • {ritual.circle}º Círculo</span>
+                                        <span className="text-[9px] uppercase font-bold text-eden-100/50 bg-black/20 px-1.5 rounded border border-white/5">DT {vars.DT_RITUAL.global + (vars.DT_RITUAL.specific[ritual.id] || 0)}</span>
+                                        {(ritual.tags || []).map((tag: any) => (
+                                            <span key={tag.id} className="text-[8px] font-black uppercase px-1 rounded border" style={{ backgroundColor: `${tag.color}20`, color: tag.color, borderColor: `${tag.color}40` }}>{tag.name}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex gap-1 relative z-10 shrink-0">
+                                {activeVersion ? ( <div className="px-2 py-0.5 bg-energia text-eden-950 text-[10px] font-black uppercase rounded animate-pulse">Ativo ({activeVersionKey})</div> ) : (
+                                    <>
+                                        <button onClick={() => setEditingRitual(ritual)} className="p-1 rounded bg-black/20 text-eden-100/50 hover:text-white hover:bg-black/40"><Edit2 size={12}/></button>
+                                        {!ritual.isInjected && <button onClick={() => handleDeleteRitual(ritual.id)} className="p-1 rounded bg-black/20 text-eden-100/50 hover:text-red-400 hover:bg-black/40"><Trash2 size={12}/></button>}
+                                    </>
+                                )}
+                            </div>
+                        </div>
 
-                      <div className="p-2 bg-eden-950 border-t border-eden-700 flex flex-col gap-2">
-                          {activeVersion ? (
-                              <button onClick={() => deactivateRitual(ritual.id, ritual.isInjected)} className="w-full py-2 bg-red-900/30 border border-red-500/30 text-red-400 rounded-lg text-xs font-bold hover:bg-red-900/50 flex items-center justify-center gap-2"><StopCircle size={14}/> Dissipar Ritual</button>
-                          ) : (
-                              <div className="flex gap-1">
-                                  <button onClick={() => initiateCast(ritual, 'normal')} className="flex-1 py-1.5 bg-eden-800 hover:bg-eden-700 border border-eden-600 rounded text-[10px] font-bold text-white transition-colors">Normal ({ritual.normal.cost} PE)</button>
-                                  {(ritual.discente?.cost > 0 || (ritual.discente?.description && ritual.discente.description.trim().length > 0) || ritual.circle >= 2) && ( 
-                                      <button onClick={() => initiateCast(ritual, 'discente')} className="flex-1 py-1.5 bg-cyan-900/30 hover:bg-cyan-900/50 border border-cyan-700/50 rounded text-[10px] font-bold text-cyan-200 transition-colors">Discente ({ritual.discente.cost})</button>
-                                  )}
-                                  {(ritual.verdadeiro?.cost > 0 || (ritual.verdadeiro?.description && ritual.verdadeiro.description.trim().length > 0) || ritual.circle >= 3) && (
-                                      <button onClick={() => initiateCast(ritual, 'verdadeiro')} className="flex-1 py-1.5 bg-yellow-900/30 hover:bg-yellow-900/50 border border-yellow-700/50 rounded text-[10px] font-bold text-yellow-200 transition-colors">Verdadeiro ({ritual.verdadeiro.cost})</button>
-                                  )}
-                              </div>
-                          )}
-                      </div>
-                  </div>
-              );
-          })}
-      </div>
+                        <div className="p-4 space-y-3 flex-1 relative z-10">
+                            <div className="grid grid-cols-2 gap-2 text-[10px] text-eden-100/60">
+                                <div><span className="font-bold text-eden-100 uppercase">Exec:</span> {ritual.normal.execution || '-'}</div><div><span className="font-bold text-eden-100 uppercase">Alcance:</span> {ritual.normal.range || '-'}</div>
+                                <div><span className="font-bold text-eden-100 uppercase">Alvo:</span> {ritual.normal.target || '-'}</div><div><span className="font-bold text-eden-100 uppercase">Duração:</span> {ritual.normal.duration || '-'}</div>
+                            </div>
+                            <p className="text-xs text-eden-100/80 line-clamp-4 italic bg-black/20 p-2 rounded border border-eden-700/30">"{ritual.normal.description}"</p>
+                            
+                            {activeVersion && isSustainedDuration && (
+                                <div className={`border rounded-lg p-2 flex items-center justify-between gap-2 animate-in slide-in-from-left-2 transition-all ${isSustainingState ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-black/20 border-eden-700/50'}`}>
+                                    <div className="flex items-center gap-2"><RefreshCw size={14} className={isSustainingState ? "text-yellow-500 animate-spin-slow" : "text-eden-100/30"}/><label className="flex items-center gap-2 cursor-pointer select-none"><div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isSustainingState ? 'bg-yellow-500' : 'bg-eden-800'}`}><div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${isSustainingState ? 'translate-x-4' : 'translate-x-0'}`}/></div><input type="checkbox" className="hidden" checked={isSustainingState} onChange={() => toggleSustain(ritual.id, activeVersionKey as any, ritual.isInjected)}/><span className={`text-[10px] font-bold uppercase ${isSustainingState ? 'text-yellow-200' : 'text-eden-100/50'}`}>{isSustainingState ? 'Sustentando' : 'Sustentar?'}</span></label></div>
+                                    {isSustainingState && <button onClick={paySustainCost} className="p-1.5 bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-200 rounded text-[10px] font-bold transition-colors"><RefreshCw size={12}/> -1 PE</button>}
+                                </div>
+                            )}
+
+                            {activeVersion && activeVersion.effects?.length > 0 && (
+                                <div className="space-y-1 pt-2 border-t border-eden-700/50 px-2 pb-2">
+                                    <div className="text-[10px] font-bold text-energia uppercase flex items-center gap-1"><Zap size={10}/> Efeitos Ativos</div>
+                                    {activeVersion.effects.map((eff: any, idx: number) => (
+                                        <div key={idx} className="flex justify-between items-center text-xs bg-eden-950 p-1.5 rounded border border-eden-700">
+                                            <span className={eff.isActive === false ? "opacity-50 line-through" : ""}>{eff.name || eff.category.replace('_', ' ')}</span>
+                                            <button onClick={() => activeVersionKey && toggleActiveEffect(ritual.id, activeVersionKey as any, eff.id, ritual.isInjected || ritual.isOverridden)} className={`p-1 rounded hover:bg-white/10 ${eff.isActive !== false ? 'text-green-400' : 'text-eden-100/20'}`}><Power size={12}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-2 bg-eden-950 border-t border-eden-700 flex flex-col gap-2 relative z-10">
+                            {activeVersion ? (
+                                <button onClick={() => deactivateRitual(ritual.id, ritual.isInjected)} className="w-full py-2 bg-red-900/30 border border-red-500/30 text-red-400 rounded-lg text-xs font-bold hover:bg-red-900/50 flex items-center justify-center gap-2"><StopCircle size={14}/> Dissipar Ritual</button>
+                            ) : (
+                                <div className="flex gap-1">
+                                    <button onClick={() => initiateCast(ritual, 'normal')} className="flex-1 py-1.5 bg-eden-800 hover:bg-eden-700 border border-eden-600 rounded text-[10px] font-bold text-white transition-colors">Normal ({ritual.normal.cost} PE)</button>
+                                    {(ritual.discente?.cost > 0 || (ritual.discente?.description && ritual.discente.description.trim().length > 0) || ritual.circle >= 2) && ( 
+                                        <button onClick={() => initiateCast(ritual, 'discente')} className="flex-1 py-1.5 bg-cyan-900/30 hover:bg-cyan-900/50 border border-cyan-700/50 rounded text-[10px] font-bold text-cyan-200 transition-colors">Discente ({ritual.discente.cost})</button>
+                                    )}
+                                    {(ritual.verdadeiro?.cost > 0 || (ritual.verdadeiro?.description && ritual.verdadeiro.description.trim().length > 0) || ritual.circle >= 3) && (
+                                        <button onClick={() => initiateCast(ritual, 'verdadeiro')} className="flex-1 py-1.5 bg-yellow-900/30 hover:bg-yellow-900/50 border border-yellow-700/50 rounded text-[10px] font-bold text-yellow-200 transition-colors">Verdadeiro ({ritual.verdadeiro.cost})</button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+      )}
 
       {castingState && (
           <CastingModal ritual={castingState.ritual} version={castingState.version} cost={castingState.cost} occultismBonus={getOccultismStats().bonus} occultismDice={getOccultismStats().dice} onConfirm={finalizeCast} onCancel={() => setCastingState(null)} />

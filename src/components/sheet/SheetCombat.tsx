@@ -112,8 +112,27 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
       const damageList = Array.isArray(item.damage) ? item.damage : [];
       const hasDamage = damageList.length > 0;
       
-      const critRange = item.critical?.range || 20;
+      const baseCritRange = item.critical?.range || 20;
+      const wSubtype = isExplosive ? 'explosive' : (item.subtype || 'melee');
+      const wId = item.id;
+      
+      const wbAll = (vars as any)?.WEAPON_BONUS?.all || {};
+      const wbSub = (vars as any)?.WEAPON_BONUS?.[wSubtype] || {};
+      const wbId = (vars as any)?.WEAPON_BONUS?.[wId] || {};
+
+      const rangeMod = (wbAll.criticalRange || 0) + (wbSub.criticalRange || 0) + (wbId.criticalRange || 0);
+      const finalCritRange = Math.max(2, baseCritRange - rangeMod);
       const critMult = item.critical?.multiplier || 2;
+
+      let finalDT = item.dt || 0;
+      if (isExplosive) {
+          if (item.dtAttribute && item.dtAttribute !== 'none') {
+              const attrVal = (vars as any)?.ATTRS?.[item.dtAttribute] || 0;
+              const limit = (vars as any)?.PE?.limit || Math.max(1, Math.floor(character.personal.nex / 5));
+              finalDT = 10 + limit + attrVal + (item.dt || 0);
+          }
+          finalDT += ((vars as any)?.EXPLOSIVE_DT_MOD || 0);
+      }
 
       const attachedAmmoId = attachedAmmo[item.id];
       const attachedAmmoItem = attachedAmmoId ? inventoryAmmo.find(i => i.id === attachedAmmoId) : null;
@@ -138,7 +157,6 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
       return (
           <div key={item.id} className="bg-eden-900/50 border border-eden-700 rounded-2xl overflow-hidden hover:border-eden-500 transition-all flex flex-col shadow-lg">
               
-              {/* === CABEÇALHO CORRIGIDO PARA MOBILE === */}
               <div className="p-4 md:p-5 bg-eden-950/80 border-b border-eden-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   
                   <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto min-w-0">
@@ -155,15 +173,14 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                       </div>
                   </div>
 
-                  {hasDamage && (
+                  {hasDamage && !isExplosive && (
                       <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto shrink-0 bg-red-950/10 sm:bg-transparent p-2.5 sm:p-0 rounded-lg sm:rounded-none border sm:border-0 border-red-900/30">
-                          <div className="text-xs md:text-sm font-black text-red-400 flex items-center gap-1.5"><Target size={14} className="md:w-4 md:h-4"/> Margem {critRange}</div>
+                          <div className="text-xs md:text-sm font-black text-red-400 flex items-center gap-1.5"><Target size={14} className="md:w-4 md:h-4"/> Margem {finalCritRange}</div>
                           <div className="text-[10px] md:text-xs font-mono font-bold text-eden-100/70 sm:bg-black/40 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded sm:mt-1.5 sm:border sm:border-white/5">x{critMult} Crítico</div>
                       </div>
                   )}
 
               </div>
-              {/* ======================================= */}
 
               <div className="p-4 md:p-5 space-y-5 flex-1 flex flex-col">
                   
@@ -180,6 +197,24 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                       )}
                   </div>
 
+                  {/* ATUALIZADO: Renderização de Área e DT Global para Explosivos! */}
+                  {isExplosive && (item.area || finalDT > 0) && (
+                      <div className="flex gap-3">
+                          {item.area && (
+                              <div className="flex-1 bg-red-900/10 p-3 rounded-xl border border-red-500/20 flex flex-col justify-center">
+                                  <span className="text-[10px] text-red-200/50 uppercase font-bold mb-1">Área de Efeito</span>
+                                  <span className="text-sm md:text-base text-red-100 font-bold">{item.area}</span>
+                              </div>
+                          )}
+                          {finalDT > 0 && (
+                              <div className="flex-1 bg-red-900/10 p-3 rounded-xl border border-red-500/20 flex flex-col justify-center">
+                                  <span className="text-[10px] text-red-200/50 uppercase font-bold mb-1">DT Resistência</span>
+                                  <span className="text-sm md:text-base text-red-100 font-bold">{finalDT}</span>
+                              </div>
+                          )}
+                      </div>
+                  )}
+
                   {hasDamage ? (
                       <div className="space-y-3">
                           {item.type === 'weapon' && item.attackTest && (
@@ -188,14 +223,12 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                                   {(() => {
                                       const skillName = item.attackTest.skill || 'Luta';
                                       const skillData = vars?.SKILLS ? vars.SKILLS[skillName] : { dice: 1, total: 0 };
-                                      const wSubtype = item.subtype || 'melee';
-                                      const weaponId = item.id;
                                       
-                                      const wBonusDice = (vars?.WEAPON_BONUS?.all?.attackDice || 0) + (vars?.WEAPON_BONUS?.[wSubtype]?.attackDice || 0) + (vars?.WEAPON_BONUS?.[weaponId]?.attackDice || 0);
-                                      const wBonusFixed = (vars?.WEAPON_BONUS?.all?.attackBonus || 0) + (vars?.WEAPON_BONUS?.[wSubtype]?.attackBonus || 0) + (vars?.WEAPON_BONUS?.[weaponId]?.attackBonus || 0);
+                                      const wBonusDice = (wbAll.attackDice || 0) + (wbSub.attackDice || 0) + (wbId.attackDice || 0);
+                                      const wBonusFixed = (wbAll.attackBonus || 0) + (wbSub.attackBonus || 0) + (wbId.attackBonus || 0);
                                       
-                                      const secDice = item.attackTest.secondaryDice ? solveFormulaNumber(item.attackTest.secondaryDice, vars, character, weaponId, 'fixed') : 0;
-                                      const secBonus = item.attackTest.secondaryBonus ? solveFormulaNumber(item.attackTest.secondaryBonus, vars, character, weaponId, 'fixed') : 0;
+                                      const secDice = item.attackTest.secondaryDice ? solveFormulaNumber(item.attackTest.secondaryDice, vars, character, wId, 'fixed') : 0;
+                                      const secBonus = item.attackTest.secondaryBonus ? solveFormulaNumber(item.attackTest.secondaryBonus, vars, character, wId, 'fixed') : 0;
 
                                       const totalDice = (skillData?.dice || 1) + wBonusDice + secDice;
                                       const b = (skillData?.total || 0) + wBonusFixed + secBonus;
@@ -222,20 +255,18 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                           {damageList.length > 0 && (
                              <div className="bg-black/30 border border-eden-700/50 rounded-xl overflow-hidden flex flex-col gap-[1px] bg-eden-700/50 mt-2">
                                  {(() => {
-                                     const wSubtype = item.subtype || 'melee';
-                                     const wId = item.id;
                                      
                                      const allExtra = [
-                                         ...(vars?.WEAPON_BONUS?.all?.extraDamages || []),
-                                         ...(vars?.WEAPON_BONUS?.[wSubtype]?.extraDamages || []),
-                                         ...(vars?.WEAPON_BONUS?.[wId]?.extraDamages || [])
+                                         ...(wbAll.extraDamages || []),
+                                         ...(wbSub.extraDamages || []),
+                                         ...(wbId.extraDamages || [])
                                      ];
 
                                      const getDiceIncrease = (type: string, dmgIndex: number) => 
-                                        (vars?.WEAPON_BONUS?.all?.damageDiceIncrease?.[type] || 0) +
-                                        (vars?.WEAPON_BONUS?.[wSubtype]?.damageDiceIncrease?.[type] || 0) +
-                                        (vars?.WEAPON_BONUS?.[wId]?.damageDiceIncrease?.[type] || 0) +
-                                        (vars?.WEAPON_BONUS?.[wId]?.damageDiceIncrease?.[`idx_${dmgIndex}`] || 0);
+                                        (wbAll.damageDiceIncrease?.[type] || 0) +
+                                        (wbSub.damageDiceIncrease?.[type] || 0) +
+                                        (wbId.damageDiceIncrease?.[type] || 0) +
+                                        (wbId.damageDiceIncrease?.[`idx_${dmgIndex}`] || 0);
 
                                      const renderLine = (title: string, diceStr: string, type: string, color: string) => (
                                          <div className="flex justify-between items-center bg-eden-900/80 p-3.5 border-b border-eden-700/30 last:border-0">
@@ -250,9 +281,9 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                                      const typesProcessed: string[] = [];
 
                                      damageList.forEach((dmg: any, i: number) => {
-                                         const damageOverride = (vars?.WEAPON_BONUS?.[wId] as any)?.damageOverride?.[`idx_${i}`]
-                                                                || (vars?.WEAPON_BONUS?.[wSubtype] as any)?.damageOverride?.[`idx_${i}`]
-                                                                || (vars?.WEAPON_BONUS?.all as any)?.damageOverride?.[`idx_${i}`];
+                                         const damageOverride = wbId.damageOverride?.[`idx_${i}`]
+                                                                || wbSub.damageOverride?.[`idx_${i}`]
+                                                                || wbAll.damageOverride?.[`idx_${i}`];
                                                                 
                                          const targetDmg = damageOverride ? { ...dmg, ...damageOverride } : dmg;
                                          
@@ -265,7 +296,7 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                                          let nParts = [`${baseDiceCount}d${face}`];
                                          let cParts = [`${targetDmg.isMultipliable !== false ? baseDiceCount * critMult : baseDiceCount}d${face}`];
 
-                                         const extrasOfThisType = allExtra.filter(e => e.type === type);
+                                         const extrasOfThisType = allExtra.filter((e: any) => e.type === type || (e.type === 'primario' && i === 0));
                                          
                                          let itemBonusFixed = 0;
                                          let itemBonusDice: {count: number, face: number}[] = [];
@@ -283,11 +314,11 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
 
                                          let totalFixed = itemBonusFixed;
                                          
-                                         if (wSubtype === 'melee' && i === 0) {
-                                             totalFixed += (vars?.ATTRS?.FOR || 0);
+                                         if (wSubtype === 'melee' && i === 0 && !isExplosive) {
+                                             totalFixed += ((vars as any)?.ATTRS?.FOR || 0);
                                          }
                                          
-                                         extrasOfThisType.forEach(ex => {
+                                         extrasOfThisType.forEach((ex: any) => {
                                              if (ex.diceCount > 0) {
                                                 nParts.push(`+ ${ex.diceCount}d${ex.diceFace}`);
                                                 cParts.push(`+ ${ex.isMultipliable ? ex.diceCount * critMult : ex.diceCount}d${ex.diceFace}`);
@@ -308,16 +339,27 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                                          const normalStr = nParts.join(' ');
                                          const critStr = cParts.join(' ');
 
-                                         renderBlocks.push(<div key={`dmg_${i}`}>{renderLine('Normal', normalStr, type, 'text-eden-100/50')} {renderLine('Crítico', critStr, type, 'text-red-400')}</div>);
+                                         renderBlocks.push(
+                                            <div key={`dmg_${i}`}>
+                                                {renderLine('Normal', normalStr, type, 'text-eden-100/50')} 
+                                                {!isExplosive && renderLine('Crítico', critStr, type, 'text-red-400')}
+                                            </div>
+                                         );
                                      });
 
-                                     const standaloneExtras = allExtra.filter(e => !typesProcessed.includes(e.type));
-                                     standaloneExtras.forEach((ex, i) => {
+                                     const standaloneExtras = allExtra.filter((e: any) => !typesProcessed.includes(e.type) && e.type !== 'primario');
+                                     standaloneExtras.forEach((ex: any, i: number) => {
                                          let nParts = []; let cParts = [];
                                          if (ex.diceCount > 0) { nParts.push(`${ex.diceCount}d${ex.diceFace}`); cParts.push(`${ex.isMultipliable ? ex.diceCount * critMult : ex.diceCount}d${ex.diceFace}`); }
                                          if (ex.fixed !== 0) { nParts.push(ex.fixed > 0 && nParts.length > 0 ? `+ ${ex.fixed}` : `${ex.fixed}`); cParts.push(ex.fixed > 0 && cParts.length > 0 ? `+ ${ex.fixed}` : `${ex.fixed}`); }
                                          const normalStr = nParts.join(' '); const critStr = cParts.join(' ');
-                                         renderBlocks.push(<div key={`ext_${i}`} className="border-t-2 border-purple-500/20">{renderLine('Dano Extra', normalStr, ex.type, 'text-purple-400 bg-purple-900/30')} {renderLine('Crit Extra', critStr, ex.type, 'text-red-400')}</div>);
+                                         
+                                         renderBlocks.push(
+                                             <div key={`ext_${i}`} className="border-t-2 border-purple-500/20">
+                                                 {renderLine('Dano Extra', normalStr, ex.type, 'text-purple-400 bg-purple-900/30')} 
+                                                 {!isExplosive && renderLine('Crit Extra', critStr, ex.type, 'text-red-400')}
+                                             </div>
+                                         );
                                      });
 
                                      return renderBlocks;
@@ -328,14 +370,8 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                   ) : (
                       <div className="py-5 px-4 rounded-xl bg-eden-950/30 border border-eden-700/30 text-center flex flex-col gap-3">
                           <span className="text-sm font-bold text-eden-100/70 uppercase flex items-center justify-center gap-2">
-                              <AlertTriangle size={16} className="text-yellow-500"/> Item Tático / Efeito
+                              <AlertTriangle size={16} className="text-yellow-500"/> Efeito Tático / Não-Letal
                           </span>
-                          {(item.area || item.dt) && (
-                              <div className="flex justify-center gap-3 text-xs font-mono text-eden-100 flex-wrap">
-                                  {item.area && <span className="bg-black/40 px-3 py-1.5 rounded-lg border border-eden-700/50">Área: {item.area}</span>}
-                                  {item.dt && <span className="bg-black/40 px-3 py-1.5 rounded-lg border border-eden-700/50">DT: {item.dt}</span>}
-                              </div>
-                          )}
                       </div>
                   )}
 

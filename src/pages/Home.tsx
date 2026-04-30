@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { collection, getDocs, query, deleteDoc, doc, setDoc, getDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, deleteDoc, doc, setDoc, getDoc, where, updateDoc } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { db, auth } from '../config/firebase';
 import { 
   Sword, Shield, Plus, Scroll, Ghost, Loader2, Trash2, AlertTriangle, 
   X, Newspaper, Edit2, Image as ImageIcon, ChevronLeft, Calendar, Save, Palette, 
-  LogOut, UserCircle, Lock, Key, Users, Home as HomeIcon
+  LogOut, UserCircle, Lock, Key, Users, Home as HomeIcon, MessageSquare, Send, EyeOff, UserCheck
 } from 'lucide-react';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
@@ -32,23 +32,23 @@ export default function Home() {
   const [passwordInput, setPasswordInput] = useState('');
 
   const [letters, setLetters] = useState<any[]>([]);
+  const [readLetters, setReadLetters] = useState<string[]>([]);
+  
   const [letterMode, setLetterMode] = useState<'closed' | 'list' | 'read' | 'edit'>('closed');
   const [activeLetter, setActiveLetter] = useState<any | null>(null);
   const [isSavingLetter, setIsSavingLetter] = useState(false);
+  const [newComment, setNewComment] = useState('');
 
-  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => { setCurrentUser(user); });
     return () => unsubscribe();
   }, []);
 
-  
   useEffect(() => {
     async function fetchData() {
       if (!mesaId || !currentUser) return;
       setLoading(true);
       try {
-        
         const mesaSnap = await getDoc(doc(db, "mesas", mesaId));
         if (!mesaSnap.exists()) {
             alert("Mesa não encontrada!");
@@ -57,7 +57,12 @@ export default function Home() {
         const mesaData = mesaSnap.data();
         setMesa(mesaData);
 
-        
+        const readRef = doc(db, 'users', currentUser.uid, 'settings', 'read_letters');
+        const readSnap = await getDoc(readRef);
+        if (readSnap.exists()) {
+            setReadLetters(readSnap.data().ids || []);
+        }
+
         if (mesaData.members && mesaData.members.length > 0) {
             const qUsers = query(collection(db, "users"), where("uid", "in", mesaData.members));
             const snapUsers = await getDocs(qUsers);
@@ -66,19 +71,17 @@ export default function Home() {
             setMembers(membersData);
         }
 
-        
         const qChars = query(collection(db, "characters"), where("mesaId", "==", mesaId));
         const snapChars = await getDocs(qChars);
         const mines: any[] = [];
         const publics: any[] = [];
         
-        snapChars.forEach((doc) => {
-          const data = doc.data();
-          const char = { ...data, id: doc.id };
+        snapChars.forEach((docSnap) => {
+          const data = docSnap.data();
+          const char = { ...data, id: docSnap.id };
           if (data.userId === currentUser.uid) mines.push(char);
           else if (!data.isPrivate) publics.push(char);
         });
-        
         
         mines.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
         publics.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -86,11 +89,15 @@ export default function Home() {
         setMyCharacters(mines);
         setPublicCharacters(publics);
 
-        
         const qLetters = query(collection(db, "edens_letters"), where("mesaId", "==", mesaId));
         const snapLetters = await getDocs(qLetters);
         const news: any[] = [];
-        snapLetters.forEach(doc => news.push({ ...doc.data(), id: doc.id }));
+        snapLetters.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!data.recipients || data.recipients.length === 0 || data.recipients.includes(currentUser.uid) || mesaData.mestreId === currentUser.uid) {
+                news.push({ ...data, id: docSnap.id });
+            }
+        });
         news.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
         setLetters(news);
 
@@ -102,6 +109,12 @@ export default function Home() {
   const isMestre = currentUser && mesa && currentUser.uid === mesa.mestreId;
 
   const handleLogout = async () => { try { await signOut(auth); } catch (error) { console.error(error); } };
+
+  const handleTransferMestre = async (targetId: string, targetName: string) => {
+      if (!confirm(`Deseja transferir o cargo de Mestre para @${targetName}? Você se tornará um jogador.`)) return;
+      await updateDoc(doc(db, "mesas", mesaId!), { mestreId: targetId, mestreName: targetName });
+      setMesa({ ...mesa, mestreId: targetId, mestreName: targetName });
+  };
 
   const handleDeleteChar = async () => {
       if (!deletingChar) return;
@@ -132,6 +145,25 @@ export default function Home() {
       } else { alert("Acesso Negado: Senha incorreta."); }
   };
 
+  const handlePostComment = async () => {
+      if (!newComment.trim()) return;
+      
+      const currentMember = members.find(m => m.uid === currentUser?.uid);
+      const usernameDisplay = currentMember?.username || currentUser?.displayName || 'Agente';
+      
+      const comment = { id: generateId(), userId: currentUser!.uid, username: usernameDisplay, text: newComment.trim(), createdAt: Date.now() };
+      const updatedComments = [...(activeLetter.comments || []), comment];
+      
+      await updateDoc(doc(db, "edens_letters", activeLetter.id), { comments: updatedComments });
+      
+      setActiveLetter({ ...activeLetter, comments: updatedComments });
+      
+      // FIX: Atualiza também a lista de cartas em background para o comentário não sumir ao reabrir!
+      setLetters(prev => prev.map(l => l.id === activeLetter.id ? { ...l, comments: updatedComments } : l));
+      
+      setNewComment('');
+  };
+
   const handleSaveLetter = async () => {
       if (!activeLetter?.title) return alert("O título é obrigatório!");
       setIsSavingLetter(true);
@@ -158,9 +190,23 @@ export default function Home() {
 
   const openEditMode = (letter?: any) => {
       if (letter) setActiveLetter({ ...letter });
-      else setActiveLetter({ id: '', title: '', subtitle: '', titleColor: '#ffffff', headerUrl: '', sections: [] });
+      else setActiveLetter({ id: '', title: '', subtitle: '', titleColor: '#ffffff', headerUrl: '', sections: [], recipients: [], comments: [] });
       setLetterMode('edit');
   };
+
+  const markAsRead = async (letterId: string) => {
+      if (readLetters.includes(letterId)) return;
+      const newRead = [...readLetters, letterId];
+      setReadLetters(newRead);
+      try {
+          const readRef = doc(db, 'users', currentUser!.uid, 'settings', 'read_letters');
+          await setDoc(readRef, { ids: newRead }, { merge: true });
+      } catch (error) {
+          console.error("Erro ao registrar leitura", error);
+      }
+  };
+
+  const unreadCount = letters.filter(l => !readLetters.includes(l.id)).length;
 
   const renderCharacterCard = (char: any, isOwner: boolean) => {
       const name = char.personal?.name || char.info?.name || "Desconhecido";
@@ -191,7 +237,6 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-eden-900 text-eden-100 font-sans">
       
-      {}
       <div className="bg-eden-950 border-b border-eden-700 py-3 px-4 md:px-8 flex justify-between items-center shrink-0 z-20 shadow-md">
           <div className="flex items-center gap-4">
               <Link to="/" className="p-2 bg-eden-900 hover:bg-eden-800 text-eden-100/50 hover:text-energia rounded-xl transition-colors border border-eden-700/50" title="Voltar ao Lobby"><HomeIcon size={18}/></Link>
@@ -212,7 +257,6 @@ export default function Home() {
           </div>
       </div>
 
-      {}
       <div className="bg-eden-800 border-b border-eden-700 py-8 px-4 text-center relative overflow-hidden shrink-0">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
         <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-white relative z-10 mb-2 uppercase">{mesa.name}</h1>
@@ -223,7 +267,6 @@ export default function Home() {
 
       <main className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8">
         
-        {}
         <div className="flex-1 space-y-8">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-8">
                 <button onClick={() => navigate(`/mesa/${mesaId}/criar`)} className="col-span-1 group relative overflow-hidden p-4 bg-eden-800/50 border border-eden-700 hover:border-green-500/50 rounded-2xl text-left flex flex-col justify-between hover:bg-eden-800 transition-all">
@@ -241,7 +284,7 @@ export default function Home() {
                 <button onClick={() => setLetterMode('list')} className={`${isMestre ? 'col-span-2 md:col-span-1' : 'col-span-1'} group relative overflow-hidden p-4 bg-purple-900/10 border border-purple-500/30 hover:border-purple-400/60 rounded-2xl text-left flex flex-col justify-between hover:bg-purple-900/20 transition-all`}>
                     <div className="p-2 bg-purple-950/80 rounded-lg w-fit mb-3 text-purple-400 border border-purple-500/20"><Newspaper size={18} /></div>
                     <div><h3 className="text-sm md:text-lg font-bold text-white group-hover:text-purple-300">Jornal da Mesa</h3></div>
-                    {letters.length > 0 && <div className="absolute top-4 right-4 bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-full">{letters.length} edições</div>}
+                    {unreadCount > 0 && <div className="absolute top-4 right-4 bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">{unreadCount} Novas</div>}
                 </button>
             </div>
 
@@ -268,7 +311,6 @@ export default function Home() {
             </div>
         </div>
 
-        {}
         <div className="w-full lg:w-72 shrink-0 space-y-4">
             <div className="bg-eden-800/50 border border-eden-700 rounded-2xl p-4 md:p-5 shadow-sm">
                 <h3 className="text-sm font-black uppercase tracking-widest text-eden-100 flex items-center gap-2 mb-4 border-b border-eden-700/50 pb-2">
@@ -276,7 +318,7 @@ export default function Home() {
                 </h3>
                 <div className="space-y-3">
                     {members.map(m => (
-                        <div key={m.uid} className="flex items-center justify-between bg-eden-900/80 p-2.5 rounded-xl border border-eden-700/50">
+                        <div key={m.uid} className="flex items-center justify-between bg-eden-900/80 p-2.5 rounded-xl border border-eden-700/50 group">
                             <div className="flex items-center gap-3 min-w-0">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${m.uid === mesa.mestreId ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-eden-800 text-eden-100 border border-eden-600'}`}>
                                     {m.username.charAt(0).toUpperCase()}
@@ -286,6 +328,9 @@ export default function Home() {
                                     <p className="text-[9px] text-eden-100/40 uppercase tracking-widest">{m.uid === mesa.mestreId ? 'Mestre' : 'Jogador'}</p>
                                 </div>
                             </div>
+                            {isMestre && m.uid !== currentUser?.uid && (
+                                <button onClick={() => handleTransferMestre(m.uid, m.username)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-energia/10 text-energia rounded-lg transition-all" title="Promover a Mestre"><UserCheck size={16}/></button>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -300,9 +345,6 @@ export default function Home() {
         </div>
       </main>
 
-      {}
-      {}
-      {}
       {promptingChar && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
               <form onSubmit={handleUnlock} className="bg-eden-900 border border-red-500/50 w-full max-w-md rounded-2xl shadow-2xl p-6 relative overflow-hidden">
@@ -342,33 +384,43 @@ export default function Home() {
                       <div className="flex-1 overflow-y-auto p-6 space-y-4">
                           <div className="flex justify-between items-center mb-4">
                               <p className="text-sm text-eden-100/60 italic">Fique por dentro das atualizações da campanha.</p>
-                              {}
                               {isMestre && <button onClick={() => openEditMode()} className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2"><Plus size={16}/> Escrever Edição</button>}
                           </div>
                           {letters.length === 0 ? (
                               <div className="text-center py-20 border-2 border-dashed border-purple-500/20 rounded-xl text-purple-200/40">Nenhuma edição publicada.</div>
                           ) : (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {letters.map(letter => (
-                                      <div key={letter.id} onClick={() => { setActiveLetter(letter); setLetterMode('read'); }} className="group bg-eden-950/50 border border-purple-900/50 hover:border-purple-500/50 rounded-xl overflow-hidden cursor-pointer flex flex-col transition-all hover:-translate-y-1 shadow-lg">
-                                          {letter.headerUrl && <div className="h-24 w-full bg-black shrink-0"><img src={letter.headerUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100" alt="Capa" /></div>}
-                                          <div className="p-4 flex-1 flex flex-col">
-                                              <div className="text-[10px] text-purple-300 font-bold mb-2 flex flex-col gap-1">
-                                                  <span className="flex items-center gap-1"><Calendar size={12}/> {formatDateTime(letter.createdAt)}</span>
-                                              </div>
-                                              <h3 className="font-black text-lg leading-tight mb-1" style={{ color: letter.titleColor || '#ffffff' }}>{letter.title}</h3>
-                                              <p className="text-xs text-eden-100/70 line-clamp-2 flex-1">{letter.subtitle}</p>
+                                  {letters.map(letter => {
+                                      const isRead = readLetters.includes(letter.id);
+                                      return (
+                                          <div key={letter.id} 
+                                               onClick={() => { 
+                                                    setActiveLetter(letter); 
+                                                    setLetterMode('read'); 
+                                                    markAsRead(letter.id);
+                                               }} 
+                                               className={`group bg-eden-950/50 border hover:border-purple-500/50 rounded-xl overflow-hidden cursor-pointer flex flex-col transition-all hover:-translate-y-1 shadow-lg relative ${!isRead ? 'border-purple-400/80 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'border-purple-900/50'}`}>
                                               
-                                              {}
-                                              {isMestre && (
-                                                  <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-purple-900/30">
-                                                      <button onClick={(e) => { e.stopPropagation(); openEditMode(letter); }} className="p-1.5 text-purple-400 hover:bg-purple-500/20 rounded"><Edit2 size={16}/></button>
-                                                      <button onClick={(e) => handleDeleteLetter(letter.id, e)} className="p-1.5 text-red-400 hover:bg-red-500/20 rounded"><Trash2 size={16}/></button>
+                                              {!isRead && <div className="absolute top-4 right-4 w-3 h-3 bg-purple-500 rounded-full animate-pulse z-10 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></div>}
+
+                                              {letter.headerUrl && <div className="h-24 w-full bg-black shrink-0"><img src={letter.headerUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100" alt="Capa" /></div>}
+                                              <div className="p-4 flex-1 flex flex-col">
+                                                  <div className="text-[10px] text-purple-300 font-bold mb-2 flex flex-col gap-1">
+                                                      <span className="flex items-center gap-1"><Calendar size={12}/> {formatDateTime(letter.createdAt)}</span>
                                                   </div>
-                                              )}
+                                                  <h3 className="font-black text-lg leading-tight mb-1" style={{ color: letter.titleColor || '#ffffff' }}>{letter.title}</h3>
+                                                  <p className="text-xs text-eden-100/70 line-clamp-2 flex-1">{letter.subtitle}</p>
+                                                  
+                                                  {isMestre && (
+                                                      <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-purple-900/30">
+                                                          <button onClick={(e) => { e.stopPropagation(); openEditMode(letter); }} className="p-1.5 text-purple-400 hover:bg-purple-500/20 rounded"><Edit2 size={16}/></button>
+                                                          <button onClick={(e) => handleDeleteLetter(letter.id, e)} className="p-1.5 text-red-400 hover:bg-red-500/20 rounded"><Trash2 size={16}/></button>
+                                                      </div>
+                                                  )}
+                                              </div>
                                           </div>
-                                      </div>
-                                  ))}
+                                      );
+                                  })}
                               </div>
                           )}
                       </div>
@@ -398,18 +450,53 @@ export default function Home() {
                                       </div>
                                   ))}
                               </div>
+                              
+                              <div className="mt-12 pt-8 border-t border-white/10 space-y-6">
+                                  <h3 className="text-xl font-bold flex items-center gap-2 text-white"><MessageSquare size={20}/> Comentários ({activeLetter.comments?.length || 0})</h3>
+                                  <div className="space-y-4">
+                                      {(activeLetter.comments || []).map((c: any) => (
+                                          <div key={c.id} className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                              <div className="flex justify-between text-[10px] font-bold text-eden-100/40 uppercase mb-2">
+                                                  <span>@{c.username}</span>
+                                                  <span>{formatDateTime(c.createdAt)}</span>
+                                              </div>
+                                              <p className="text-sm text-eden-100/80">{c.text}</p>
+                                          </div>
+                                      ))}
+                                      {(!activeLetter.comments || activeLetter.comments.length === 0) && (
+                                          <p className="text-xs text-eden-100/40 italic">Nenhum comentário ainda. Seja o primeiro a comentar!</p>
+                                      )}
+                                  </div>
+                                  <div className="flex gap-2 sticky bottom-0 bg-eden-950 py-4 mt-4">
+                                      <input value={newComment} onChange={e => setNewComment(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-purple-500" placeholder="Escreva algo..."/>
+                                      <button onClick={handlePostComment} className="p-3 bg-purple-600 text-white rounded-xl hover:bg-purple-500 transition-colors shadow-lg"><Send size={20}/></button>
+                                  </div>
+                              </div>
                           </div>
                       </div>
                   )}
 
                   {letterMode === 'edit' && activeLetter && isMestre && (
                       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 bg-eden-900">
-                          {}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="space-y-1 md:col-span-2">
                                   <label className="text-[10px] uppercase font-bold text-purple-300 flex items-center gap-1"><ImageIcon size={12}/> Link da Imagem de Capa</label>
                                   <input type="text" value={activeLetter.headerUrl || ''} onChange={e => setActiveLetter({...activeLetter, headerUrl: e.target.value})} className="w-full bg-eden-950 border border-purple-900/50 rounded-lg p-3 text-sm text-white outline-none focus:border-purple-500" />
                               </div>
+                              
+                              <div className="space-y-1 md:col-span-2 bg-black/20 p-3 rounded-lg border border-purple-900/30">
+                                  <label className="text-[10px] font-black uppercase text-purple-300 flex items-center gap-2"><EyeOff size={12}/> Destinatários (Deixe vazio para todos)</label>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                      {members.map(m => (
+                                          <button type="button" key={m.uid} onClick={() => {
+                                              const current = activeLetter.recipients || [];
+                                              const next = current.includes(m.uid) ? current.filter((id:any) => id !== m.uid) : [...current, m.uid];
+                                              setActiveLetter({...activeLetter, recipients: next});
+                                          }} className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all ${activeLetter.recipients?.includes(m.uid) ? 'bg-purple-600 border-purple-400 text-white' : 'bg-black/40 border-white/10 text-white/40 hover:text-white'}`}>@{m.username}</button>
+                                      ))}
+                                  </div>
+                              </div>
+
                               <div className="space-y-1">
                                   <label className="text-[10px] uppercase font-bold text-purple-300">Título</label>
                                   <input type="text" value={activeLetter.title} onChange={e => setActiveLetter({...activeLetter, title: e.target.value})} className="w-full bg-eden-950 border border-purple-900/50 rounded-lg p-3 text-sm text-white font-bold outline-none focus:border-purple-500" />
@@ -465,10 +552,23 @@ export default function Home() {
                       <h3 className="text-2xl font-bold text-white mb-2">Excluir Agente?</h3>
                   </div>
                   <div className="space-y-4">
-                      <input type="text" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder={`Digite "${deletingChar.personal?.name}" para confirmar`} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-center font-bold text-eden-100 focus:border-red-500 outline-none" autoFocus/>
+                      <input 
+                          type="text" 
+                          value={confirmName} 
+                          onChange={(e) => setConfirmName(e.target.value)} 
+                          placeholder={`Digite "${deletingChar.personal?.name || deletingChar.info?.name}" para confirmar`} 
+                          className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-center font-bold text-eden-100 focus:border-red-500 outline-none" 
+                          autoFocus
+                      />
                       <div className="flex gap-3">
                           <button onClick={() => setDeletingChar(null)} className="flex-1 py-3 rounded-xl font-bold bg-eden-800 hover:bg-eden-700">Cancelar</button>
-                          <button onClick={handleDeleteChar} disabled={confirmName !== (deletingChar.personal?.name || deletingChar.info?.name)} className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-500 disabled:opacity-50">Excluir</button>
+                          <button 
+                              onClick={handleDeleteChar} 
+                              disabled={confirmName !== (deletingChar.personal?.name || deletingChar.info?.name)} 
+                              className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-500 disabled:opacity-50"
+                          >
+                              Excluir
+                          </button>
                       </div>
                   </div>
               </div>

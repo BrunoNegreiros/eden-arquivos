@@ -13,7 +13,7 @@ export const SKILL_MAP: Record<string, Attribute> = {
   'Ciências': 'INT', 'Crime': 'AGI', 'Diplomacia': 'PRE', 'Enganação': 'PRE', 'Fortitude': 'VIG',
   'Furtividade': 'AGI', 'Iniciativa': 'AGI', 'Intimidação': 'PRE', 'Intuição': 'INT', 'Investigação': 'INT',
   'Luta': 'FOR', 'Medicina': 'INT', 'Ocultismo': 'INT', 'Percepção': 'PRE', 'Pilotagem': 'AGI',
-  'Pontaria': 'AGI', 'Profissão': 'INT', 'Profissão 2': 'INT', 'Profissão 3': 'INT', 'Reflexos': 'AGI', 
+  'Pontaria': 'AGI', 'Profissão 1': 'INT', 'Profissão 2': 'INT', 'Profissão 3': 'INT', 'Reflexos': 'AGI', 
   'Religião': 'PRE', 'Sobrevivência': 'INT', 'Tática': 'INT', 'Tecnologia': 'INT', 'Vontade': 'PRE'
 };
 
@@ -28,7 +28,15 @@ export interface CalculatedVariables {
   VULNERABILIDADES: string[];
   DESLOCAMENTO: number;
   ACOES: { movimento: number; padrao: number; reacao: number };
-  WEAPON_BONUS: Record<string, { attackDice: number; attackBonus: number; damageDiceIncrease: Record<string, number>; extraDamages: { type: string, fixed: number, diceCount: number, diceFace: number, isMultipliable: boolean }[]; damageOverride?: Record<string, any>; }>;
+  // ATUALIZADO: Declaradas as propriedades `criticalRange` e `EXPLOSIVE_DT_MOD`
+  WEAPON_BONUS: Record<string, { 
+      attackDice: number; attackBonus: number; 
+      criticalRange: number; 
+      damageDiceIncrease: Record<string, number>; 
+      extraDamages: { type: string, fixed: number, diceCount: number, diceFace: number, isMultipliable: boolean }[]; 
+      damageOverride?: Record<string, any>; 
+  }>;
+  EXPLOSIVE_DT_MOD: number;
   SKILLS: Record<string, { total: number; dice: number; trainingBonus: number; otherBonus: number }>;
   NEX: number;
   PATENTE: string;
@@ -96,7 +104,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
     const ctx: CalculatedVariables = {
         ATTRS: { ...char.attributes.initial }, PV: { max: 0, temp: 0 }, PE: { max: 0, temp: 0, limit: Math.floor(nex / 5) }, SAN: { max: 0, temp: 0 },
         DEF: 10, RD: {}, IMUNIDADES: [], VULNERABILIDADES: [], DESLOCAMENTO: 9, ACOES: { movimento: 1, padrao: 1, reacao: 1 },
-        WEAPON_BONUS: {}, SKILLS: {}, NEX: nex, PATENTE: 'Recruta', LIMITE_CREDITO: 'Baixo', CARGA: { atual: 0, max: 0 }, DT_RITUAL: { global: 0, specific: {} },
+        WEAPON_BONUS: {}, EXPLOSIVE_DT_MOD: 0, SKILLS: {}, NEX: nex, PATENTE: 'Recruta', LIMITE_CREDITO: 'Baixo', CARGA: { atual: 0, max: 0 }, DT_RITUAL: { global: 0, specific: {} },
         PROFICIENCIAS: [], INJECTED_RITUALS: [], INJECTED_ABILITIES: [], INJECTED_ITEMS: [], OVERRIDDEN_RITUALS: {}, OVERRIDDEN_ABILITIES: {}
     };
 
@@ -211,12 +219,21 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
                 if (t.type === 'pv_temp') ctx.PV.temp += val; if (t.type === 'pe_temp') ctx.PE.temp += val; if (t.type === 'san_temp') ctx.SAN.temp += val;
                 if (t.type === 'defense') ctx.DEF += val; if (t.type === 'displacement') ctx.DESLOCAMENTO += val; if (t.type === 'load_max') ctx.CARGA.max += val;
                 if (t.type === 'ritual_dt') { if (!t.ritualId || t.ritualId === 'all') ctx.DT_RITUAL.global += val; else ctx.DT_RITUAL.specific[t.ritualId] = (ctx.DT_RITUAL.specific[t.ritualId] || 0) + val; }
+                
+                // ATUALIZADO: Cálculo da DT de Explosivos
+                if (t.type === 'explosive_dt') ctx.EXPLOSIVE_DT_MOD += val;
+                
                 if (t.type === 'test_skill' && t.skill && ctx.SKILLS[t.skill]) ctx.SKILLS[t.skill].total += val;
                 if ((t.type as string) === 'test_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].total += val; });
-                if (t.type === 'test_attack' || t.type === 'damage_roll') {
+                
+                if (t.type === 'test_attack' || t.type === 'damage_roll' || t.type === 'critical_range') {
                     const key = t.weaponId || t.weaponFilter || 'all';
-                    if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, damageDiceIncrease: {}, extraDamages: [] };
+                    if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
+                    
                     if (t.type === 'test_attack') ctx.WEAPON_BONUS[key].attackBonus += val;
+                    // ATUALIZADO: Cálculo da Margem de Ameaça
+                    if (t.type === 'critical_range') ctx.WEAPON_BONUS[key].criticalRange += val;
+                    
                     if (t.type === 'damage_roll') {
                         let dFace = 6; effect.value.terms.forEach(term => { if (term.type === 'dice') dFace = term.diceFace || 6; });
                         const fixedSum = solveFormulaNumber(effect.value, ctx, char, effect.id, 'fixed');
@@ -233,7 +250,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
                 if (t.type === 'test_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].dice += val; });
                 if (t.type === 'test_attack' || (t.type as string) === 'damage_increase') {
                     const key = t.weaponId || t.weaponFilter || 'all';
-                    if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, damageDiceIncrease: {}, extraDamages: [] };
+                    if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
                     if (t.type === 'test_attack') ctx.WEAPON_BONUS[key].attackDice += val;
                     if ((t.type as string) === 'damage_increase') {
                         if (t.damageIndex !== undefined && t.damageIndex !== -1) ctx.WEAPON_BONUS[key].damageDiceIncrease[`idx_${t.damageIndex}`] = (ctx.WEAPON_BONUS[key].damageDiceIncrease[`idx_${t.damageIndex}`] || 0) + val;
@@ -254,7 +271,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
         if (effect.category === 'change_damage') {
             effect.targets.forEach(t => {
                 const key = t.weaponId || t.weaponFilter || 'all';
-                if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, damageDiceIncrease: {}, extraDamages: [] };
+                if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
                 if (!(ctx.WEAPON_BONUS[key] as any).damageOverride) (ctx.WEAPON_BONUS[key] as any).damageOverride = {};
                 let dFace = 6; effect.value.terms.forEach(term => { if (term.type === 'dice') dFace = term.diceFace || 6; });
                 const fixedSum = solveFormulaNumber(effect.value, ctx, char, effect.id, 'fixed');
@@ -275,7 +292,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
             (c === 'tactical' && !ctx.PROFICIENCIAS.includes('taticas')) || 
             (c === 'heavy' && !ctx.PROFICIENCIAS.includes('pesadas'))
         ) {
-            if (!ctx.WEAPON_BONUS[w.id]) ctx.WEAPON_BONUS[w.id] = { attackDice: 0, attackBonus: 0, damageDiceIncrease: {}, extraDamages: [] };
+            if (!ctx.WEAPON_BONUS[w.id]) ctx.WEAPON_BONUS[w.id] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
             ctx.WEAPON_BONUS[w.id].attackDice -= 2;
         }
     });

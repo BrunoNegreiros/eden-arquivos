@@ -1,7 +1,3 @@
-
-
-
-
 export type Attribute = 'AGI' | 'FOR' | 'INT' | 'PRE' | 'VIG';
 
 export type DamageType = 
@@ -23,10 +19,6 @@ export type Complexity = 'simple' | 'tactical' | 'heavy';
 export type HandType = 'light' | 'one' | 'two';
 
 export type WeaponSubtype = 'melee' | 'ranged';
-
-
-
-
 
 export type Operation = 'soma' | 'subtracao' | 'multiplicacao' | 'divisao';
 export type TermType = 
@@ -64,7 +56,8 @@ export type TargetType =
   | 'pv_max' | 'pe_max' | 'san_max' | 'pv_temp' | 'pe_temp' | 'san_temp'
   | 'ritual_dt' | 'attribute' | 'dr' | 'immunity_damage' | 'immunity_condition' | 'vulnerability'
   | 'proficiency' | 'pv_current' | 'pe_current' | 'san_current'
-  | 'override_ritual' | 'override_ability';
+  | 'override_ritual' | 'override_ability'
+  | 'critical_range' | 'explosive_dt'; // ATUALIZADO AQUI: NOVOS ALVOS!
 
 export interface EffectTarget {
   id: string;
@@ -96,20 +89,12 @@ export interface Effect {
   isActive?: boolean;
 }
 
-
-
-
-
 export interface UserOrigin {
     id: string;
     name: string;
     description: string;
     effects: Effect[];
 }
-
-
-
-
 
 export interface BaseUserItem {
   id: string;
@@ -172,7 +157,8 @@ export interface UserExplosive extends BaseUserItem {
   range?: string; 
   damage?: DamageInstance[];
   area?: string; 
-  dt?: number | Attribute;
+  dt?: number;
+  dtAttribute?: Attribute | 'none'; // ATUALIZADO AQUI: ATRIBUTO PARA DT
   critical?: {
       range: number;
       multiplier: number;
@@ -191,10 +177,6 @@ export interface UserGeneralItem extends BaseUserItem { type: 'general'; }
 export type AnyUserItem = 
   | UserWeapon | UserProtection | UserAmmo | UserExplosive 
   | UserAccessory | UserGeneralItem | UserCursedItem;
-
-
-
-
 
 export interface RitualVersion {
     isActive: boolean;
@@ -231,10 +213,6 @@ export interface UserAbility {
   source?: string; 
 }
 
-
-
-
-
 export interface EdensLetterSection {
   id: string;
   title: string;
@@ -251,10 +229,6 @@ export interface EdensLetter {
   updatedAt: number;   
   sections: EdensLetterSection[];
 }
-
-
-
-
 
 export type UserRole = 'mestre' | 'jogador';
 

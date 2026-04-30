@@ -10,8 +10,7 @@ import EffectEditor from './EffectEditor';
 import type { Formula, FormulaTerm, Operation, ItemType, ElementType } from '../../types/systemData';
 import { calculateVariables } from '../../utils/characterFormulas';
 
-
-const SKILL_OPTIONS = ["Acrobacia", "Adestramento", "Artes", "Atletismo", "Atualidades", "Ciências", "Crime", "Diplomacia", "Enganação", "Fortitude", "Furtividade", "Iniciativa", "Intimidação", "Intuição", "Investigação", "Luta", "Medicina", "Ocultismo", "Percepção", "Pilotagem", "Pontaria", "Profissão", "Reflexos", "Religião", "Sobrevivência", "Tática", "Tecnologia", "Vontade"];
+const SKILL_OPTIONS = ["Acrobacia", "Adestramento", "Artes", "Atletismo", "Atualidades", "Ciências", "Crime", "Diplomacia", "Enganação", "Fortitude", "Furtividade", "Iniciativa", "Intimidação", "Intuição", "Investigação", "Luta", "Medicina", "Ocultismo", "Percepção", "Pilotagem", "Pontaria", "Profissão 1", "Profissão 2", "Profissão 3", "Reflexos", "Religião", "Sobrevivência", "Tática", "Tecnologia", "Vontade"];
 const ELEMENTS: ElementType[] = ['Sangue', 'Morte', 'Conhecimento', 'Energia', 'Medo'];
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).substring(2, 9);
@@ -35,9 +34,6 @@ const getTypeStyle = (item: any) => {
       default: return `border-zinc-500/50 bg-zinc-500/5 text-zinc-200`;
     }
 };
-
-
-
 
 function FormulaBuilder({ formula, onChange }: { formula: Formula, onChange: (f: Formula) => void }) {
     const addTerm = () => {
@@ -109,9 +105,6 @@ function FormulaBuilder({ formula, onChange }: { formula: Formula, onChange: (f:
     )
 }
 
-
-
-
 export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any, onSave: (item: any) => void, onCancel: () => void }) => {
   const [formData, setFormData] = useState<any>(() => {
       if (initialData) {
@@ -147,7 +140,6 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
             <div className="flex flex-col lg:flex-row gap-6">
                 
-                {}
                 <div className="flex-1 space-y-5">
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-eden-100/50 uppercase">Nome</label>
@@ -359,27 +351,29 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
                                                         }} 
                                                         className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-sm text-white capitalize"
                                                     >
-                                                        {DAMAGE_TYPES_INFO.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                                                        {DAMAGE_TYPES_INFO.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                                     </select>
                                                 </div>
                                             </div>
                                             
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <input 
-                                                    type="checkbox" 
-                                                    id={`mult_${dmg.id}`}
-                                                    checked={dmg.isMultipliable !== false}
-                                                    onChange={e => {
-                                                        const newDmg = [...formData.damage];
-                                                        newDmg[idx].isMultipliable = e.target.checked;
-                                                        handleChange('damage', newDmg);
-                                                    }} 
-                                                    className="w-3 h-3 rounded border-red-500 bg-eden-900 text-red-500 cursor-pointer"
-                                                />
-                                                <label htmlFor={`mult_${dmg.id}`} className="text-[10px] font-bold text-red-200/60 uppercase cursor-pointer select-none">
-                                                    Dados multiplicam no Crítico?
-                                                </label>
-                                            </div>
+                                            {formData.type !== 'explosive' && (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        id={`mult_${dmg.id}`}
+                                                        checked={dmg.isMultipliable !== false}
+                                                        onChange={e => {
+                                                            const newDmg = [...formData.damage];
+                                                            newDmg[idx].isMultipliable = e.target.checked;
+                                                            handleChange('damage', newDmg);
+                                                        }} 
+                                                        className="w-3 h-3 rounded border-red-500 bg-eden-900 text-red-500 cursor-pointer"
+                                                    />
+                                                    <label htmlFor={`mult_${dmg.id}`} className="text-[10px] font-bold text-red-200/60 uppercase cursor-pointer select-none">
+                                                        Dados multiplicam no Crítico?
+                                                    </label>
+                                                </div>
+                                            )}
 
                                             <div className="space-y-1 pt-2 border-t border-red-900/30">
                                                 <label className="text-[10px] text-red-200/60 uppercase font-bold">Bônus de Dano (Não multiplica no crítico)</label>
@@ -395,21 +389,38 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
                                         </div>
                                     ))}
                                     
-                                    <div className="space-y-1 pt-3 border-t border-red-500/20">
-                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Crítico (Margem / Multiplicador)</label>
-                                        <div className="flex gap-2">
-                                            <input type="number" value={formData.critical?.range || 20} onChange={e => updateNested('critical', 'range', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="20"/>
-                                            <span className="text-white font-bold self-center">/</span>
-                                            <input type="number" value={formData.critical?.multiplier || 2} onChange={e => updateNested('critical', 'multiplier', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="x2"/>
+                                    {formData.type !== 'explosive' && (
+                                        <div className="space-y-1 pt-3 border-t border-red-500/20">
+                                            <label className="text-[10px] text-red-200/60 uppercase font-bold">Crítico (Margem / Multiplicador)</label>
+                                            <div className="flex gap-2">
+                                                <input type="number" value={formData.critical?.range || 20} onChange={e => updateNested('critical', 'range', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="20"/>
+                                                <span className="text-white font-bold self-center">/</span>
+                                                <input type="number" value={formData.critical?.multiplier || 2} onChange={e => updateNested('critical', 'multiplier', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="x2"/>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             )}
 
                             {formData.type === 'explosive' && (
                                 <div className="grid grid-cols-2 gap-3 border-t border-red-500/20 pt-2">
                                     <div className="space-y-1"><label className="text-[10px] font-bold text-red-300">Área</label><input type="text" value={formData.area || ''} onChange={e => handleChange('area', e.target.value)} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white" placeholder="Ex: 6m raio"/></div>
-                                    <div className="space-y-1"><label className="text-[10px] font-bold text-red-300">DT Resistência</label><input type="number" value={formData.dt || 0} onChange={e => handleChange('dt', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white"/></div>
+                                    
+                                    {/* ATUALIZADO: Dropdown de Atributo para DT de Explosivo */}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-red-300">DT Resistência</label>
+                                        <div className="flex gap-2">
+                                            <select value={formData.dtAttribute || 'AGI'} onChange={e => handleChange('dtAttribute', e.target.value)} className="bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white outline-none w-20">
+                                                <option value="none">Fixa</option>
+                                                <option value="AGI">AGI</option>
+                                                <option value="FOR">FOR</option>
+                                                <option value="INT">INT</option>
+                                                <option value="PRE">PRE</option>
+                                                <option value="VIG">VIG</option>
+                                            </select>
+                                            <input type="number" value={formData.dt || 0} onChange={e => handleChange('dt', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white" placeholder="Fixo/Bônus"/>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -473,86 +484,85 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
                     </div>
                 </div>
                 
-                {}
-          <div className="space-y-4">
-              <div className="flex justify-between items-center border-b border-eden-700 pb-2">
-                  <h3 className="text-xs md:text-sm font-black text-eden-100 uppercase tracking-widest flex items-center gap-2">
-                      <Sparkles size={16} className="text-energia" />
-                      Efeitos
-                  </h3>
-                  <button 
-                      type="button"
-                      onClick={() => {
-                          const newEffect = { id: Date.now().toString(), name: 'Novo Efeito', category: 'add_fixed', value: { terms: [{ id: '1', type: 'fixed', value: 1 }], operations: [] }, targets: [] };
-                          const newEffectsList = [...(formData.effects || []), newEffect];
-                          setFormData((prev: any) => ({ ...prev, effects: newEffectsList }));
-                          setEditingEffectIndex(newEffectsList.length - 1);
-                      }}
-                      className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-energia hover:text-yellow-400 transition-colors flex items-center gap-1"
-                  >
-                      <Plus size={14} /> Adicionar
-                  </button>
-              </div>
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center border-b border-eden-700 pb-2">
+                        <h3 className="text-xs md:text-sm font-black text-eden-100 uppercase tracking-widest flex items-center gap-2">
+                            <Sparkles size={16} className="text-energia" />
+                            Efeitos
+                        </h3>
+                        <button 
+                            type="button"
+                            onClick={() => {
+                                const newEffect = { id: Date.now().toString(), name: 'Novo Efeito', category: 'add_fixed', value: { terms: [{ id: '1', type: 'fixed', value: 1 }], operations: [] }, targets: [] };
+                                const newEffectsList = [...(formData.effects || []), newEffect];
+                                setFormData((prev: any) => ({ ...prev, effects: newEffectsList }));
+                                setEditingEffectIndex(newEffectsList.length - 1);
+                            }}
+                            className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-energia hover:text-yellow-400 transition-colors flex items-center gap-1"
+                        >
+                            <Plus size={14} /> Adicionar
+                        </button>
+                    </div>
 
-              <div className="space-y-2">
-                  {(formData.effects || []).map((effect: any, idx: number) => (
-                      <div key={effect.id} className="flex justify-between items-center bg-eden-950/50 border border-eden-700/50 p-2.5 rounded-lg group">
-                          <div className="flex flex-col">
-                              <span className="text-xs font-bold text-white capitalize">
-                                  {effect.name ? effect.name : effect.category.replace('_', ' ')}
-                              </span>
-                              <span className="text-[10px] text-eden-100/50">{effect.targets?.length || 0} alvo(s) configurado(s)</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                              <button type="button" onClick={() => setEditingEffectIndex(idx)} className="p-1.5 text-eden-100/50 hover:text-energia hover:bg-energia/10 rounded transition-colors"><Edit2 size={16}/></button>
-                              <button type="button" onClick={() => {
-                                  const newEffects = [...(formData.effects || [])];
-                                  newEffects.splice(idx, 1);
-                                  setFormData((prev: any) => ({ ...prev, effects: newEffects }));
-                              }} className="p-1.5 text-eden-100/50 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={16}/></button>
-                          </div>
-                      </div>
-                  ))}
-              </div>
+                    <div className="space-y-2">
+                        {(formData.effects || []).map((effect: any, idx: number) => (
+                            <div key={effect.id} className="flex justify-between items-center bg-eden-950/50 border border-eden-700/50 p-2.5 rounded-lg group">
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-white capitalize">
+                                        {effect.name ? effect.name : effect.category.replace('_', ' ')}
+                                    </span>
+                                    <span className="text-[10px] text-eden-100/50">{effect.targets?.length || 0} alvo(s) configurado(s)</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button type="button" onClick={() => setEditingEffectIndex(idx)} className="p-1.5 text-eden-100/50 hover:text-energia hover:bg-energia/10 rounded transition-colors"><Edit2 size={16}/></button>
+                                    <button type="button" onClick={() => {
+                                        const newEffects = [...(formData.effects || [])];
+                                        newEffects.splice(idx, 1);
+                                        setFormData((prev: any) => ({ ...prev, effects: newEffects }));
+                                    }} className="p-1.5 text-eden-100/50 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={16}/></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
 
-              {(!formData.effects || formData.effects.length === 0) && (
-                  <p className="text-xs text-eden-100/50 italic text-center py-4">Este item não possui bônus automáticos.</p>
-              )}
-          </div>
+                    {(!formData.effects || formData.effects.length === 0) && (
+                        <p className="text-xs text-eden-100/50 italic text-center py-4">Este item não possui bônus automáticos.</p>
+                    )}
+                </div>
 
-          {editingEffectIndex !== null && formData.effects?.[editingEffectIndex] && (
-              <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-                  <div className="bg-eden-900 border border-eden-600 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-                      <div className="p-4 border-b border-eden-700 bg-eden-800 flex justify-between items-center shrink-0">
-                          <h3 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2"><Settings size={16} className="text-energia"/> Configurar Efeito</h3>
-                          <button onClick={() => setEditingEffectIndex(null)} className="text-eden-100/50 hover:text-white"><X size={20}/></button>
-                      </div>
-                      
-                      <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
-                          <EffectEditor
-                              effect={formData.effects[editingEffectIndex]}
-                              onChange={(updatedEffect: any) => {
-                                  const newEffects = [...(formData.effects || [])];
-                                  newEffects[editingEffectIndex] = updatedEffect;
-                                  setFormData((prev: any) => ({ ...prev, effects: newEffects }));
-                              }}
-                              onRemove={() => {
-                                  const newEffects = [...(formData.effects || [])];
-                                  newEffects.splice(editingEffectIndex, 1);
-                                  setFormData((prev: any) => ({ ...prev, effects: newEffects }));
-                                  setEditingEffectIndex(null);
-                              }}
-                          />
-                      </div>
+                {editingEffectIndex !== null && formData.effects?.[editingEffectIndex] && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+                        <div className="bg-eden-900 border border-eden-600 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+                            <div className="p-4 border-b border-eden-700 bg-eden-800 flex justify-between items-center shrink-0">
+                                <h3 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2"><Settings size={16} className="text-energia"/> Configurar Efeito</h3>
+                                <button onClick={() => setEditingEffectIndex(null)} className="text-eden-100/50 hover:text-white"><X size={20}/></button>
+                            </div>
+                            
+                            <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
+                                <EffectEditor
+                                    effect={formData.effects[editingEffectIndex]}
+                                    onChange={(updatedEffect: any) => {
+                                        const newEffects = [...(formData.effects || [])];
+                                        newEffects[editingEffectIndex] = updatedEffect;
+                                        setFormData((prev: any) => ({ ...prev, effects: newEffects }));
+                                    }}
+                                    onRemove={() => {
+                                        const newEffects = [...(formData.effects || [])];
+                                        newEffects.splice(editingEffectIndex, 1);
+                                        setFormData((prev: any) => ({ ...prev, effects: newEffects }));
+                                        setEditingEffectIndex(null);
+                                    }}
+                                />
+                            </div>
 
-                      <div className="p-4 border-t border-eden-700 bg-eden-800 shrink-0 flex justify-end">
-                          <button onClick={() => setEditingEffectIndex(null)} className="bg-energia text-eden-900 font-black px-6 py-2 rounded-lg hover:bg-yellow-400 transition-colors shadow-[0_0_15px_rgba(250,176,5,0.3)]">
-                              Concluir Edição
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          )}
+                            <div className="p-4 border-t border-eden-700 bg-eden-800 shrink-0 flex justify-end">
+                                <button onClick={() => setEditingEffectIndex(null)} className="bg-energia text-eden-900 font-black px-6 py-2 rounded-lg hover:bg-yellow-400 transition-colors shadow-[0_0_15px_rgba(250,176,5,0.3)]">
+                                    Concluir Edição
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
 
@@ -564,10 +574,6 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
     </div>
   );
 };
-
-
-
-
 
 export default function SheetInventory() {
   const { character, vars, updateCharacter, toggleItem } = useCharacter();
@@ -645,6 +651,11 @@ export default function SheetInventory() {
           modifications: [],
           curses: []
       };
+
+      if (finalItem.type === 'weapon') {
+          finalItem.attackTest = finalItem.attackTest || {};
+          finalItem.attackTest.skill = finalItem.attackTest.skill || 'Luta';
+      }
       
       if (editingItem) {
           updateCharacter(prev => ({ ...prev, inventory: prev.inventory.map(i => i.id === item.id ? finalItem : i) }));
@@ -675,7 +686,6 @@ export default function SheetInventory() {
   return (
     <div className="flex flex-col gap-4 animate-in fade-in h-full pb-20">
       
-      {}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
          <div className="bg-eden-800 border border-eden-700 rounded-xl p-4 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
@@ -703,7 +713,6 @@ export default function SheetInventory() {
          </div>
       </div>
 
-      {}
       <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 no-scrollbar">
           {[1, 2, 3, 4].map(cat => {
               const key = ['I', 'II', 'III', 'IV'][cat - 1] as keyof typeof rank.limit;
@@ -719,7 +728,6 @@ export default function SheetInventory() {
           })}
       </div>
 
-      {}
       <div className="flex-1 bg-eden-800 border border-eden-700 rounded-2xl flex flex-col overflow-hidden min-h-[500px] shadow-sm">
           <div className="p-4 border-b border-eden-700 flex flex-col md:flex-row gap-4 items-center justify-between bg-eden-900/30">
               <h3 className="font-bold text-eden-100 flex items-center gap-2"><ShoppingBag size={18} className="text-energia" /> Inventário <span className="text-xs bg-eden-900 px-2 py-0.5 rounded-full text-eden-100/50">{fullInventory.length}</span></h3>
@@ -818,7 +826,6 @@ export default function SheetInventory() {
           </div>
       </div>
 
-      {}
       {(isCreating || editingItem) && (
         <ItemForm initialData={editingItem || undefined} onSave={handleSaveItem} onCancel={() => { setIsCreating(false); setEditingItem(null); }} />
       )}

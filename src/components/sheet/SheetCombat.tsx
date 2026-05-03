@@ -268,7 +268,9 @@ export default function SheetCombat() {
 
                                      const getDiceIncrease = (type: string, dmgIndex: number) => 
                                         (wbAll.damageDiceIncrease?.[type] || 0) +
+                                        (wbAll.damageDiceIncrease?.[`idx_${dmgIndex}`] || 0) +
                                         (wbSub.damageDiceIncrease?.[type] || 0) +
+                                        (wbSub.damageDiceIncrease?.[`idx_${dmgIndex}`] || 0) +
                                         (wbId.damageDiceIncrease?.[type] || 0) +
                                         (wbId.damageDiceIncrease?.[`idx_${dmgIndex}`] || 0);
 

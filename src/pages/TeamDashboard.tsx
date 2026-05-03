@@ -46,6 +46,15 @@ const IDEAL_TABLES: Record<string, any> = {
 
 const NEX_LEVELS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 99];
 
+const UNARMED_ATTACK: any = {
+    id: 'unarmed_virtual',
+    type: 'weapon',
+    name: 'Ataque Desarmado',
+    attackTest: { skill: 'Luta' },
+    damage: [{ id: 'unarmed_dmg', diceCount: 1, diceFace: 3, type: 'impacto', isMultipliable: true }],
+    critical: { range: 20, multiplier: 2 }
+};
+
 const convertDiceToBonus = (dice: number) => {
     if (dice >= 10) return 12;
     if (dice >= 9) return 12;
@@ -83,7 +92,7 @@ interface StatBarProps {
     rawValue: number | string;
 }
 
-const StatBar = ({ label, nexValue, charNex, baseColor, maxScale, rawValue }: StatBarProps) => {
+const StatBar = ({ label, nexValue, charNex, baseColor, maxScale }: StatBarProps) => {
     const fillPct = Math.min(100, Math.max(0, (nexValue / maxScale) * 100)) || 0;
     
     let currentColor = baseColor;
@@ -101,7 +110,7 @@ const StatBar = ({ label, nexValue, charNex, baseColor, maxScale, rawValue }: St
             <div className="absolute left-0 top-0 h-full transition-all duration-1000" style={{ width: `${fillPct}%`, backgroundColor: currentColor, opacity: 0.8 }}></div>
             <div className="relative z-10 w-full px-4 flex justify-between text-xs font-black uppercase tracking-widest text-white drop-shadow-md items-center">
                 <span className="flex items-center gap-2">
-                    {label} <span className="text-[9px] text-white/50 font-mono tracking-normal lowercase opacity-60 group-hover:opacity-100 transition-opacity">(lido: {rawValue})</span>
+                    {label} <span className="text-[9px] text-white/50 font-mono tracking-normal lowercase opacity-60 group-hover:opacity-100 transition-opacity"></span>
                 </span>
                 <span>{nexValue}%</span>
             </div>
@@ -224,16 +233,23 @@ export default function TeamDashboard() {
         let maxWeaponDmg = 0;
 
         const allAttacks = [
-            { id: 'unarmed_strike', name: 'Ataque Desarmado', type: 'weapon', attackTest: { skill: 'Luta' }, damage: [{ diceCount: 1, diceFace: 3, type: 'impacto' }] },
+            UNARMED_ATTACK,
             ...(clone.inventory.filter((i:any) => (i.type === 'weapon' || i.type === 'explosive') && i.isEquipped)), 
             ...(clone.rituals || [])
         ];
         
         allAttacks.forEach((atk: any) => {
-            const wbSpecific = vars.WEAPON_BONUS[atk.id] || { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
-            const wbAll = vars.WEAPON_BONUS['all'] || { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
-            const wbMelee = (atk.type === 'weapon' && atk.attackTest?.skill === 'Luta') ? (vars.WEAPON_BONUS['melee'] || { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] }) : { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
-            const wbRanged = (atk.type === 'weapon' && atk.attackTest?.skill === 'Pontaria') ? (vars.WEAPON_BONUS['ranged'] || { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] }) : { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
+            const defaultWb = { 
+                attackDice: 0, attackBonus: 0, criticalRange: 0, criticalMultiplier: 0,
+                damageDiceIncrease: {} as Record<string, number>, 
+                extraDamages: [] as any[],
+                damageOverride: {} as Record<string, any>
+            };
+
+            const wbSpecific = vars.WEAPON_BONUS[atk.id] || defaultWb;
+            const wbAll = vars.WEAPON_BONUS['all'] || defaultWb;
+            const wbMelee = (atk.type === 'weapon' && atk.attackTest?.skill === 'Luta') ? (vars.WEAPON_BONUS['melee'] || defaultWb) : defaultWb;
+            const wbRanged = (atk.type === 'weapon' && atk.attackTest?.skill === 'Pontaria') ? (vars.WEAPON_BONUS['ranged'] || defaultWb) : defaultWb;
 
             const totalWbAttackDice = wbSpecific.attackDice + wbAll.attackDice + wbMelee.attackDice + wbRanged.attackDice;
             const totalWbAttackBonus = wbSpecific.attackBonus + wbAll.attackBonus + wbMelee.attackBonus + wbRanged.attackBonus;
@@ -269,26 +285,42 @@ export default function TeamDashboard() {
                 else if (canNormal && atk.normal.damage) dmgListToEvaluate.push(atk.normal.damage);
             }
 
+            const multMod = (wbSpecific.criticalMultiplier || 0) + (wbAll.criticalMultiplier || 0) + (wbMelee.criticalMultiplier || 0) + (wbRanged.criticalMultiplier || 0);
+            const critMult = (atk.critical?.multiplier || 2) + multMod;
+
             dmgListToEvaluate.forEach(dmgList => {
                 if (!Array.isArray(dmgList)) return;
                 let currentDmgSum = 0;
-                const critMult = atk.critical?.multiplier || 2;
 
                 dmgList.forEach((dmg: any, idx: number) => {
-                    const specificInc = wbSpecific.damageDiceIncrease[`idx_${idx}`] || wbSpecific.damageDiceIncrease[dmg.type] || 0;
-                    const allInc = wbAll.damageDiceIncrease[`idx_${idx}`] || wbAll.damageDiceIncrease[dmg.type] || 0;
-                    const meleeInc = wbMelee.damageDiceIncrease[`idx_${idx}`] || wbMelee.damageDiceIncrease[dmg.type] || 0;
-                    const rangedInc = wbRanged.damageDiceIncrease[`idx_${idx}`] || wbRanged.damageDiceIncrease[dmg.type] || 0;
+                    // 1. Verifica se tem efeito de substituição de dano (Ex: d3 para d8)
+                    const damageOverride = wbSpecific.damageOverride?.[`idx_${idx}`] 
+                                        || wbMelee.damageOverride?.[`idx_${idx}`] 
+                                        || wbRanged.damageOverride?.[`idx_${idx}`] 
+                                        || wbAll.damageOverride?.[`idx_${idx}`];
+                                        
+                    const targetDmg = damageOverride ? { ...dmg, ...damageOverride } : dmg;
 
-                    let c = (dmg.diceCount || 0) + specificInc + allInc + meleeInc + rangedInc;
-                    const f = dmg.diceFace || 6;
+                    // 2. Aplica aumentos de dados baseados no alvo substituído
+                    const specificInc = wbSpecific.damageDiceIncrease[`idx_${idx}`] || wbSpecific.damageDiceIncrease[targetDmg.type] || 0;
+                    const allInc = wbAll.damageDiceIncrease[`idx_${idx}`] || wbAll.damageDiceIncrease[targetDmg.type] || 0;
+                    const meleeInc = wbMelee.damageDiceIncrease[`idx_${idx}`] || wbMelee.damageDiceIncrease[targetDmg.type] || 0;
+                    const rangedInc = wbRanged.damageDiceIncrease[`idx_${idx}`] || wbRanged.damageDiceIncrease[targetDmg.type] || 0;
+
+                    let c = (targetDmg.diceCount || 0) + specificInc + allInc + meleeInc + rangedInc;
+                    const f = targetDmg.diceFace || 6;
                     
-                    if (opts.considerCriticals && dmg.isMultipliable !== false) {
+                    // 3. Multiplica o crítico usando o critMult atualizado
+                    if (opts.considerCriticals && targetDmg.isMultipliable !== false) {
                         c = c * critMult;
                     }
                     
                     let fixed = 0;
-                    if (dmg.bonus) fixed = solveFormulaNumber(dmg.bonus, vars, clone, dmg.id, 'fixed');
+                    if (!damageOverride && targetDmg.bonus) {
+                        fixed = solveFormulaNumber(targetDmg.bonus, vars, clone, targetDmg.id, 'fixed');
+                    } else if (damageOverride) {
+                        fixed = damageOverride.bonus || 0;
+                    }
                     
                     let attrBonus = 0;
                     if (atk.attackTest?.skill === 'Luta') {

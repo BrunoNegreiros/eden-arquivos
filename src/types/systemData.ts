@@ -57,7 +57,7 @@ export type TargetType =
   | 'ritual_dt' | 'attribute' | 'dr' | 'immunity_damage' | 'immunity_condition' | 'vulnerability'
   | 'proficiency' | 'pv_current' | 'pe_current' | 'san_current'
   | 'override_ritual' | 'override_ability'
-  | 'critical_range' | 'explosive_dt'
+  | 'critical_range' | 'critical_multiplier' | 'explosive_dt'
   | 'test_skill_all' | 'test_skill_attribute'
   | 'max_ritual_circle' | 'elemental_affinity' | 'unlock_ritual_requirements';
 
@@ -122,6 +122,7 @@ export interface BaseUserItem {
     range: number;      
     multiplier: number; 
   };
+  sceneUsageCount?: number;
 }
 
 export interface AttackTest {

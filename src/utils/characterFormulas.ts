@@ -31,6 +31,7 @@ export interface CalculatedVariables {
   WEAPON_BONUS: Record<string, { 
       attackDice: number; attackBonus: number; 
       criticalRange: number; 
+      criticalMultiplier: number;
       damageDiceIncrease: Record<string, number>; 
       extraDamages: { type: string, fixed: number, diceCount: number, diceFace: number, isMultipliable: boolean }[]; 
       damageOverride?: Record<string, any>; 
@@ -228,7 +229,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
         const weapon = w as any;
         const key = weapon.id;
         if (!ctx.WEAPON_BONUS[key]) {
-            ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
+            ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, criticalMultiplier: 0, damageDiceIncrease: {}, extraDamages: [] };
         }
         
         if (weapon.attackTest?.secondaryDice) {
@@ -260,13 +261,13 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
                 if (t.type === 'test_skill_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].total += val; });
                 if ((t.type as string) === 'test_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].total += val; });
                 
-                if (t.type === 'test_attack' || t.type === 'damage_roll' || t.type === 'critical_range') {
+                if (t.type === 'test_attack' || t.type === 'damage_roll' || t.type === 'critical_range' || t.type === 'critical_multiplier') {
                     const key = t.weaponId || t.weaponFilter || 'all';
-                    if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
+                    if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, criticalMultiplier: 0, damageDiceIncrease: {}, extraDamages: [] };
                     
                     if (t.type === 'test_attack') ctx.WEAPON_BONUS[key].attackBonus += val;
                     if (t.type === 'critical_range') ctx.WEAPON_BONUS[key].criticalRange += val;
-                    
+                    if (t.type === 'critical_multiplier') ctx.WEAPON_BONUS[key].criticalMultiplier += val;
                     if (t.type === 'damage_roll') {
                         let dFace = 6; effect.value.terms.forEach(term => { if (term.type === 'dice') dFace = term.diceFace || 6; });
                         const fixedSum = solveFormulaNumber(effect.value, ctx, char, effect.id, 'fixed');
@@ -288,7 +289,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
                 
                 if (t.type === 'test_attack' || (t.type as string) === 'damage_increase') {
                     const key = t.weaponId || t.weaponFilter || 'all';
-                    if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
+                    if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, criticalMultiplier: 0, damageDiceIncrease: {}, extraDamages: [] };
                     if (t.type === 'test_attack') ctx.WEAPON_BONUS[key].attackDice += val;
                     if ((t.type as string) === 'damage_increase') {
                         if (t.damageIndex !== undefined && t.damageIndex !== -1) ctx.WEAPON_BONUS[key].damageDiceIncrease[`idx_${t.damageIndex}`] = (ctx.WEAPON_BONUS[key].damageDiceIncrease[`idx_${t.damageIndex}`] || 0) + val;
@@ -309,7 +310,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
         if (effect.category === 'change_damage') {
             effect.targets.forEach(t => {
                 const key = t.weaponId || t.weaponFilter || 'all';
-                if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
+                if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, criticalMultiplier: 0, damageDiceIncrease: {}, extraDamages: [] };
                 if (!(ctx.WEAPON_BONUS[key] as any).damageOverride) (ctx.WEAPON_BONUS[key] as any).damageOverride = {};
                 let dFace = 6; effect.value.terms.forEach(term => { if (term.type === 'dice') dFace = term.diceFace || 6; });
                 const fixedSum = solveFormulaNumber(effect.value, ctx, char, effect.id, 'fixed');
@@ -334,7 +335,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
             (c === 'tactical' && !ctx.PROFICIENCIAS.includes('taticas')) || 
             (c === 'heavy' && !ctx.PROFICIENCIAS.includes('pesadas'))
         ) {
-            if (!ctx.WEAPON_BONUS[w.id]) ctx.WEAPON_BONUS[w.id] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
+            if (!ctx.WEAPON_BONUS[w.id]) ctx.WEAPON_BONUS[w.id] = { attackDice: 0, attackBonus: 0, criticalRange: 0, criticalMultiplier: 0, damageDiceIncrease: {}, extraDamages: [] };
             ctx.WEAPON_BONUS[w.id].attackDice -= 2;
         }
     });

@@ -29,16 +29,7 @@ const COMPLEXITY_MAP: Record<string, string> = { simple: 'Simples', tactical: 'T
 const HANDS_MAP: Record<string, string> = { light: 'Leve', one: 'Uma Mão', two: 'Duas Mãos' };
 const RANGE_MAP: Record<string, string> = { adjacente: 'Adjacente', curto: 'Curto', medio: 'Médio', longo: 'Longo', extremo: 'Extremo' };
 
-interface SheetCombatProps {
-    attachedAmmo: Record<string, string>;
-    setAttachedAmmo: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-    highUsageCounter: Record<string, number>;
-    setHighUsageCounter: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-    sceneUsageTracker?: Record<string, number>;
-    setSceneUsageTracker: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-}
-
-export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCounter, setHighUsageCounter, setSceneUsageTracker }: SheetCombatProps) {
+export default function SheetCombat() {
   const { character, updateCharacter, vars } = useCharacter();
 
   const injectedItems = (vars.INJECTED_ITEMS || []).map((i: any) => ({ ...i, isInjected: true, isEquipped: true }));
@@ -51,7 +42,14 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
   
   const allAttacks = [UNARMED_ATTACK, ...inventoryWeapons, ...inventoryExplosives];
 
-  const handleAttachAmmo = (weaponId: string, ammoId: string) => { setAttachedAmmo(prev => ({ ...prev, [weaponId]: ammoId })); };
+  const handleAttachAmmo = (weaponId: string, ammoId: string) => { 
+      updateCharacter(prev => ({
+          ...prev,
+          inventory: prev.inventory.map(i => 
+              i.id === weaponId ? { ...i, ammunition: ammoId } : i
+          )
+      }));
+  };
 
   const handleShoot = (_weaponId: string, ammoId: string, isBurst: boolean) => {
       const ammoItem = inventoryAmmo.find(i => i.id === ammoId);
@@ -69,7 +67,7 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
 
       if (durationType === 'scenes') {
           const availableLeftovers = ammoItem.leftovers || 0;
-          const currentHigh = highUsageCounter[ammoId] || 0;
+          const currentHigh = ammoItem.sceneUsageCount || 0;
           
           let pointsToAdd = 0; let leftoversToConsume = 0;
 
@@ -84,13 +82,17 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
           updateCharacter(prev => ({
               ...prev,
               inventory: prev.inventory.map(i => {
-                  if (i.id === ammoId) return { ...i, leftovers: Math.max(0, ((i as UserAmmo).leftovers || 0) - leftoversToConsume), durationScenes: Math.max(0, ((i as UserAmmo).durationScenes || 0) - scenesNeeded) };
+                  if (i.id === ammoId) {
+                      return { 
+                          ...i, 
+                          leftovers: Math.max(0, ((i as UserAmmo).leftovers || 0) - leftoversToConsume), 
+                          durationScenes: Math.max(0, ((i as UserAmmo).durationScenes || 0) - scenesNeeded),
+                          sceneUsageCount: potentialHigh % 10
+                      };
+                  }
                   return i;
               })
           }));
-
-          setHighUsageCounter(prev => ({ ...prev, [ammoId]: potentialHigh % 10 }));
-          if (pointsToAdd > 0) setSceneUsageTracker(prev => ({ ...prev, [ammoId]: (prev[ammoId] || 0) + pointsToAdd }));
       }
   };
 
@@ -122,7 +124,9 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
 
       const rangeMod = (wbAll.criticalRange || 0) + (wbSub.criticalRange || 0) + (wbId.criticalRange || 0);
       const finalCritRange = Math.max(2, baseCritRange - rangeMod);
-      const critMult = item.critical?.multiplier || 2;
+
+      const multMod = (wbAll.criticalMultiplier || 0) + (wbSub.criticalMultiplier || 0) + (wbId.criticalMultiplier || 0);
+      const critMult = (item.critical?.multiplier || 2) + multMod;
 
       let finalDT = item.dt || 0;
       if (isExplosive) {
@@ -134,14 +138,14 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
           finalDT += ((vars as any)?.EXPLOSIVE_DT_MOD || 0);
       }
 
-      const attachedAmmoId = attachedAmmo[item.id];
+      const attachedAmmoId = item.ammunition; 
       const attachedAmmoItem = attachedAmmoId ? inventoryAmmo.find(i => i.id === attachedAmmoId) : null;
       
       const durationType = attachedAmmoItem?.ammoDurationType || 'scenes';
       const ammoAmount = attachedAmmoItem?.amount || 0;
       const ammoScenes = attachedAmmoItem?.durationScenes || 0;
       const ammoLeftovers = attachedAmmoItem?.leftovers || 0;
-      const currentCounter = attachedAmmoId ? (highUsageCounter[attachedAmmoId] || 0) : 0;
+      const currentCounter = attachedAmmoItem?.sceneUsageCount || 0; 
 
       const canShoot = attachedAmmoItem && (
           (durationType === 'infinite') ||
@@ -431,7 +435,7 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
             <div className="text-xs text-cyan-100/80">
                 <strong className="text-cyan-200 block mb-1">Como Funciona a Munição</strong>
                 <ul className="list-disc pl-3 space-y-1">
-                    <li><strong>Uso Único:</strong> Consome as unidades (Qtd) que você tem no inventário.</li>
+                    <li><strong>Uso Único:</strong> Consome as unidades que você tem no inventário.</li>
                     <li><strong>Por Cenas (Uso Alto):</strong> Encher o contador gasta 1 cena do pacote.</li>
                     <li><strong>Por Cenas (Uso Baixo):</strong> Finalizar a cena tendo dado apenas 1 tiro único transforma 1 cena em "Sobras" (ataques individuais), impedindo o desperdício de um pacote inteiro.</li>
                 </ul>

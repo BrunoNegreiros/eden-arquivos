@@ -518,10 +518,6 @@ function SheetContent() {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [targetLevel, setTargetLevel] = useState(5);
 
-  const [attachedAmmo, setAttachedAmmo] = useState<Record<string, string>>({});
-  const [highUsageCounter, setHighUsageCounter] = useState<Record<string, number>>({});
-  const [sceneUsageTracker, setSceneUsageTracker] = useState<Record<string, number>>({});
-
   const [mesa, setMesa] = useState<any>(null);
   
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -597,16 +593,21 @@ function SheetContent() {
           inventory: prev.inventory.map(item => {
               if (item.type !== 'ammo') return item;
               const ammoItem = item as any;
-              const usage = sceneUsageTracker[item.id] || 0;
-              if (usage === 0) return item;
-              const isCartucho = item.name.toLowerCase().includes('cartucho') || item.name.toLowerCase().includes('combust');
-              const leftoversBonus = isCartucho ? 4 : 6;
-              return { ...item, durationScenes: (ammoItem.durationScenes || 0) - 1, leftovers: (ammoItem.leftovers || 0) + (usage <= 1 ? leftoversBonus : 0) };
+              
+              if (ammoItem.ammoDurationType !== 'scenes') return item;
+              
+              if ((ammoItem.durationScenes || 0) > 0) {
+                  return { 
+                      ...item, 
+                      durationScenes: (ammoItem.durationScenes || 0) - 1, 
+                      leftovers: (ammoItem.leftovers || 0) + (item.name.toLowerCase().includes('cartucho') ? 4 : 6),
+                      sceneUsageCount: 0
+                  };
+              }
+              return { ...item, sceneUsageCount: 0 };
           }),
           conditions: prev.conditions.map(c => (c.isActive && c.durationType === 'cena') ? { ...c, isActive: false } : c)
       }));
-      setSceneUsageTracker({}); 
-      setHighUsageCounter({});
   };
 
   const handleBackToHome = () => {
@@ -825,13 +826,7 @@ function SheetContent() {
               </div>
               
               <div className="bg-eden-800 border border-eden-700 p-4 md:p-6 rounded-xl min-h-[600px] shadow-lg relative">
-                 {activeTab === 'combat' && (
-                     <SheetCombat 
-                        attachedAmmo={attachedAmmo} setAttachedAmmo={setAttachedAmmo}
-                        highUsageCounter={highUsageCounter} setHighUsageCounter={setHighUsageCounter}
-                        setSceneUsageTracker={setSceneUsageTracker}
-                     />
-                 )}
+                 {activeTab === 'combat' && <SheetCombat />}
                  {activeTab === 'skills' && <SheetSkills />}
                  {activeTab === 'abilities' && <SheetAbilities />}
                  {activeTab === 'inventory' && <SheetInventory />}

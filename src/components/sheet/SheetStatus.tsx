@@ -48,11 +48,13 @@ export default function SheetStatus() {
       const poolKey = transType;
       let currentPool = { ...newStatus[poolKey] } as any;
       const motorTemp = vars[poolKey.toUpperCase() as 'PV'|'PE'|'SAN'].temp || 0;
+            
+      const maxReal = vars[poolKey.toUpperCase() as 'PV'|'PE'|'SAN'].max;
 
       if (transAction === 'damage') {
-        if (targetPool === 'max') {
-            const maxReal = currentPool.max !== undefined ? currentPool.max : vars[poolKey.toUpperCase() as 'PV'|'PE'|'SAN'].max;
-            currentPool.max = Math.max(0, maxReal - finalValue);
+        if (targetPool === 'max') {            
+            const savedMax = currentPool.max !== undefined ? currentPool.max : maxReal;
+            currentPool.max = Math.max(0, savedMax - finalValue);
             if (currentPool.current > currentPool.max) currentPool.current = currentPool.max;
         } 
         else {
@@ -71,13 +73,12 @@ export default function SheetStatus() {
             if (remainingDamage > 0) currentPool.current = Math.max(0, currentPool.current - remainingDamage);
         }
       } else {
-        if (targetPool === 'max') {
-            const maxReal = currentPool.max !== undefined ? currentPool.max : vars[poolKey.toUpperCase() as 'PV'|'PE'|'SAN'].max;
-            currentPool.max = maxReal + finalValue;
+        if (targetPool === 'max') {             
+            const savedMax = currentPool.max !== undefined ? currentPool.max : maxReal;
+            currentPool.max = savedMax + finalValue;
         } else if (targetPool === 'temp') {
             currentPool.temp = (currentPool.temp || 0) + finalValue;
-        } else {
-            const maxReal = currentPool.max !== undefined ? currentPool.max : vars[poolKey.toUpperCase() as 'PV'|'PE'|'SAN'].max;
+        } else {            
             currentPool.current = Math.min(maxReal, currentPool.current + finalValue);
         }
       }
@@ -91,10 +92,14 @@ export default function SheetStatus() {
   const handleManualSubmit = (stat: 'pv' | 'pe' | 'san') => {
     const val = parseInt(tempValue);
     if (!isNaN(val)) {
-        updateCharacter(prev => ({
-          ...prev,
-          status: { ...prev.status, [stat]: { ...prev.status[stat], current: val } }
-        }));
+        updateCharacter(prev => {
+            const maxReal = vars[stat.toUpperCase() as 'PV'|'PE'|'SAN'].max;            
+            const safeVal = Math.max(0, Math.min(maxReal, val));
+            return {
+              ...prev,
+              status: { ...prev.status, [stat]: { ...prev.status[stat], current: safeVal } }
+            };
+        });
     }
     setEditMode(null); setTempValue('');
   };
@@ -104,7 +109,7 @@ export default function SheetStatus() {
     const calculatedMax = vars[type.toUpperCase() as 'PV' | 'PE' | 'SAN'].max;
     const motorTemp = vars[type.toUpperCase() as 'PV' | 'PE' | 'SAN'].temp || 0;
 
-    const displayMax = statData.max !== undefined ? statData.max : calculatedMax;
+    const displayMax = calculatedMax;
     const displayTemp = Math.max(0, (statData.temp || 0) + motorTemp);
 
     return (

@@ -7,7 +7,7 @@ import { db, auth } from '../config/firebase';
 import { 
   Sword, Shield, Plus, Scroll, Ghost, Loader2, Trash2, AlertTriangle, 
   X, Newspaper, Edit2, Image as ImageIcon, ChevronLeft, Calendar, Save, Palette, 
-  LogOut, UserCircle, Lock, Key, Users, Home as HomeIcon, MessageSquare, Send, EyeOff, UserCheck
+  LogOut, UserCircle, Lock, Key, Users, Home as HomeIcon, MessageSquare, Send, EyeOff, UserCheck, BarChart2, User
 } from 'lucide-react';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
@@ -18,6 +18,7 @@ export default function Home() {
   const { mesaId } = useParams(); 
   
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [mesa, setMesa] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
 
@@ -49,6 +50,11 @@ export default function Home() {
       if (!mesaId || !currentUser) return;
       setLoading(true);
       try {
+        const userSnap = await getDoc(doc(db, "users", currentUser.uid));
+        if (userSnap.exists()) {
+            setUserProfile(userSnap.data());
+        }
+
         const mesaSnap = await getDoc(doc(db, "mesas", mesaId));
         if (!mesaSnap.exists()) {
             alert("Mesa não encontrada!");
@@ -78,9 +84,16 @@ export default function Home() {
         
         snapChars.forEach((docSnap) => {
           const data = docSnap.data();
+          
+          if (data.isDead) return;
+
           const char = { ...data, id: docSnap.id };
-          if (data.userId === currentUser.uid) mines.push(char);
-          else if (!data.isPrivate) publics.push(char);
+          
+          if (data.userId === currentUser.uid) {
+              mines.push(char);
+          } else if (!data.isPrivate) {
+              publics.push(char);
+          }
         });
         
         mines.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -157,10 +170,7 @@ export default function Home() {
       await updateDoc(doc(db, "edens_letters", activeLetter.id), { comments: updatedComments });
       
       setActiveLetter({ ...activeLetter, comments: updatedComments });
-      
-      // FIX: Atualiza também a lista de cartas em background para o comentário não sumir ao reabrir!
       setLetters(prev => prev.map(l => l.id === activeLetter.id ? { ...l, comments: updatedComments } : l));
-      
       setNewComment('');
   };
 
@@ -215,18 +225,18 @@ export default function Home() {
       const cls = char.personal?.class || char.progression?.class || "Mundano";
 
       return (
-          <div key={char.id} onClick={() => handleCharClick(char)} className="relative flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-eden-800 border border-eden-700 rounded-xl hover:border-eden-500 hover:bg-eden-700 transition-all group cursor-pointer shadow-sm active:scale-[0.98]">
-              <div className="w-10 h-10 md:w-16 md:h-16 rounded-full bg-eden-900 overflow-hidden border-2 border-eden-600 group-hover:border-eden-400 shrink-0">
-                  {portrait ? <img src={portrait} alt={name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-eden-100/20"><Ghost className="w-5 h-5 md:w-8 md:h-8" /></div>}
+          <div key={char.id} onClick={() => handleCharClick(char)} className="relative flex items-center gap-4 p-4 md:p-5 bg-eden-800 border border-eden-700 rounded-xl hover:border-eden-500 hover:bg-eden-700 transition-all group cursor-pointer shadow-sm active:scale-[0.98]">
+              <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-eden-900 overflow-hidden border-2 border-eden-600 group-hover:border-eden-400 shrink-0">
+                  {portrait ? <img src={portrait} alt={name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-eden-100/20"><Ghost className="w-6 h-6 md:w-8 md:h-8" /></div>}
               </div>
               <div className="min-w-0 flex-1 pr-8">
-                  <h4 className="font-bold text-sm md:text-lg text-eden-100 truncate group-hover:text-white flex items-center gap-2">
+                  <h4 className="font-bold text-base md:text-lg text-eden-100 truncate group-hover:text-white flex items-center gap-2">
                       {name} {char.password && !isOwner && !isMestre && <Lock size={14} className="text-red-400" />}
                   </h4>
-                  <div className="flex gap-2 text-[10px] md:text-xs text-eden-100/50 font-mono uppercase mt-0.5 md:mt-1"><span className="bg-eden-900 px-1.5 py-0.5 rounded">{nex}%</span><span className="self-center">•</span><span className="truncate text-energia font-bold">{cls}</span></div>
+                  <div className="flex gap-2 text-[11px] md:text-xs text-eden-100/50 font-mono uppercase mt-1"><span className="bg-eden-900 px-1.5 py-0.5 rounded">{nex}%</span><span className="self-center">•</span><span className="truncate text-energia font-bold">{cls}</span></div>
               </div>
               {isOwner && (
-                  <button onClick={(e) => { e.stopPropagation(); setDeletingChar(char); setConfirmName(''); }} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg text-eden-100/30 hover:text-red-500 hover:bg-red-500/10 transition-all z-10" title="Excluir Ficha"><Trash2 size={18} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setDeletingChar(char); setConfirmName(''); }} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg text-eden-100/30 hover:text-red-500 hover:bg-red-500/10 transition-all z-10" title="Excluir Ficha"><Trash2 size={20} /></button>
               )}
           </div>
       );
@@ -245,15 +255,22 @@ export default function Home() {
               </div>
           </div>
           
-          <div className="flex items-center gap-4">
-              <div className="hidden md:flex flex-col text-right">
-                  <span className="text-xs font-bold text-white">{currentUser?.displayName}</span>
+          <div className="flex items-center gap-2 md:gap-4">
+              <div className="hidden md:flex flex-col text-right mr-2">
+                  <span className="text-xs font-bold text-white">{userProfile?.username || currentUser?.displayName}</span>
                   <span className="text-[10px] text-eden-100/50">{currentUser?.email}</span>
               </div>
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-eden-600">
-                  {currentUser?.photoURL ? <img src={currentUser.photoURL} alt="Perfil" className="w-full h-full object-cover"/> : <UserCircle className="w-full h-full text-eden-100/50"/>}
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-eden-600 bg-eden-900 flex items-center justify-center shrink-0">
+                  {userProfile?.photoUrl ? <img src={userProfile.photoUrl} alt="Perfil" className="w-full h-full object-cover"/> : <UserCircle className="w-full h-full text-eden-100/50"/>}
               </div>
-              <button onClick={handleLogout} className="p-2 text-eden-100/50 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Sair da Conta"><LogOut size={18} /></button>
+              <div className="flex items-center gap-1 border-l border-eden-700 pl-2 md:pl-4 ml-2">
+                  <button onClick={() => navigate('/perfil')} className="p-2 text-eden-100/50 hover:text-energia hover:bg-energia/10 rounded-lg transition-colors" title="Meu Perfil">
+                      <User size={18} />
+                  </button>
+                  <button onClick={handleLogout} className="p-2 text-eden-100/50 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Sair da Conta">
+                      <LogOut size={18} />
+                  </button>
+              </div>
           </div>
       </div>
 
@@ -268,10 +285,15 @@ export default function Home() {
       <main className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8">
         
         <div className="flex-1 space-y-8">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
                 <button onClick={() => navigate(`/mesa/${mesaId}/criar`)} className="col-span-1 group relative overflow-hidden p-4 bg-eden-800/50 border border-eden-700 hover:border-green-500/50 rounded-2xl text-left flex flex-col justify-between hover:bg-eden-800 transition-all">
                     <div className="p-2 bg-eden-900/80 rounded-lg w-fit mb-3 text-green-500"><Sword size={18} /></div>
                     <div><h3 className="text-sm md:text-lg font-bold text-white group-hover:text-green-400">Criar Agente</h3></div>
+                </button>
+
+                <button onClick={() => navigate(`/mesa/${mesaId}/grupo`)} className="col-span-1 group relative overflow-hidden p-4 bg-eden-800/50 border border-eden-700 hover:border-blue-500/50 rounded-2xl text-left flex flex-col justify-between hover:bg-eden-800 transition-all">
+                    <div className="p-2 bg-eden-900/80 rounded-lg w-fit mb-3 text-blue-500"><BarChart2 size={18} /></div>
+                    <div><h3 className="text-sm md:text-lg font-bold text-white group-hover:text-blue-400">Cantinho do Grupo</h3></div>
                 </button>
 
                 {isMestre && (
@@ -281,7 +303,7 @@ export default function Home() {
                     </button>
                 )}
                  
-                <button onClick={() => setLetterMode('list')} className={`${isMestre ? 'col-span-2 md:col-span-1' : 'col-span-1'} group relative overflow-hidden p-4 bg-purple-900/10 border border-purple-500/30 hover:border-purple-400/60 rounded-2xl text-left flex flex-col justify-between hover:bg-purple-900/20 transition-all`}>
+                <button onClick={() => setLetterMode('list')} className={`${isMestre ? 'col-span-2 md:col-span-1' : 'col-span-2'} group relative overflow-hidden p-4 bg-purple-900/10 border border-purple-500/30 hover:border-purple-400/60 rounded-2xl text-left flex flex-col justify-between hover:bg-purple-900/20 transition-all`}>
                     <div className="p-2 bg-purple-950/80 rounded-lg w-fit mb-3 text-purple-400 border border-purple-500/20"><Newspaper size={18} /></div>
                     <div><h3 className="text-sm md:text-lg font-bold text-white group-hover:text-purple-300">Jornal da Mesa</h3></div>
                     {unreadCount > 0 && <div className="absolute top-4 right-4 bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">{unreadCount} Novas</div>}
@@ -293,7 +315,7 @@ export default function Home() {
                 {myCharacters.length === 0 ? (
                     <div className="text-center py-6 bg-eden-800/20 rounded-xl border border-dashed border-eden-700"><p className="text-xs text-eden-100/40">Você não tem fichas nesta mesa.</p></div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         {myCharacters.map(char => renderCharacterCard(char, true))}
                     </div>
                 )}
@@ -304,7 +326,7 @@ export default function Home() {
                 {publicCharacters.length === 0 ? (
                     <div className="text-center py-10 bg-eden-800/30 rounded-xl border border-dashed border-eden-700"><Ghost className="mx-auto mb-2 text-eden-100/20 w-8 h-8" /><p className="text-xs text-eden-100/50">Nenhuma ficha na mesa.</p></div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         {publicCharacters.map(char => renderCharacterCard(char, false))}
                     </div>
                 )}
@@ -318,18 +340,18 @@ export default function Home() {
                 </h3>
                 <div className="space-y-3">
                     {members.map(m => (
-                        <div key={m.uid} className="flex items-center justify-between bg-eden-900/80 p-2.5 rounded-xl border border-eden-700/50 group">
-                            <div className="flex items-center gap-3 min-w-0">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${m.uid === mesa.mestreId ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-eden-800 text-eden-100 border border-eden-600'}`}>
-                                    {m.username.charAt(0).toUpperCase()}
+                        <div key={m.uid} className="flex items-center justify-between bg-eden-900/80 p-3 md:p-4 rounded-xl border border-eden-700/50 group">
+                            <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-black text-sm md:text-base shrink-0 overflow-hidden ${m.uid === mesa.mestreId ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-eden-800 text-eden-100 border border-eden-600'}`}>
+                                    {m.photoUrl ? <img src={m.photoUrl} className="w-full h-full object-cover"/> : m.username.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="truncate">
-                                    <p className={`text-sm font-bold truncate ${m.uid === mesa.mestreId ? 'text-red-400' : 'text-white'}`}>@{m.username}</p>
-                                    <p className="text-[9px] text-eden-100/40 uppercase tracking-widest">{m.uid === mesa.mestreId ? 'Mestre' : 'Jogador'}</p>
+                                    <p className={`text-base font-bold truncate ${m.uid === mesa.mestreId ? 'text-red-400' : 'text-white'}`}>@{m.username}</p>
+                                    <p className="text-[10px] md:text-xs text-eden-100/40 uppercase tracking-widest mt-0.5">{m.uid === mesa.mestreId ? 'Mestre' : 'Jogador'}</p>
                                 </div>
                             </div>
                             {isMestre && m.uid !== currentUser?.uid && (
-                                <button onClick={() => handleTransferMestre(m.uid, m.username)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-energia/10 text-energia rounded-lg transition-all" title="Promover a Mestre"><UserCheck size={16}/></button>
+                                <button onClick={() => handleTransferMestre(m.uid, m.username)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-energia/10 text-energia rounded-lg transition-all" title="Promover a Mestre"><UserCheck size={18}/></button>
                             )}
                         </div>
                     ))}
@@ -395,9 +417,9 @@ export default function Home() {
                                       return (
                                           <div key={letter.id} 
                                                onClick={() => { 
-                                                    setActiveLetter(letter); 
-                                                    setLetterMode('read'); 
-                                                    markAsRead(letter.id);
+                                                   setActiveLetter(letter); 
+                                                   setLetterMode('read'); 
+                                                   markAsRead(letter.id);
                                                }} 
                                                className={`group bg-eden-950/50 border hover:border-purple-500/50 rounded-xl overflow-hidden cursor-pointer flex flex-col transition-all hover:-translate-y-1 shadow-lg relative ${!isRead ? 'border-purple-400/80 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'border-purple-900/50'}`}>
                                               
@@ -476,7 +498,7 @@ export default function Home() {
                       </div>
                   )}
 
-                  {letterMode === 'edit' && activeLetter && isMestre && (
+                  {letterMode === 'edit' && isMestre && (
                       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 bg-eden-900">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="space-y-1 md:col-span-2">

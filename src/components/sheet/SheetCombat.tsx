@@ -197,7 +197,7 @@ export default function SheetCombat({ attachedAmmo, setAttachedAmmo, highUsageCo
                       )}
                   </div>
 
-                  {/* ATUALIZADO: Renderização de Área e DT Global para Explosivos! */}
+                  {}
                   {isExplosive && (item.area || finalDT > 0) && (
                       <div className="flex gap-3">
                           {item.area && (

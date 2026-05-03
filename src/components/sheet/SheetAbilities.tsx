@@ -71,8 +71,8 @@ export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: A
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-eden-900 border border-eden-600 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-eden-900 border border-eden-600 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                 <div className="p-4 border-b border-eden-700 bg-eden-800 flex justify-between items-center shrink-0">
                     <h3 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2"><Book size={16} className="text-energia"/> {initialData ? 'Editar Habilidade' : 'Nova Habilidade'}</h3>
                     <button onClick={onCancel} className="text-eden-100/50 hover:text-white"><X size={20}/></button>
@@ -202,8 +202,8 @@ export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: A
             </div>
 
             {editingEffectIndex !== null && formData.effects?.[editingEffectIndex] && (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <div className="bg-eden-900 border border-eden-600 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-eden-900 w-full max-w-5xl max-h-[95vh] rounded-2xl border border-eden-600 shadow-2xl flex flex-col">
                         <div className="p-4 border-b border-eden-700 bg-eden-800 flex justify-between items-center shrink-0">
                             <h3 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2"><Settings size={16} className="text-energia"/> Configurar Efeito</h3>
                             <button onClick={() => setEditingEffectIndex(null)} className="text-eden-100/50 hover:text-white"><X size={20}/></button>
@@ -259,7 +259,7 @@ export default function SheetAbilities() {
     const allAbilitiesRaw = allAbilities.map(a => vars.OVERRIDDEN_ABILITIES[a.id] ? { ...vars.OVERRIDDEN_ABILITIES[a.id], id: a.id, isActive: a.isActive, isOverridden: true } : a);
     const finalAbilities = [...allAbilitiesRaw, ...injectedAbilities];
 
-    // O globalTags é extraído e lido por toda a aplicação para não perdermos nenhuma tag criada no Grimório ou Ficha
+    
     const globalTags = useMemo(() => {
         const tagMap = new Map();
         DEFAULT_TAGS.forEach(t => tagMap.set(t.id, t));
@@ -397,15 +397,24 @@ export default function SheetAbilities() {
 
     return (
         <div className="space-y-6 animate-in fade-in pb-20 relative">
-            <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg sticky top-0 z-20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="flex justify-between w-full md:w-auto">
-                    <div>
-                        <h2 className="text-xl font-black text-white flex items-center gap-2"><Zap className="text-energia" /> Habilidades <span className="text-xs bg-eden-950 px-2 py-0.5 rounded-full text-eden-100/50">{filteredAbilities.length}</span></h2>
-                        <p className="text-[10px] uppercase text-eden-100/50 font-bold mt-1">Gerencie poderes e características especiais.</p>
+            <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg top-0 z-20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <h2 className="text-xl font-black w-full text-white flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <Zap className="text-energia" /> 
+                        Habilidades 
+                        <span className="text-xs bg-eden-950 px-2 py-0.5 rounded-full text-eden-100/50">
+                            {filteredAbilities.length}
+                        </span>
                     </div>
-                    <button onClick={() => setIsCreating(true)} className="md:hidden bg-energia text-eden-900 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1 hover:bg-yellow-400 shadow-lg"><Plus size={14}/> Nova</button>
-                </div>
-                
+
+                    <button 
+                        onClick={() => setIsCreating(true)} 
+                        className="md:hidden bg-energia text-eden-900 w-14 px-3 py-1.5 rounded-lg text-s font-black flex items-center justify-center hover:bg-yellow-400 shadow-lg"
+                    >
+                        <Plus size={14}/>
+                    </button>
+                </h2>
+
                 <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                     <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
                         <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-xs text-eden-100 outline-none flex-1 md:w-32 shrink-0">
@@ -425,7 +434,7 @@ export default function SheetAbilities() {
                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
                         <input type="text" placeholder="Buscar habilidade..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:border-energia"/>
                     </div>
-                    <button onClick={() => setIsCreating(true)} className="hidden md:flex bg-energia text-eden-900 px-4 py-1.5 rounded-lg text-xs font-black items-center gap-2 hover:bg-yellow-400 shadow-lg shrink-0"><Plus size={16}/> Nova</button>
+                    <button onClick={() => setIsCreating(true)} className="hidden md:flex bg-energia text-eden-900 px-4 py-1.5 rounded-lg text-xs font-black items-center gap-2 hover:bg-yellow-400 shadow-lg shrink-0"><Plus size={16}/>Novo</button>
                 </div>
             </div>
 

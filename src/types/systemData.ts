@@ -57,7 +57,9 @@ export type TargetType =
   | 'ritual_dt' | 'attribute' | 'dr' | 'immunity_damage' | 'immunity_condition' | 'vulnerability'
   | 'proficiency' | 'pv_current' | 'pe_current' | 'san_current'
   | 'override_ritual' | 'override_ability'
-  | 'critical_range' | 'explosive_dt'; // ATUALIZADO AQUI: NOVOS ALVOS!
+  | 'critical_range' | 'explosive_dt'
+  | 'test_skill_all' | 'test_skill_attribute'
+  | 'max_ritual_circle' | 'elemental_affinity' | 'unlock_ritual_requirements';
 
 export interface EffectTarget {
   id: string;
@@ -68,6 +70,7 @@ export interface EffectTarget {
   ritualId?: string;
   abilityId?: string; 
   itemId?: string;
+  element?: ElementType;
   damageType?: string;
   condition?: string;
   weaponFilter?: 'all' | 'melee' | 'ranged';
@@ -96,6 +99,15 @@ export interface UserOrigin {
     effects: Effect[];
 }
 
+export interface DamageInstance {
+  id: string; 
+  diceCount: number;
+  diceFace: DiceFace;
+  type: DamageType;
+  bonus?: Formula; 
+  isMultipliable?: boolean;
+}
+
 export interface BaseUserItem {
   id: string;
   name: string;
@@ -105,15 +117,11 @@ export interface BaseUserItem {
   isEquipped?: boolean;
   amount?: number; 
   effects?: Effect[]; 
-}
-
-export interface DamageInstance {
-  id: string; 
-  diceCount: number;
-  diceFace: DiceFace;
-  type: DamageType;
-  bonus?: Formula; 
-  isMultipliable?: boolean;
+  damage?: DamageInstance[];
+  critical?: {
+    range: number;      
+    multiplier: number; 
+  };
 }
 
 export interface AttackTest {
@@ -129,11 +137,6 @@ export interface UserWeapon extends BaseUserItem {
   complexity: Complexity; 
   range: Range | string;  
   attackTest?: AttackTest; 
-  damage: DamageInstance[];
-  critical: {
-    range: number;      
-    multiplier: number; 
-  };
   ammunition?: string; 
   attacks?: any[]; 
 }
@@ -155,14 +158,9 @@ export interface UserAmmo extends BaseUserItem {
 export interface UserExplosive extends BaseUserItem {
   type: 'explosive';
   range?: string; 
-  damage?: DamageInstance[];
   area?: string; 
   dt?: number;
-  dtAttribute?: Attribute | 'none'; // ATUALIZADO AQUI: ATRIBUTO PARA DT
-  critical?: {
-      range: number;
-      multiplier: number;
-  };
+  dtAttribute?: Attribute | 'none';
   complexity?: Complexity; 
 }
 
@@ -179,6 +177,7 @@ export type AnyUserItem =
   | UserAccessory | UserGeneralItem | UserCursedItem;
 
 export interface RitualVersion {
+    isUnlocked?: boolean;
     isActive: boolean;
     cost: number;
     execution: string; 
@@ -191,6 +190,11 @@ export interface RitualVersion {
     requiredCircle?: 2 | 3 | 4;
     affinity?: ElementType; 
     isSustaining?: boolean; 
+    damage?: DamageInstance[];
+    critical?: {
+      range: number;      
+      multiplier: number; 
+    };
 }
 
 export interface UserRitual {

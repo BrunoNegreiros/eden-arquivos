@@ -38,9 +38,9 @@ export default function CreateSheet() {
   const handleNext = () => {
     setError(null);
 
-    // ==========================================
-    // VALIDAÇÕES OBRIGATÓRIAS
-    // ==========================================
+    
+    
+    
     if (step === 1) {
         if (!character.personal.name?.trim()) return setError("O Nome do Personagem é obrigatório.");
         if (!character.personal.player?.trim()) return setError("O Nome do Jogador é obrigatório.");
@@ -108,7 +108,7 @@ export default function CreateSheet() {
   return (
     <div className="min-h-screen bg-eden-900 text-eden-100 flex flex-col font-sans selection:bg-energia selection:text-eden-900 relative">
       
-      {/* Alerta Fixo no Topo */}
+      {}
       {error && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-lg bg-red-900 border-2 border-red-500 text-red-100 p-4 rounded-xl shadow-2xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-4">
            <div className="flex items-center gap-3">
@@ -119,7 +119,7 @@ export default function CreateSheet() {
         </div>
       )}
 
-      {/* Header Limpo */}
+      {}
       <header className="bg-eden-950 border-b border-eden-700 p-4 sticky top-0 z-50 shadow-md">
         <div className="container mx-auto max-w-5xl flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -130,14 +130,14 @@ export default function CreateSheet() {
                 <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
                   NOVO AGENTE
                 </h1>
-                {/* Removemos a contagem de passo, deixando só o título */}
+                {}
                 <p className="text-xs text-energia font-black uppercase tracking-widest mt-0.5">
                   {STEP_TITLES[step - 1]}
                 </p>
              </div>
           </div>
           
-          {/* Barra de Progresso do Desktop */}
+          {}
           <div className="hidden md:flex items-center gap-3">
             <span className="text-xs font-black text-eden-100/40">{progressPercentage}%</span>
             <div className="w-48 h-2 bg-eden-800 rounded-full overflow-hidden border border-eden-700">
@@ -161,7 +161,7 @@ export default function CreateSheet() {
 
       <footer className="bg-eden-950/80 backdrop-blur-md border-t border-eden-700 p-4 fixed bottom-0 w-full z-50 flex flex-col gap-3">
         
-        {/* Barra de Progresso Mobile inserida acima dos botões */}
+        {}
         <div className="flex md:hidden items-center justify-center gap-3 w-full">
             <span className="text-[10px] font-black text-eden-100/50">{progressPercentage}%</span>
             <div className="w-full h-1.5 bg-eden-800 rounded-full overflow-hidden border border-eden-700">
@@ -209,7 +209,7 @@ export default function CreateSheet() {
 
         </div>
 
-        {/* Aviso no Mobile */}
+        {}
         <div className="md:hidden flex items-center justify-center gap-2 text-[9px] text-eden-100/30 text-center uppercase tracking-widest font-bold pb-2">
             <Book size={12}/> Dúvidas? Consulte o Livro de Regras.
         </div>

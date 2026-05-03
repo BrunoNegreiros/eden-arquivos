@@ -20,7 +20,7 @@ const RitualVersionEditor = ({ label, version, onChange, baseVersion }: { label:
     const [editingEffectIndex, setEditingEffectIndex] = useState<number | null>(null);
     const [showPrereqs, setShowPrereqs] = useState(!!version.requiredCircle || !!version.affinity);
     
-    // Agora avaliamos se está ativa
+    
     if (!version.isActive && label !== 'Normal') {
         return (
             <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-eden-700/50 rounded-xl bg-eden-900/20 gap-3">
@@ -220,14 +220,14 @@ const RitualVersionEditor = ({ label, version, onChange, baseVersion }: { label:
 };
 
 export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: UserRitual, onSave: (r: UserRitual) => void, onCancel: () => void }) => {
-    // ATUALIZADO: Valores Padrão ("Nenhuma" para resistência, e isActive false para todos)
+    
     const defaultVersion: RitualVersion = { 
         isActive: false, cost: 1, execution: 'Padrão', range: 'Curto', target: '1 ser', duration: 'Instantânea', resistance: 'Nenhuma', description: '', effects: [] 
     };
     
     const defaultRitual: UserRitual = {
         id: '', name: '', element: 'Conhecimento', circle: 1,
-        normal: { ...defaultVersion, isActive: true }, // O normal começa ativo
+        normal: { ...defaultVersion, isActive: true }, 
         discente: { ...defaultVersion },
         verdadeiro: { ...defaultVersion }
     };
@@ -243,7 +243,7 @@ export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: Us
                 
                 <div className={`p-4 border-b ${style.border} ${style.bg} rounded-t-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4`}>
                     <div className="flex items-center gap-3 w-full">
-                        {/* ATUALIZADO: Imagem do Elemento no Header */}
+                        {}
                         <div className={`w-12 h-12 p-1.5 rounded-lg bg-black/20 ${style.border} border flex items-center justify-center`}>
                             <img src={`/elementos/${data.element.toLowerCase()}.png`} alt={data.element} className="w-full h-full object-contain drop-shadow-md" />
                         </div>
@@ -376,7 +376,7 @@ export default function Step7Rituals() {
               return (
                   <div key={ritual.id} className={`group relative bg-eden-800/40 border ${style.border} rounded-xl p-4 overflow-hidden hover:bg-eden-800 transition-all`}>
                       
-                      {/* ATUALIZADO: Imagem do Elemento gigante de fundo */}
+                      {}
                       <div className={`absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity transform rotate-12`}>
                           <img src={`/elementos/${ritual.element.toLowerCase()}.png`} alt={ritual.element} className="w-32 h-32 object-contain grayscale invert opacity-50" />
                       </div>
@@ -390,7 +390,7 @@ export default function Step7Rituals() {
                               </div>
                           </div>
                           <div className="flex flex-wrap gap-2 mb-3 items-center">
-                              {/* ATUALIZADO: Imagem Pequena ao lado do nome do elemento */}
+                              {}
                               <div className={`flex items-center gap-1.5 text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${style.border} ${style.bg} ${style.color}`}>
                                   <img src={`/elementos/${ritual.element.toLowerCase()}.png`} alt="" className="w-3 h-3 object-contain" />
                                   {ritual.element}

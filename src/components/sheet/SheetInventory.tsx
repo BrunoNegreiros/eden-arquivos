@@ -235,27 +235,6 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
                                 </div>
                             )}
 
-                            {formData.type === 'explosive' && (
-                                <div className="flex items-center gap-2 pb-2 border-b border-red-500/20">
-                                    <input 
-                                        type="checkbox" 
-                                        id="dealsDamage"
-                                        checked={Array.isArray(formData.damage) && formData.damage.length > 0} 
-                                        onChange={e => {
-                                            if (e.target.checked) {
-                                                handleChange('damage', [{ id: generateId(), diceCount: 1, diceFace: 6, type: 'impacto', bonus: { terms: [], operations: [] } }]);
-                                            } else {
-                                                handleChange('damage', []);
-                                            }
-                                        }}
-                                        className="w-4 h-4 rounded border-red-500 bg-eden-900 text-red-500 focus:ring-red-500 cursor-pointer"
-                                    />
-                                    <label htmlFor="dealsDamage" className="text-xs font-bold text-red-200 cursor-pointer select-none">
-                                        Explosivo causa dano direto?
-                                    </label>
-                                </div>
-                            )}
-
                             {formData.type === 'weapon' && (
                                 <div className="space-y-3 pt-3 border-t border-red-500/20">
                                     <h5 className="text-xs font-bold text-red-300 uppercase">Teste de Ataque</h5>
@@ -286,127 +265,10 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
                                 </div>
                             )}
 
-                            {(formData.type === 'weapon' || (formData.type === 'explosive' && Array.isArray(formData.damage) && formData.damage.length > 0)) && (
-                                <div className="animate-in fade-in space-y-4 pt-3 border-t border-red-500/20">
-                                    <div className="flex justify-between items-center">
-                                        <h5 className="text-xs font-bold text-red-300 uppercase">Dano Causado</h5>
-                                        <button 
-                                            onClick={() => {
-                                                const currentDamage = Array.isArray(formData.damage) ? formData.damage : [];
-                                                handleChange('damage', [...currentDamage, { id: generateId(), diceCount: 1, diceFace: 6, type: 'impacto', bonus: { terms: [], operations: [] }, isMultipliable: true }]);
-                                            }}
-                                            className="text-[10px] bg-red-900/50 px-2 py-1 rounded text-red-200 hover:bg-red-800 flex items-center gap-1 transition-colors"
-                                        >
-                                            <Plus size={12}/> Adicionar Dano
-                                        </button>
-                                    </div>
-                                    
-                                    {(Array.isArray(formData.damage) ? formData.damage : []).map((dmg: any, idx: number) => (
-                                        <div key={dmg.id} className="bg-black/20 p-3 rounded border border-red-900/30 space-y-3 relative group">
-                                            <button 
-                                                onClick={() => {
-                                                    const newDmg = formData.damage.filter((_: any, i: number) => i !== idx);
-                                                    handleChange('damage', newDmg);
-                                                }} 
-                                                className="absolute -top-2 -right-2 bg-red-900 hover:bg-red-700 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <X size={14} />
-                                            </button>
-                                            <div className="grid grid-cols-2 gap-3 flex-1">
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] text-red-200/60 uppercase font-bold">Dados</label>
-                                                    <div className="flex gap-1 items-center bg-eden-900 border border-red-900/50 rounded p-1">
-                                                        <input 
-                                                            type="number" 
-                                                            value={dmg.diceCount ?? 0} 
-                                                            onChange={e => {
-                                                                const newDmg = [...formData.damage];
-                                                                newDmg[idx].diceCount = Number(e.target.value);
-                                                                handleChange('damage', newDmg);
-                                                            }} 
-                                                            className="w-10 bg-eden-800 text-center text-sm text-white font-bold outline-none"
-                                                        />
-                                                        <span className="text-xs text-red-400 font-bold">d</span>
-                                                        <select 
-                                                            value={dmg.diceFace || 6} 
-                                                            onChange={e => {
-                                                                const newDmg = [...formData.damage];
-                                                                newDmg[idx].diceFace = Number(e.target.value);
-                                                                handleChange('damage', newDmg);
-                                                            }} 
-                                                            className="bg-eden-800 text-sm text-white font-bold outline-none flex-1"
-                                                        >
-                                                            {[2,3,4,6,8,10,12,20,100].map(d => <option key={d} value={d}>{d}</option>)}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] text-red-200/60 uppercase font-bold">Tipo</label>
-                                                    <select 
-                                                        value={dmg.type || 'balistico'} 
-                                                        onChange={e => {
-                                                            const newDmg = [...formData.damage];
-                                                            newDmg[idx].type = e.target.value;
-                                                            handleChange('damage', newDmg);
-                                                        }} 
-                                                        className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-sm text-white capitalize"
-                                                    >
-                                                        {DAMAGE_TYPES_INFO.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            
-                                            {formData.type !== 'explosive' && (
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        id={`mult_${dmg.id}`}
-                                                        checked={dmg.isMultipliable !== false}
-                                                        onChange={e => {
-                                                            const newDmg = [...formData.damage];
-                                                            newDmg[idx].isMultipliable = e.target.checked;
-                                                            handleChange('damage', newDmg);
-                                                        }} 
-                                                        className="w-3 h-3 rounded border-red-500 bg-eden-900 text-red-500 cursor-pointer"
-                                                    />
-                                                    <label htmlFor={`mult_${dmg.id}`} className="text-[10px] font-bold text-red-200/60 uppercase cursor-pointer select-none">
-                                                        Dados multiplicam no Crítico?
-                                                    </label>
-                                                </div>
-                                            )}
-
-                                            <div className="space-y-1 pt-2 border-t border-red-900/30">
-                                                <label className="text-[10px] text-red-200/60 uppercase font-bold">Bônus de Dano (Não multiplica no crítico)</label>
-                                                <FormulaBuilder 
-                                                    formula={dmg.bonus || { terms: [], operations: [] }} 
-                                                    onChange={f => {
-                                                        const newDmg = [...formData.damage];
-                                                        newDmg[idx].bonus = f;
-                                                        handleChange('damage', newDmg);
-                                                    }} 
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                    
-                                    {formData.type !== 'explosive' && (
-                                        <div className="space-y-1 pt-3 border-t border-red-500/20">
-                                            <label className="text-[10px] text-red-200/60 uppercase font-bold">Crítico (Margem / Multiplicador)</label>
-                                            <div className="flex gap-2">
-                                                <input type="number" value={formData.critical?.range || 20} onChange={e => updateNested('critical', 'range', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="20"/>
-                                                <span className="text-white font-bold self-center">/</span>
-                                                <input type="number" value={formData.critical?.multiplier || 2} onChange={e => updateNested('critical', 'multiplier', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="x2"/>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
                             {formData.type === 'explosive' && (
-                                <div className="grid grid-cols-2 gap-3 border-t border-red-500/20 pt-2">
+                                <div className="grid grid-cols-2 gap-3 pt-2">
                                     <div className="space-y-1"><label className="text-[10px] font-bold text-red-300">Área</label><input type="text" value={formData.area || ''} onChange={e => handleChange('area', e.target.value)} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white" placeholder="Ex: 6m raio"/></div>
                                     
-                                    {/* ATUALIZADO: Dropdown de Atributo para DT de Explosivo */}
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-red-300">DT Resistência</label>
                                         <div className="flex gap-2">
@@ -425,6 +287,58 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
                             )}
                         </div>
                     )}
+
+                    {}
+                    <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2 mt-6">
+                         <div className="flex justify-between items-center">
+                             <h4 className="text-sm font-bold text-red-300 uppercase flex items-center gap-2"><Crosshair size={16}/> Dano Causado (Opcional)</h4>
+                             <button onClick={() => { 
+                                 const currentDamage = Array.isArray(formData.damage) ? formData.damage : [];
+                                 handleChange('damage', [...currentDamage, { id: generateId(), diceCount: 1, diceFace: 6, type: 'impacto', bonus: { terms: [], operations: [] }, isMultipliable: true }]);
+                             }} className="text-[10px] bg-red-900/50 px-2 py-1 rounded text-red-200 hover:bg-red-800 flex items-center gap-1 transition-colors"><Plus size={12}/> Adicionar Dano</button>
+                         </div>
+                         
+                         {(Array.isArray(formData.damage) ? formData.damage : []).map((dmg: any, idx: number) => (
+                            <div key={dmg.id} className="bg-black/40 p-3 rounded-lg border border-red-900/30 space-y-3 relative group">
+                                <button onClick={() => { const newDmg = formData.damage?.filter((_: any, i: number) => i !== idx); handleChange('damage', newDmg); }} className="absolute -top-2 -right-2 bg-red-900 hover:bg-red-700 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={14} /></button>
+                                <div className="grid grid-cols-2 gap-3 flex-1">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Dados</label>
+                                        <div className="flex gap-1 items-center bg-eden-900 border border-red-900/50 rounded p-1">
+                                            <input type="number" value={dmg.diceCount ?? 0} onChange={e => { const newDmg = [...(formData.damage||[])]; newDmg[idx].diceCount = Number(e.target.value); handleChange('damage', newDmg); }} className="w-10 bg-eden-800 text-center text-sm text-white font-bold outline-none" />
+                                            <span className="text-xs text-red-400 font-bold">d</span>
+                                            <select value={dmg.diceFace || 6} onChange={e => { const newDmg = [...(formData.damage||[])]; newDmg[idx].diceFace = Number(e.target.value); handleChange('damage', newDmg); }} className="bg-eden-800 text-sm text-white font-bold outline-none flex-1">
+                                                {[2,3,4,6,8,10,12,20,100].map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-red-200/60 uppercase font-bold">Tipo</label>
+                                        <select value={dmg.type || 'balistico'} onChange={e => { const newDmg = [...(formData.damage||[])]; newDmg[idx].type = e.target.value; handleChange('damage', newDmg); }} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-sm text-white capitalize">
+                                            {DAMAGE_TYPES_INFO.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <input type="checkbox" id={`mult_${dmg.id}`} checked={dmg.isMultipliable !== false} onChange={e => { const newDmg = [...(formData.damage||[])]; newDmg[idx].isMultipliable = e.target.checked; handleChange('damage', newDmg); }} className="w-3 h-3 rounded border-red-500 bg-eden-900 text-red-500 cursor-pointer" />
+                                    <label htmlFor={`mult_${dmg.id}`} className="text-[10px] font-bold text-red-200/60 uppercase cursor-pointer select-none">Dados multiplicam no Crítico?</label>
+                                </div>
+                                <div className="space-y-1 pt-2 border-t border-red-900/30">
+                                    <label className="text-[10px] text-red-200/60 uppercase font-bold">Bônus de Dano (Não multiplica no crítico)</label>
+                                    <FormulaBuilder formula={dmg.bonus || { terms: [], operations: [] }} onChange={f => { const newDmg = [...(formData.damage||[])]; newDmg[idx].bonus = f; handleChange('damage', newDmg); }} />
+                                </div>
+                            </div>
+                         ))}
+
+                         <div className="space-y-1 pt-3 border-t border-red-500/20">
+                             <label className="text-[10px] text-red-200/60 uppercase font-bold">Crítico (Margem / Multiplicador)</label>
+                             <div className="flex gap-2">
+                                 <input type="number" value={formData.critical?.range || 20} onChange={e => updateNested('critical', 'range', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="20"/>
+                                 <span className="text-white font-bold self-center">/</span>
+                                 <input type="number" value={formData.critical?.multiplier || 2} onChange={e => updateNested('critical', 'multiplier', Number(e.target.value))} className="w-full bg-eden-900 border border-red-900/50 rounded p-2 text-xs text-white text-center" placeholder="x2"/>
+                             </div>
+                         </div>
+                    </div>
 
                     {formData.type === 'protection' && (
                         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">

@@ -143,7 +143,10 @@ export default function DMScreen() {
                     {portrait ? <img src={portrait} className="w-full h-full object-cover" alt={name}/> : <div className="w-full h-full flex items-center justify-center"><Ghost size={20} className="text-zinc-700"/></div>}
                   </div>
                   <div className="flex-1 min-w-0 pr-8">
-                    <h4 className="font-bold text-lg text-zinc-200 truncate group-hover:text-red-400 transition-colors">{name}</h4>
+                    <h4 className="font-bold text-lg text-zinc-200 truncate group-hover:text-red-400 transition-colors">
+                        {name}
+                        {char.isDead && <span className="bg-red-950/50 text-red-500 border border-red-900/50 text-[10px] uppercase tracking-widest font-black px-2 py-0.5 rounded shadow-sm">Morto</span>}
+                    </h4>
                     <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mt-0.5"><span className="bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800 text-zinc-300">{nex}%</span> • {cls}</div>
                   </div>
                   <button 

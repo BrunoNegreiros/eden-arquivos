@@ -12,7 +12,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
     const [isEditing, setIsEditing] = useState(false);
     const [currentResumo, setCurrentResumo] = useState<any>(null);
 
-    // ATUALIZADO: Estado que controla quais resumos estão expandidos (abertos)
+    
     const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
     useEffect(() => {
@@ -27,7 +27,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
                 const sorted = (data.resumos || []).sort((a: any, b: any) => b.sessionNumber - a.sessionNumber);
                 setResumos(sorted);
                 
-                // Se a pessoa acabou de carregar a página e tem resumos, expande o mais recente por padrão
+                
                 if (sorted.length > 0 && expandedIds.length === 0) {
                     setExpandedIds([sorted[0].id]);
                 }
@@ -62,7 +62,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
             setIsEditing(false);
             setCurrentResumo(null);
             
-            // Ao salvar um resumo novo (ou editado), expande ele automaticamente para leitura
+            
             if (!expandedIds.includes(finalResumo.id)) {
                 setExpandedIds(prev => [...prev, finalResumo.id]);
             }
@@ -74,7 +74,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
     };
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation(); // Evita que clicar em "excluir" expanda/colapse o card
+        e.stopPropagation(); 
         if (!confirm("Tem certeza que deseja apagar este resumo? Ele sumirá para todos da mesa.")) return;
         try {
             const newResumos = resumos.filter(r => r.id !== id);
@@ -85,7 +85,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
     };
 
     const openEdit = (resumo?: any, e?: React.MouseEvent) => {
-        if (e) e.stopPropagation(); // Evita que clicar em "editar" expanda/colapse o card
+        if (e) e.stopPropagation(); 
         if (resumo) {
             setCurrentResumo({ ...resumo });
         } else {
@@ -94,7 +94,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
         setIsEditing(true);
     };
 
-    // ATUALIZADO: Função para alternar entre mostrar ou esconder o texto do resumo
+    
     const toggleExpand = (id: string) => {
         setExpandedIds(prev => 
             prev.includes(id) 
@@ -117,11 +117,13 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
         <div className="space-y-6 animate-in fade-in pb-20">
             <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg sticky top-0 z-10 flex items-center justify-between">
                 <div>
-                    <h2 className="text-xl font-black text-white flex items-center gap-2"><BookOpen className="text-conhecimento" /> Diário de Campanha</h2>
-                    <p className="text-[10px] uppercase text-eden-100/50 font-bold mt-1">Resumos das sessões sincronizados com toda a equipe.</p>
+                    <h2 className="text-xl font-black text-white flex items-center gap-2"><BookOpen className="text-conhecimento" /> Diário de Campanha</h2>                    
                 </div>
-                <button onClick={() => openEdit()} className="bg-conhecimento text-eden-900 px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 hover:bg-yellow-400 transition-colors shadow-lg">
+                <button onClick={() => openEdit()} className="hidden bg-conhecimento text-eden-900 px-4 py-2 rounded-lg text-xs font-black md:flex items-center gap-2 hover:bg-yellow-400 transition-colors shadow-lg">
                     <Plus size={16}/> NOVO RESUMO
+                </button>
+                <button onClick={() => openEdit()} className="md:hidden bg-conhecimento text-eden-900 px-4 py-2 rounded-lg text-xs font-black items-center gap-2 hover:bg-yellow-400 transition-colors shadow-lg">
+                    <Plus size={16}/>
                 </button>
             </div>
 
@@ -167,7 +169,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
                     
                     return (
                         <div key={resumo.id} className="bg-eden-900/50 border border-eden-700/50 rounded-xl overflow-hidden shadow-lg group transition-all">
-                            {/* ATUALIZADO: Cabeçalho agora é clicável e muda de cor se estiver aberto */}
+                            {}
                             <div 
                                 onClick={() => toggleExpand(resumo.id)}
                                 className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isExpanded ? 'bg-conhecimento/10 border-b border-conhecimento/20' : 'bg-eden-950 hover:bg-eden-800 border-b border-transparent'}`}
@@ -176,7 +178,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
                                     <div className="flex items-center gap-1.5 text-conhecimento bg-conhecimento/10 px-2 py-1 rounded border border-conhecimento/20 text-xs font-black uppercase tracking-widest"><Hash size={14}/> SESSÃO {resumo.sessionNumber}</div>
                                     <h3 className={`font-black text-lg transition-colors ${isExpanded ? 'text-conhecimento' : 'text-white'}`}>{resumo.title}</h3>
                                     
-                                    {/* Data real mostrada no cabeçalho se ele estiver colapsado, pro player se achar melhor */}
+                                    {}
                                     {!isExpanded && resumo.date && (
                                         <span className="text-[10px] uppercase font-bold text-eden-100/30 ml-2 hidden md:flex items-center gap-1">
                                             <Calendar size={12}/> {new Date(resumo.date + 'T12:00:00').toLocaleDateString('pt-BR')}
@@ -194,7 +196,7 @@ export default function SheetResumo({ mesaId }: { mesaId: string }) {
                                 </div>
                             </div>
                             
-                            {/* ATUALIZADO: Corpo do resumo some ou aparece baseado no estado `isExpanded` */}
+                            {}
                             {isExpanded && (
                                 <div className="p-5 space-y-4 bg-eden-900/20 animate-in slide-in-from-top-2">
                                     <div className="flex gap-4 text-[10px] uppercase font-bold text-conhecimento/60">

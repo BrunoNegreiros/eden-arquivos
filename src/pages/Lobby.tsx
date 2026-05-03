@@ -8,7 +8,7 @@ import {
 import { 
   Plus, Hash, LogOut, ChevronRight, Users, 
   Shield, BookOpen, Loader2, X, Ghost,
-  Newspaper, Calendar, Edit2, Trash2, Save, Palette, Image as ImageIcon, ChevronLeft, Copy, LogOut as LeaveIcon, BarChart3, MessageSquare, Send
+  Newspaper, Calendar, Edit2, Trash2, Save, Palette, Image as ImageIcon, ChevronLeft, Copy, LogOut as LeaveIcon, BarChart3, MessageSquare, Send, User
 } from 'lucide-react';
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -291,22 +291,32 @@ export default function Lobby() {
     <div className="min-h-screen bg-eden-900 text-eden-100 font-sans p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-8">
         
-        <div className="flex justify-between items-center bg-eden-800 p-6 rounded-3xl border border-eden-700 shadow-xl">
-           <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-energia/10 border border-energia/30 flex items-center justify-center text-energia">
-                <Users size={24}/>
+        {}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-eden-800 p-6 rounded-3xl border border-eden-700 shadow-xl gap-4 md:gap-0">
+           <div className="flex items-center gap-4 w-full md:w-auto">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-energia/10 border border-energia/30 flex items-center justify-center text-energia shrink-0 overflow-hidden">
+                {userProfile?.photoUrl ? <img src={userProfile.photoUrl} className="w-full h-full object-cover"/> : <Users size={24}/>}
               </div>
-              <div>
-                <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Suas Mesas</h1>
-                <div className="flex items-center gap-3 text-[10px] font-bold text-eden-100/40 uppercase mt-1">
-                    <span>Logado como <span className="text-energia">@{userProfile?.username}</span></span>
-                    <span className="flex items-center gap-1 bg-eden-950 px-2 py-0.5 rounded border border-eden-700"><BarChart3 size={10}/> {globalMesaCount} Campanhas no Sistema</span>
+              <div className="flex flex-col min-w-0 flex-1">
+                <h1 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-white truncate">Suas Mesas</h1>
+                <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 text-[10px] font-bold text-eden-100/40 uppercase mt-1">
+                    <span className="truncate w-full lg:w-auto">Logado como <span className="text-energia">@{userProfile?.username}</span></span>
+                    <span className="flex items-center gap-1 bg-eden-950 px-2 py-0.5 rounded border border-eden-700 whitespace-nowrap"><BarChart3 size={10}/> {globalMesaCount} Campanhas no Sistema</span>
                 </div>
               </div>
            </div>
-           <button onClick={() => signOut(auth)} className="p-3 text-eden-100/30 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all" title="Sair da Conta">
-             <LogOut size={24}/>
-           </button>
+           
+           {}
+           <div className="flex w-full md:w-auto items-center gap-2 pt-4 md:pt-0 mt-2 md:mt-0 border-t border-eden-700 md:border-t-0 justify-end">
+               <button onClick={() => navigate('/perfil')} className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 text-eden-100/50 hover:text-energia hover:bg-energia/10 rounded-xl transition-all" title="Meu Perfil">
+                 <User size={20}/>
+                 <span className="md:hidden text-xs font-bold uppercase tracking-widest">Perfil</span>
+               </button>
+               <button onClick={() => signOut(auth)} className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 text-eden-100/50 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all" title="Sair da Conta">
+                 <LogOut size={20}/>
+                 <span className="md:hidden text-xs font-bold uppercase tracking-widest">Sair</span>
+               </button>
+           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

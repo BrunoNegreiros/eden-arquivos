@@ -8,7 +8,7 @@ const CLASSES_DATA = [
   { id: 'ocultista', name: 'Ocultista', initialHP: 12, initialPE: 4, initialSAN: 20, pvPerLevel: 2, pePerLevel: 4, sanPerLevel: 5 }
 ] as const;
 
-// ATUALIZADO: Profissão 1, 2 e 3
+
 const REFERENCE_SKILLS = [
   "Acrobacia", "Adestramento", "Artes", "Atletismo", "Atualidades", 
   "Ciências", "Crime", "Diplomacia", "Enganação", "Fortitude", 
@@ -35,7 +35,7 @@ export default function Step4Classes() {
   const customOrigin = (character as any).customOrigin;
   const originSkills: string[] = customOrigin?.trainedSkills || [];
   
-  // ATUALIZADO: Mapeia Profissão antiga para Profissão 1
+  
   const normalizedOriginSkills: string[] = originSkills.map((s: string) => s.startsWith('Profissão') ? 'Profissão 1' : s);
 
   const int = character.attributes.initial.INT;

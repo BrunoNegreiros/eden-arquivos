@@ -4,7 +4,7 @@ import { doc, getDoc, updateDoc, collection, query, where, onSnapshot } from 'fi
 import { auth, db } from '../config/firebase';
 import { 
   Shield, Brain, Zap, Eye, BicepsFlexed, ArrowLeft, Save, 
-  Swords, Backpack, Dice5, BookOpen, User, PenTool, Loader2, Ghost, RefreshCw, AlertTriangle, Check, Asterisk, Settings, Lock, Users, BookText, Lightbulb, Info
+  Swords, Backpack, Dice5, BookOpen, User, PenTool, Loader2, Ghost, RefreshCw, AlertTriangle, ChevronLeft, Check, Asterisk, Settings, Lock, Users, BookText, Lightbulb, Info
 } from 'lucide-react';
 
 import { CharacterProvider, useCharacter } from '../context/CharacterContext';
@@ -59,8 +59,11 @@ function SheetGroup({ mesaId, currentId }: { mesaId: string, currentId: string }
             const chars: any[] = [];
             snap.forEach(doc => {
                 const data = doc.data();
+                
                 if (data.isPrivate) return;
+                if (data.isDead) return; 
                 if (doc.id === currentId) return;
+                
                 chars.push({ id: doc.id, ...data });
             });
             setGroupChars(chars);
@@ -84,12 +87,10 @@ function SheetGroup({ mesaId, currentId }: { mesaId: string, currentId: string }
 
     return (
         <div className="space-y-6 animate-in fade-in pb-20">
-            <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg sticky top-0 z-10 flex items-center justify-between">
+            <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg top-0 z-10 flex items-center justify-between">
                 <div>
-                    <h2 className="text-xl font-black text-white flex items-center gap-2"><Users className="text-cyan-400" /> Sinais Vitais da Equipe</h2>
-                    <p className="text-[10px] uppercase text-eden-100/50 font-bold mt-1">Monitoramento em tempo real dos agentes públicos na missão.</p>
-                </div>
-                <div className="text-xs font-black bg-cyan-900/30 text-cyan-400 px-3 py-1.5 rounded-lg border border-cyan-500/30">{groupChars.length} AGENTES</div>
+                    <h2 className="text-xl font-black text-white flex items-center gap-2"><Users className="text-cyan-400" /> Sinais Vitais da Equipe</h2>                    
+                </div>                
             </div>
 
             {groupChars.length === 0 ? (
@@ -160,13 +161,13 @@ function SheetGroup({ mesaId, currentId }: { mesaId: string, currentId: string }
             )}
 
             <div className="bg-eden-950/50 border border-eden-700/50 rounded-xl p-4 mt-6">
-                <h4 className="text-[10px] uppercase font-black text-eden-100/40 mb-3 flex items-center gap-2"><Info size={14}/> Glossário de Monitoramento</h4>
+                <h4 className="text-[10px] uppercase font-black text-eden-100/40 mb-3 flex items-center gap-2"><Info size={14}/> Legendas </h4>
                 <div className="flex flex-wrap gap-y-3 gap-x-6">
                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-teal-400"></div><span className="text-[10px] text-eden-100/60 uppercase">Ileso (100%)</span></div>
                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"></div><span className="text-[10px] text-eden-100/60 uppercase">Ok (90%+)</span></div>
                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-lime-400"></div><span className="text-[10px] text-eden-100/60 uppercase">Moderado (75%+)</span></div>
                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-yellow-400"></div><span className="text-[10px] text-eden-100/60 uppercase">Ruim (50%+)</span></div>
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[10px] text-eden-100/60 uppercase">Grave (25%+)</span></div>
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[10px] text-eden-100/60 uppercase">Grave (1%+)</span></div>
                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div><span className="text-[10px] text-eden-100/60 uppercase">Crítico (0%)</span></div>
                 </div>
             </div>
@@ -176,25 +177,79 @@ function SheetGroup({ mesaId, currentId }: { mesaId: string, currentId: string }
 
 function SheetSettings({ isMestre }: { isMestre: boolean }) {
     const { character, updateCharacter } = useCharacter();
+    const { mesaId } = useParams();
+    const [mesa, setMesa] = useState<any>(null);
+    
+    useEffect(() => {
+        if (mesaId) {
+            getDoc(doc(db, 'mesas', mesaId)).then(snap => {
+                if(snap.exists()) setMesa(snap.data());
+            });
+        }
+    }, [mesaId]);
+
+    const [holdProgress, setHoldProgress] = useState(0);
+    const [isHolding, setIsHolding] = useState(false);
+    const isDead = (character as any).isDead ?? false;
+
+    useEffect(() => {
+        let interval: ReturnType<typeof setTimeout>;
+        if (isHolding) {
+            let currentProgress = 0;
+            interval = setInterval(() => {
+                currentProgress += 1;
+                setHoldProgress(currentProgress);
+                
+                if (currentProgress >= 100) {
+                    clearInterval(interval);
+                    setIsHolding(false);
+                    
+                    if (isDead) {
+                        
+                        updateCharacter(c => ({ 
+                            ...c, 
+                            isDead: false,
+                            isPrivate: false 
+                        }));
+                        alert("O personagem retornou do mundo dos mortos.");
+                    } else {
+                        
+                        updateCharacter(c => ({ 
+                            ...c, 
+                            isDead: true,
+                            isPrivate: false, 
+                            userId: mesa?.mestreId || c.userId 
+                        }));
+                        alert("Sua visão escurece. A ficha foi selada e enviada ao Cemitério da equipe.");
+                    }
+                }
+            }, 100);
+        } else {
+            setHoldProgress(0);
+        }
+        return () => clearInterval(interval);
+    }, [isHolding, updateCharacter, mesa, isDead]);
+
+    const socialEnabled = (character as any).socialEnabled ?? true;
+    const dashboardEnabled = (character as any).dashboardEnabled ?? true;
 
     return (
         <div className="space-y-6 animate-in fade-in pb-20">
             <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg sticky top-0 z-10">
-                <h2 className="text-xl font-black text-white flex items-center gap-2"><Settings className="text-energia" /> Configurações da Ficha</h2>
-                <p className="text-[10px] uppercase text-eden-100/50 font-bold mt-1">Gerencie preferências, segurança e o acesso desta ficha.</p>
+                <h2 className="text-xl font-black text-white flex items-center gap-2"><Settings className="text-energia" /> Configurações da Ficha</h2>                
             </div>
 
             <div className="space-y-4 max-w-xl">
                 
-                <div className="bg-eden-950/50 p-4 md:p-6 rounded-xl border border-eden-700/50 space-y-5">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 border-b border-eden-700 pb-2"><Settings size={16} className="text-energia"/> Preferências</h3>
+                <div className="bg-eden-950/50 p-4 md:p-6 rounded-xl border border-eden-700/50 space-y-5 shadow-inner">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 border-b border-eden-700 pb-2"><Settings size={16} className="text-energia"/> Preferências e Privacidade</h3>
                     
                     <div className="flex items-center justify-between">
                         <div>
                             <h4 className="text-sm font-bold text-white">Salvamento Automático</h4>
-                            <p className="text-[10px] text-eden-100/40 mt-1 max-w-sm">Salva a ficha na nuvem silenciosamente a cada modificação, substituindo o botão manual.</p>
+                            <p className="text-[10px] text-eden-100/40 mt-1 max-w-xs md:max-w-sm">Salva a ficha na nuvem silenciosamente a cada modificação, substituindo o botão manual.</p>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
                             <input
                                 type="checkbox"
                                 checked={(character as any).autoSave || false}
@@ -204,9 +259,41 @@ function SheetSettings({ isMestre }: { isMestre: boolean }) {
                             <div className="w-11 h-6 bg-eden-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-eden-100 after:border-eden-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-energia"></div>
                         </label>
                     </div>
+
+                    <div className="flex items-center justify-between border-t border-eden-800 pt-4">
+                        <div>
+                            <h4 className="text-sm font-bold text-white">Sincronizar com Dashboard</h4>
+                            <p className="text-[10px] text-eden-100/40 mt-1 max-w-xs md:max-w-sm">Permite que a matemática da sua ficha seja lida e avaliada na aba de Nível Real do Cantinho da Equipe.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input
+                                type="checkbox"
+                                checked={dashboardEnabled}
+                                onChange={e => updateCharacter(prev => ({...prev, dashboardEnabled: e.target.checked}))}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-eden-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-eden-100 after:border-eden-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-energia"></div>
+                        </label>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-eden-800 pt-4">
+                        <div>
+                            <h4 className="text-sm font-bold text-white">Modo Social</h4>
+                            <p className="text-[10px] text-eden-100/40 mt-1 max-w-xs md:max-w-sm">Habilita a participação do personagem no Chat estilo WhatsApp e os headers na página inicial da equipe.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input
+                                type="checkbox"
+                                checked={socialEnabled}
+                                onChange={e => updateCharacter(prev => ({...prev, socialEnabled: e.target.checked}))}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-eden-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-eden-100 after:border-eden-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-energia"></div>
+                        </label>
+                    </div>
                 </div>
 
-                <div className="bg-eden-950/50 p-4 md:p-6 rounded-xl border border-eden-700/50 space-y-5">
+                <div className="bg-eden-950/50 p-4 md:p-6 rounded-xl border border-eden-700/50 space-y-5 shadow-inner">
                     <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 border-b border-eden-700 pb-2"><Lock size={16} className="text-energia"/> Controle de Acesso</h3>
                     
                     <div className="space-y-1">
@@ -216,7 +303,7 @@ function SheetSettings({ isMestre }: { isMestre: boolean }) {
                             value={(character as any).password || ''}
                             onChange={e => updateCharacter(prev => ({...prev, password: e.target.value}))}
                             placeholder="Deixe em branco para acesso público"
-                            className="w-full bg-eden-900 border border-eden-600 rounded-lg p-3 text-sm text-white outline-none focus:border-energia"
+                            className="w-full bg-eden-900 border border-eden-600 rounded-lg p-3 text-sm text-white outline-none focus:border-energia transition-colors"
                         />
                         <p className="text-[10px] text-eden-100/40">Se definida, qualquer pessoa que não seja você (ou o Mestre) precisará inseri-la para abrir a ficha.</p>
                     </div>
@@ -228,26 +315,72 @@ function SheetSettings({ isMestre }: { isMestre: boolean }) {
                             value={(character as any).passwordHint || ''}
                             onChange={e => updateCharacter(prev => ({...prev, passwordHint: e.target.value}))}
                             placeholder="Ex: Nome do meu cachorro"
-                            className="w-full bg-eden-900 border border-eden-600 rounded-lg p-3 text-sm text-white outline-none focus:border-energia"
+                            className="w-full bg-eden-900 border border-eden-600 rounded-lg p-3 text-sm text-white outline-none focus:border-energia transition-colors"
                         />
                     </div>
                 </div>
 
                 {isMestre && (
-                    <div className="bg-red-950/20 p-4 md:p-6 rounded-xl border border-red-900/50 flex items-center justify-between">
+                    <div className="bg-blue-950/20 p-4 md:p-6 rounded-xl border border-blue-900/50 flex items-center justify-between shadow-lg">
                         <div>
-                            <h4 className="text-sm font-bold text-red-400 uppercase tracking-widest flex items-center gap-2"><Shield size={16}/> Tomar Posse (Escudo do Mestre)</h4>
-                            <p className="text-xs text-eden-100/50 mt-1 max-w-sm">Oculta essa ficha da área pública da mesa, permitindo que ela seja gerida exclusivamente pelo Mestre (como um NPC ou monstro).</p>
+                            <h4 className="text-sm font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2"><Shield size={16}/> Tomar Posse (Escudo do Mestre)</h4>
+                            <p className="text-xs text-eden-100/50 mt-1 max-w-sm">
+                                {isDead 
+                                    ? 'Oculta esta ficha do Cemitério e transfere a guarda dela exclusivamente para o Escudo do Mestre.'
+                                    : 'Oculta essa ficha da área pública da mesa, permitindo que ela seja gerida exclusivamente pelo Mestre.'}
+                            </p>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
                             <input
                                 type="checkbox"
                                 checked={(character as any).isPrivate || false}
                                 onChange={e => updateCharacter(prev => ({...prev, isPrivate: e.target.checked}))}
                                 className="sr-only peer"
                             />
-                            <div className="w-11 h-6 bg-eden-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-eden-100 after:border-eden-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                            <div className="w-11 h-6 bg-eden-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-eden-100 after:border-eden-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
                         </label>
+                    </div>
+                )}
+
+                {isDead ? (
+                    <div className="bg-green-950/20 p-4 md:p-6 rounded-xl border border-green-900/50 flex flex-col gap-4 mt-6 shadow-lg">
+                        <div>
+                            <h4 className="text-sm font-black text-green-500 uppercase tracking-widest flex items-center gap-2"><AlertTriangle size={18} /> Protocolo Lázaro (Ressurreição)</h4>
+                            <p className="text-xs text-eden-100/50 mt-1 max-w-md">Retira a ficha do Cemitério e devolve o personagem à vida, restaurando seu status público e de combate na Base.</p>
+                        </div>
+                        <button 
+                            onMouseDown={() => setIsHolding(true)}
+                            onMouseUp={() => setIsHolding(false)}
+                            onMouseLeave={() => setIsHolding(false)}
+                            onTouchStart={() => setIsHolding(true)}
+                            onTouchEnd={() => setIsHolding(false)}
+                            className="relative w-full h-14 bg-green-950 border border-green-900 rounded-xl overflow-hidden group select-none shadow-md"
+                        >
+                            <div className="absolute left-0 top-0 h-full bg-green-600 transition-all duration-100 ease-linear" style={{ width: `${holdProgress}%` }}></div>
+                            <span className="relative z-10 font-black text-white uppercase text-xs md:text-sm tracking-widest flex items-center justify-center h-full drop-shadow-md">
+                                {holdProgress > 0 ? `Segurando... ${Math.floor(holdProgress)}%` : 'Segure por 10s para Ressuscitar Personagem'}
+                            </span>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="bg-red-950/20 p-4 md:p-6 rounded-xl border border-red-900/50 flex flex-col gap-4 mt-6 shadow-lg">
+                        <div>
+                            <h4 className="text-sm font-black text-red-500 uppercase tracking-widest flex items-center gap-2"><AlertTriangle size={18} /> Área de Risco Fatal</h4>
+                            <p className="text-xs text-eden-100/50 mt-1 max-w-md">Ao matar o personagem, a ficha será selada e ele é enviado ao Cemitério da equipe. Esta ação exige confirmação contínua.</p>
+                        </div>
+                        <button 
+                            onMouseDown={() => setIsHolding(true)}
+                            onMouseUp={() => setIsHolding(false)}
+                            onMouseLeave={() => setIsHolding(false)}
+                            onTouchStart={() => setIsHolding(true)}
+                            onTouchEnd={() => setIsHolding(false)}
+                            className="relative w-full h-14 bg-red-950 border border-red-900 rounded-xl overflow-hidden group select-none shadow-md"
+                        >
+                            <div className="absolute left-0 top-0 h-full bg-red-600 transition-all duration-100 ease-linear" style={{ width: `${holdProgress}%` }}></div>
+                            <span className="relative z-10 font-black text-white uppercase text-xs md:text-sm tracking-widest flex items-center justify-center h-full drop-shadow-md">
+                                {holdProgress > 0 ? `Segure para matar... ${Math.floor(holdProgress)}%` : 'Segure por 10s para Matar Personagem'}
+                            </span>
+                        </button>
                     </div>
                 )}
             </div>
@@ -317,8 +450,7 @@ function SheetManualEffects() {
     return (
         <div className="space-y-6 animate-in fade-in pb-20">
             <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg sticky top-0 z-10">
-                <h2 className="text-xl font-black text-white flex items-center gap-2"><Asterisk className="text-energia" /> Efeitos Ocultos</h2>
-                <p className="text-[10px] uppercase text-eden-100/50 font-bold mt-1">Efeitos manuais, poderes extras e curas instantâneas ativos no momento.</p>
+                <h2 className="text-xl font-black text-white flex items-center gap-2"><Asterisk className="text-energia" /> Efeitos Ocultos</h2>                
             </div>
 
             {instantEffects.length > 0 && (
@@ -381,7 +513,7 @@ function SheetContent() {
   const navigate = useNavigate();
   const { character, vars, updateCharacter } = useCharacter();
   
-  const [activeTab, setActiveTab] = useState('combat');
+  const [activeTab, setActiveTab] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [targetLevel, setTargetLevel] = useState(5);
@@ -395,6 +527,9 @@ function SheetContent() {
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const autoSaveEnabled = (character as any).autoSave;
 
+  const isDead = (character as any).isDead ?? false;
+  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
+
   useEffect(() => {
       if (mesaId) {
           getDoc(doc(db, 'mesas', mesaId)).then(snap => {
@@ -405,10 +540,8 @@ function SheetContent() {
 
   const isMestre = auth.currentUser && mesa && auth.currentUser.uid === mesa.mestreId;
 
-  
   useEffect(() => {
       if (!autoSaveEnabled || !id) return;
-
       setAutoSaveStatus('saving');
       const timer = setTimeout(async () => {
           try {
@@ -421,15 +554,12 @@ function SheetContent() {
               };
               const cleanData = sanitizeData(character);
               await updateDoc(doc(db, 'characters', id), cleanData);
-              
               setAutoSaveStatus('saved');
               setTimeout(() => setAutoSaveStatus('idle'), 2000);
           } catch(e) {
-              console.error("AutoSave Error:", e);
               setAutoSaveStatus('idle');
           }
       }, 1500); 
-
       return () => clearTimeout(timer);
   }, [character, id, autoSaveEnabled]);
 
@@ -444,190 +574,200 @@ function SheetContent() {
         }
         return obj;
       };
-
       const cleanData = sanitizeData(character);
       await updateDoc(doc(db, 'characters', id), cleanData);
-      console.log("Ficha salva com sucesso!");
     } catch (error) {
-      console.error("Erro ao salvar:", error);
-      alert("Erro ao salvar a ficha. Verifique o console para detalhes técnicos.");
+      alert("Erro ao salvar a ficha.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleEndTurn = () => {
-      updateCharacter(prev => {
-          const newConds = prev.conditions.map(c => {
-              if (c.isActive && c.turnsRemaining > 0) {
-                  const newTurns = c.turnsRemaining - 1;
-                  return { ...c, turnsRemaining: newTurns, isActive: newTurns > 0 };
-              }
-              return c;
-          });
-          return { ...prev, conditions: newConds };
-      });
-  };
-
-  const handleEndScene = () => {
-      if (!confirm("Finalizar a cena atual? Isso zerará o Contador de Tiros, processará as munições gastas e desativará Condições com duração de Cena.")) return;
-      let updatesLog: string[] = [];
-
-      updateCharacter(prev => {
-          const newInventory = prev.inventory.map(item => {
-              if (item.type !== 'ammo') return item;
-              const ammoItem = item as any; 
-              if (ammoItem.ammoDurationType !== 'scenes' && ammoItem.ammoDurationType !== undefined) return item;
-              
-              const usage = sceneUsageTracker[item.id] || 0;
-              if (usage === 0) return item;
-
-              const isCartucho = item.name.toLowerCase().includes('cartucho') || item.name.toLowerCase().includes('combust');
-              const leftoversBonus = isCartucho ? 4 : 6;
-
-              let newDuration = ammoItem.durationScenes || 0;
-              let newLeftovers = ammoItem.leftovers || 0;
-
-              if (usage <= 1) {
-                  if (newDuration > 0) { newDuration -= 1; newLeftovers += leftoversBonus; updatesLog.push(`- ${item.name}: Uso Baixo! +${leftoversBonus} Sobras.`); }
-              } else {
-                  if (newDuration > 0) { newDuration -= 1; updatesLog.push(`- ${item.name}: Cena concluída. -1 pacote gasto.`); }
-              }
-              return { ...item, durationScenes: newDuration, leftovers: newLeftovers };
-          });
-
-          let conditionsCleared = 0;
-          const newConds = prev.conditions.map(c => {
-              if (c.isActive && c.durationType === 'cena') {
-                  conditionsCleared++;
-                  return { ...c, isActive: false };
-              }
-              return c;
-          });
-          
-          if (conditionsCleared > 0) {
-              updatesLog.push(`- ${conditionsCleared} condição(ões) de cena desativada(s).`);
-          }
-
-          return { ...prev, inventory: newInventory, conditions: newConds };
-      });
-
-      setSceneUsageTracker({}); 
-      setHighUsageCounter({});
-      
-      if (updatesLog.length > 0) {
-          alert("Resumo do Fim de Cena:\n\n" + updatesLog.join('\n'));
-      }
-  };
-
-  const handleBackToHome = () => {
-      if (autoSaveEnabled || confirm("Você salvou as suas alterações? Progresso não salvo será perdido. Deseja sair da ficha?")) {
-          navigate(mesaId ? `/mesa/${mesaId}` : '/');
-      }
-  };
-
-  const levelUpTasks = character.levelUpTasks || [];
-  const hasPendingTasks = levelUpTasks.length > 0;
-  const allTasksDone = levelUpTasks.every(t => t.isDone);
-
-  const toggleTask = (taskId: string) => {
       updateCharacter(prev => ({
           ...prev,
-          levelUpTasks: (prev.levelUpTasks || []).map(t => 
-              t.id === taskId ? { ...t, isDone: !t.isDone } : t
-          )
+          conditions: prev.conditions.map(c => (c.isActive && c.turnsRemaining > 0) ? { ...c, turnsRemaining: c.turnsRemaining - 1, isActive: c.turnsRemaining - 1 > 0 } : c)
       }));
   };
 
-  const concludeTasks = () => { updateCharacter(prev => ({ ...prev, levelUpTasks: [] })); };
+  const handleEndScene = () => {
+      if (!confirm("Finalizar cena?")) return;
+      updateCharacter(prev => ({
+          ...prev,
+          inventory: prev.inventory.map(item => {
+              if (item.type !== 'ammo') return item;
+              const ammoItem = item as any;
+              const usage = sceneUsageTracker[item.id] || 0;
+              if (usage === 0) return item;
+              const isCartucho = item.name.toLowerCase().includes('cartucho') || item.name.toLowerCase().includes('combust');
+              const leftoversBonus = isCartucho ? 4 : 6;
+              return { ...item, durationScenes: (ammoItem.durationScenes || 0) - 1, leftovers: (ammoItem.leftovers || 0) + (usage <= 1 ? leftoversBonus : 0) };
+          }),
+          conditions: prev.conditions.map(c => (c.isActive && c.durationType === 'cena') ? { ...c, isActive: false } : c)
+      }));
+      setSceneUsageTracker({}); 
+      setHighUsageCounter({});
+  };
+
+  const handleBackToHome = () => {
+      if (autoSaveEnabled || confirm("Sair da ficha?")) navigate(mesaId ? `/mesa/${mesaId}` : '/');
+  };
+
+  const concludeTasks = () => updateCharacter(prev => ({ ...prev, levelUpTasks: [] }));
+  const toggleTask = (taskId: string) => updateCharacter(prev => ({ ...prev, levelUpTasks: (prev.levelUpTasks || []).map(t => t.id === taskId ? { ...t, isDone: !t.isDone } : t) }));
+
+  
+  const fullName = character.personal.name || '';
+  const nameParts = fullName.trim().split(/\s+/);
+  let displayMobileName = fullName;
+  if (nameParts.length > 1 && fullName.length > 10) {
+      const initials = nameParts.slice(1).map((n: string) => n.charAt(0).toUpperCase() + '.').join(' ');
+      displayMobileName = `${nameParts[0]} ${initials}`;
+  }
 
   return (
-    <div className="h-screen bg-eden-800 text-eden-100 flex flex-col font-sans overflow-hidden relative selection:bg-energia selection:text-eden-900">
+    <div className={`h-screen flex flex-col font-sans overflow-hidden relative ${isDead ? 'bg-red-950/20 text-red-100 selection:bg-red-500 selection:text-white' : 'bg-eden-800 text-eden-100 selection:bg-energia selection:text-eden-900'}`}>
       
-      <header className="bg-eden-900 border-b border-eden-700 p-4 md:p-5 shrink-0 shadow-lg z-20">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-5 justify-between items-center">
+      <header className={`${isDead ? 'bg-red-950 border-red-900' : 'bg-eden-900 border-eden-700'} border-b p-3 md:p-5 shrink-0 shadow-lg z-5 relative`}>
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center lg:items-center gap-2 lg:gap-6 relative">
           
-          <div className="flex items-center gap-3 md:gap-4 w-full lg:w-auto">
-            <button onClick={handleBackToHome} className="p-2 md:p-3 hover:bg-eden-800 rounded-xl transition-colors text-eden-100/50 hover:text-energia shrink-0">
-                <ArrowLeft size={24} />
-            </button>
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden border-2 border-eden-600 shrink-0 bg-eden-800 flex items-center justify-center shadow-md">
-                {character.personal.portraitUrl ? <img src={character.personal.portraitUrl} className="w-full h-full object-cover" alt="Avatar" /> : <User size={24} className="text-eden-100/50" />}
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <div className="flex items-center gap-2 md:gap-3">
-                <input type="text" value={character.personal.name} onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, name: e.target.value}}))} placeholder="Nome do Personagem" className="bg-transparent border-b-2 border-transparent hover:border-eden-600 focus:border-energia outline-none text-xl md:text-3xl font-black text-white tracking-wide uppercase truncate flex-1 min-w-[100px] transition-colors" />
-                <div className="flex items-center bg-yellow-500/10 border border-yellow-500/50 rounded-lg px-2 py-1 md:px-3 md:py-1.5 shadow-inner shrink-0" title="Pontos de Prestígio">
-                    <span className="text-[10px] md:text-xs font-black text-yellow-500 uppercase mr-1.5 tracking-widest drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]">PP</span>
-                    <input type="number" value={character.personal.prestigePoints} onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, prestigePoints: Number(e.target.value)}}))} className="bg-transparent border-none outline-none text-sm md:text-lg text-yellow-400 font-black w-10 md:w-14 text-center"/>
-                </div>
-              </div>
-              <div className="text-[11px] md:text-sm text-eden-100/50 font-mono mt-1 capitalize tracking-widest flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="text-white font-bold lowercase">@{character.personal.player || 'jogador'}</span>
-                <span className="hidden sm:inline">•</span>
-                <span className="text-eden-100/80">{character.personal.origin || 'Sem Origem'}</span>
-                <span>•</span>
-                <span className="text-white">{character.personal.class || 'Sem Classe'}</span>
-                
-                {character.personal.nex >= 10 && (
-                  <>
-                    <span>•</span>
-                    <input 
-                        type="text" 
-                        value={character.personal.trail || ''} 
-                        onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, trail: e.target.value}}))} 
-                        placeholder="Definir Trilha" 
-                        className="bg-transparent border-b border-dashed border-eden-700 hover:border-energia focus:border-energia outline-none text-energia font-bold w-24 md:w-32 transition-colors placeholder:text-eden-100/30"
-                    />
-                  </>
-                )}
-              </div>
-            </div>
+          <div className="hidden lg:flex items-center absolute -left-16 xl:-left-20 top-1/2 -translate-y-1/2">
+              <button onClick={handleBackToHome} className="p-3 bg-eden-950 hover:bg-eden-800 rounded-xl transition-colors text-eden-100/50 hover:text-energia border border-eden-700/50 shadow-md">
+                  <ArrowLeft size={24} />
+              </button>
           </div>
 
-          <div className="flex items-center justify-between w-full lg:w-auto gap-3 md:gap-5">
-             <div className="flex items-center gap-2 md:gap-3 bg-eden-950/50 border border-eden-700/80 p-1.5 md:p-2 rounded-xl shadow-inner shrink-0">
-               <button onClick={() => { setTargetLevel(Math.max(5, character.personal.nex - 5)); setShowLevelUp(true); }} disabled={character.personal.nex <= 5} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded text-eden-100/30 hover:bg-red-900/30 hover:text-red-400 disabled:opacity-20 transition-all" title="Reduzir NEX"><span className="font-black text-2xl md:text-3xl leading-none mb-1">-</span></button>
-               <div className="flex flex-col items-center px-2 md:px-3 min-w-[4rem] md:min-w-[5rem]"><span className="text-[10px] md:text-xs uppercase font-black text-energia/80 tracking-widest">NEX</span><span className="font-black text-xl md:text-2xl leading-none text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{character.personal.nex}%</span></div>
-               <button onClick={() => { setTargetLevel(Math.min(99, character.personal.nex + 5)); setShowLevelUp(true); }} disabled={character.personal.nex >= 99} className="flex items-center justify-center gap-1.5 bg-energia text-eden-900 hover:bg-yellow-400 px-3 py-2 md:px-4 md:py-2.5 rounded-lg font-black text-xs md:text-sm uppercase tracking-widest shadow-[0_0_15px_rgba(250,176,5,0.4)] hover:shadow-[0_0_25px_rgba(250,176,5,0.6)] hover:scale-110 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none" title="Aumentar NEX">UP <Zap size={16} className="fill-eden-900 md:w-4 md:h-4"/></button>
-             </div>
-             
-             {autoSaveEnabled ? (
-                 <div className="flex-1 lg:flex-none flex items-center justify-center bg-eden-900/50 border border-eden-700 text-eden-100/50 px-4 py-3 md:px-6 md:py-3.5 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest gap-2 shadow-inner">
-                   {autoSaveStatus === 'saving' && <><Loader2 size={18} className="animate-spin text-energia"/> Salvando...</>}
-                   {autoSaveStatus === 'saved' && <><Check size={18} className="text-green-500"/> Salvo na Nuvem</>}
-                   {autoSaveStatus === 'idle' && <><Check size={18} className="text-eden-100/30"/> Salvo na Nuvem</>}
-                 </div>
-             ) : (
-                 <button onClick={handleSave} disabled={isSaving} className="flex-1 lg:flex-none justify-center bg-eden-800 border border-eden-600 hover:bg-energia hover:text-eden-900 text-white px-4 py-3 md:px-6 md:py-3.5 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg hover:shadow-[0_0_20px_rgba(250,176,5,0.3)] hover:-translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none group">
-                   {isSaving ? <><Loader2 size={18} className="animate-spin text-energia"/> Salvando</> : <><Save size={18} className="text-energia group-hover:text-eden-900 transition-colors"/> Salvar Ficha</>}
-                 </button>
-             )}
-
+          <div className="flex flex-row items-center gap-3 w-full lg:w-auto min-w-0 flex-1 justify-start h-full">
+              {}
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-eden-600 shrink-0 bg-eden-800 flex items-center justify-center shadow-md">
+                  {character.personal.portraitUrl ? <img src={character.personal.portraitUrl} className={`${isDead ? 'filter grayscale sepia' : ''} w-full h-full object-cover`} alt="Avatar" /> : <User size={24} className="text-eden-100/50" />}
+              </div>
+              
+              <div className="flex flex-col justify-center min-w-0 flex-1 lg:text-left relative py-1">
+                  <div className="flex items-center justify-between lg:justify-start gap-2 relative group w-full">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {isDead && <span className="bg-red-900/50 border border-red-500 text-red-400 text-[8px] md:text-xs px-1.5 py-0.5 rounded uppercase font-black tracking-widest shadow-md shrink-0">Falecido</span>}
+                          <div className="relative flex items-center justify-start min-w-0 flex-1">
+                              <input 
+                                  type="text" 
+                                  value={character.personal.name} 
+                                  onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, name: e.target.value}}))} 
+                                  className="absolute inset-0 opacity-0 cursor-text w-full z-10 lg:hidden" 
+                              />
+                              <span className="lg:hidden text-xl md:text-xl font-black text-white tracking-wide uppercase truncate block">
+                                  {displayMobileName}
+                              </span>
+                              <input 
+                                  type="text" 
+                                  value={character.personal.name} 
+                                  onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, name: e.target.value}}))} 
+                                  className="hidden lg:block bg-transparent border-b-2 border-transparent hover:border-eden-600 focus:border-energia outline-none text-2xl font-black text-white tracking-wide uppercase truncate w-full transition-colors relative z-5" 
+                              />
+                          </div>
+                      </div>
+                      
+                      <button 
+                          onClick={() => setIsInfoExpanded(!isInfoExpanded)} 
+                          className="lg:hidden p-1.5 bg-eden-950 border border-eden-800 rounded-lg text-eden-100/50 hover:text-white shrink-0 z-20 flex items-center justify-center transition-colors"
+                      >
+                          <ChevronLeft size={16} className={`transition-transform duration-200 ${isInfoExpanded ? 'rotate-90' : '-rotate-90'}`} />
+                      </button>
+                  </div>
+                  
+                  {}
+                  <div className={`overflow-x-auto whitespace-nowrap custom-scrollbar gap-3 items-center justify-start text-[12px] md:text-sm text-eden-100/50 font-mono mt-1 pb-1 w-full ${isInfoExpanded ? 'flex' : 'hidden lg:flex'}`}>
+                      <span className="text-white font-bold shrink-0">{character.personal.player || 'Agente'}</span>
+                      <span className="text-eden-700 shrink-0">|</span>
+                      <span className="text-eden-100/80 shrink-0">{character.personal.origin || 'Sem Origem'}</span>
+                      <span className="text-eden-700 shrink-0">|</span>
+                      <span className="text-white shrink-0">{(character.personal.class || 'Mundano').charAt(0).toUpperCase() + (character.personal.class || 'Mundano').slice(1)}</span>
+                      {character.personal.nex >= 10 && (
+                          <><span className="text-eden-700 shrink-0">|</span><input type="text" value={character.personal.trail || ''} onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, trail: e.target.value}}))} placeholder="Trilha" className="bg-transparent hover:text-energia focus:text-energia outline-none text-energia/70 font-bold w-24 transition-colors placeholder:text-eden-100/30 shrink-0 text-left relative z-5" /></>
+                      )}
+                  </div>
+              </div>
           </div>
+
+          {}
+          <div className="flex flex-row w-full lg:w-auto gap-0 lg:gap-3 pb-1 shrink-0 items-center justify-center lg:justify-end mt-1 lg:mt-0 pt-2 lg:pt-0 border-t border-eden-800 lg:border-none">
+              
+              {}
+              <div className="flex flex-1 lg:flex-none flex-col lg:flex-row items-center justify-center lg:justify-between gap-1 lg:gap-4 lg:bg-eden-950/50 lg:border lg:border-eden-700/80 lg:p-2 lg:rounded-xl lg:shadow-inner">
+                  <span className="text-[10px] lg:text-[10px] uppercase font-black text-energia/60 lg:text-energia/80 tracking-widest leading-none mb-1 lg:mb-0 lg:hidden">NEX</span>
+                  
+                  <div className="flex items-center justify-center gap-4 lg:gap-4 w-full lg:w-auto">
+                      <button onClick={() => { setTargetLevel(Math.max(5, character.personal.nex - 5)); setShowLevelUp(true); }} className="text-eden-100/20 hover:text-red-400 transition-all shrink-0 lg:w-10 lg:h-10 lg:flex lg:items-center lg:justify-center lg:rounded">
+                          <span className="font-black text-xl lg:text-3xl leading-none mb-1">-</span>
+                      </button>
+
+                      <div className="flex flex-col items-center lg:px-3">
+                          <span className="hidden lg:block text-[10px] uppercase font-black text-energia/80 tracking-widest leading-none mb-0.5">NEX</span>
+                          <span className="font-black text-2xl lg:text-2xl text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] leading-none">{character.personal.nex}%</span>
+                      </div>
+
+                      {}
+                      <button 
+                        onClick={() => { setTargetLevel(Math.min(99, character.personal.nex + 5)); setShowLevelUp(true); }} 
+                        className="text-energia hover:text-yellow-400 lg:hover:text-eden-900 transition-colors shrink-0 lg:bg-energia lg:text-eden-900 lg:px-4 lg:py-2.5 lg:rounded-lg lg:hover:bg-yellow-400 lg:shadow-[0_0_10px_rgba(250,176,5,0.4)]"
+                      >
+                          <span className="font-black text-2xl lg:hidden leading-none">+</span>
+                          <div className="hidden lg:flex items-center gap-1.5 font-black text-xs uppercase tracking-widest">
+                            UP <Zap size={14} className="fill-current"/>
+                          </div>
+                      </button>
+                  </div>
+              </div>
+
+              {}
+              <div className="w-[1px] h-8 bg-eden-700 lg:hidden mx-0"></div>
+
+              {}
+              <div className="flex flex-col flex-1 lg:flex-none items-center lg:justify-center lg:bg-yellow-500/10 lg:border lg:border-yellow-500/50 lg:rounded-xl lg:px-4 lg:py-2" title="Pontos de Prestígio">
+                  {}
+                  <span className="text-[10px] font-black text-yellow-500/60 lg:text-yellow-500 uppercase tracking-widest leading-none mb-1.5">PP</span>
+                  {}
+                  <input 
+                    type="number" 
+                    value={character.personal.prestigePoints} 
+                    onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, prestigePoints: Number(e.target.value)}}))} 
+                    className="bg-transparent border-none outline-none text-2xl lg:text-2xl text-yellow-400 font-black w-12 lg:w-16 text-center leading-none p-0"
+                  />
+              </div>
+          </div>
+
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto custom-scrollbar p-4 md:p-8 bg-eden-900 relative">
+      <button onClick={handleBackToHome} className="lg:hidden fixed bottom-6 left-4 w-12 h-12 flex items-center justify-center bg-eden-950 border border-eden-700 shadow-[0_4px_20px_rgba(0,0,0,0.5)] rounded-2xl z-50 text-eden-100/50 active:scale-95 transition-all"><ArrowLeft size={24} /></button>
+      <div className="fixed bottom-6 right-4 z-50 flex items-center">
+          {autoSaveEnabled ? (
+              <div className={`px-4 py-3 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.5)] font-black text-[11px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all duration-300 ${autoSaveStatus === 'saving' ? 'bg-eden-950 text-eden-100/50 border border-eden-800' : autoSaveStatus === 'saved' ? 'bg-green-950 text-green-500 border border-green-900' : 'opacity-0 pointer-events-none'}`}>
+                 {autoSaveStatus === 'saving' ? <Loader2 size={14} className="animate-spin text-eden-100/30"/> : <Check size={14} />} {autoSaveStatus === 'saving' ? 'Salvando' : 'Salvo'}
+              </div>
+          ) : (
+              <button onClick={handleSave} disabled={isSaving} className="px-4 py-3 bg-eden-950 text-eden-100/50 border border-eden-800 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.5)] font-black text-[11px] md:text-xs uppercase tracking-widest flex items-center gap-2 hover:text-energia active:scale-95 transition-all disabled:opacity-50">
+                 {isSaving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Salvar
+              </button>
+          )}
+      </div>
+
+      <main className="flex-1 overflow-auto custom-scrollbar p-4 md:p-8 bg-eden-900 relative z-10">
         <div className="max-w-7xl mx-auto space-y-6">
-            
-          {hasPendingTasks && (
-              <div className="bg-yellow-900/30 border border-yellow-500/50 p-4 md:p-6 rounded-2xl shadow-xl animate-in slide-in-from-top-4">
-                  <h3 className="text-yellow-400 font-black flex items-center gap-2 mb-2 text-base md:text-lg uppercase tracking-wider"><AlertTriangle size={20} /> Ações Manuais Pendentes (NEX {character.personal.nex}%)</h3>
-                  <p className="text-yellow-200/70 text-xs md:text-sm mb-4 leading-relaxed">Conclua as alterações que você registrou para o seu novo nível antes de prosseguir com a campanha.</p>
-                  <div className="space-y-2 mb-6">
-                      {levelUpTasks.map(t => (
+          {(character.levelUpTasks || []).length > 0 && (
+              <div className="bg-yellow-900/30 border border-yellow-500/50 p-4 md:p-6 rounded-2xl animate-in slide-in-from-top-4">
+                  <h3 className="text-yellow-400 font-black flex items-center gap-2 mb-2 text-base md:text-lg uppercase"><AlertTriangle size={20} /> Ações NEX {character.personal.nex}%</h3>
+                  <div className="space-y-2 mb-4">
+                      {(character.levelUpTasks || []).map(t => (
                           <label key={t.id} className="flex items-center gap-3 cursor-pointer group bg-black/20 p-3 rounded-xl border border-yellow-500/20 hover:border-yellow-500/50 transition-all">
-                              <div className={`w-5 h-5 md:w-6 md:h-6 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${t.isDone ? 'bg-yellow-500 border-yellow-500 text-eden-900' : 'bg-eden-800 border-yellow-500/50 text-transparent group-hover:border-yellow-400'}`}><Check size={14} className="md:w-4 md:h-4"/></div>
+                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${t.isDone ? 'bg-yellow-500 border-yellow-500 text-eden-900' : 'bg-eden-800 border-yellow-500/50'}`}><Check size={14}/></div>
                               <input type="checkbox" className="hidden" checked={t.isDone} onChange={() => toggleTask(t.id)} />
-                              <span className={`text-sm md:text-base font-medium transition-colors ${t.isDone ? 'text-yellow-500/40 line-through' : 'text-yellow-100'}`}>{t.text}</span>
+                              <span className={`text-sm ${t.isDone ? 'text-yellow-500/40 line-through' : 'text-yellow-100'}`}>{t.text}</span>
                           </label>
                       ))}
                   </div>
-                  <button onClick={concludeTasks} disabled={!allTasksDone} className="w-full md:w-auto px-6 md:px-8 py-3 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest bg-yellow-500 text-eden-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-yellow-400 transition-colors flex items-center justify-center gap-2 shadow-lg"><Check size={18}/> CONCLUIR ALTERAÇÕES</button>
+                  <button onClick={concludeTasks} disabled={!(character.levelUpTasks || []).every(t => t.isDone)} className="w-full md:w-auto px-6 py-3 rounded-xl font-black text-xs uppercase bg-yellow-500 text-eden-900 disabled:opacity-50">Concluir Alterações</button>
               </div>
           )}
-
           <SheetStatus />
           
           <div className="flex flex-col lg:flex-row gap-6">
@@ -676,7 +816,7 @@ function SheetContent() {
             </div>
 
             <div className="flex-1 flex flex-col min-w-0">
-              <div className="flex overflow-x-auto custom-scrollbar gap-2 mb-4 bg-eden-800 p-2 rounded-xl border border-eden-700 mask-right shadow-sm">
+              <div className="flex overflow-x-auto custom-scrollbar gap-2 mb-4 bg-eden-800 p-2 rounded-xl border border-eden-700 mask-right shadow-sm pb-2">
                  {TABS.map(tab => (
                      <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`py-3 px-4 md:px-0 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-tighter flex flex-col items-center justify-center gap-1.5 transition-all shrink-0 md:flex-1 md:shrink-1 ${activeTab === tab.id ? 'bg-eden-900 text-white border border-eden-600 shadow-inner' : 'text-eden-100/40 border border-transparent hover:bg-eden-900/50 hover:text-eden-100/80'}`}>
                         <tab.icon size={16} /> <span className="whitespace-nowrap">{tab.label}</span>

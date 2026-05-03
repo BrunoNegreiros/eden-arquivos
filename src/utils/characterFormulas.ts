@@ -28,7 +28,6 @@ export interface CalculatedVariables {
   VULNERABILIDADES: string[];
   DESLOCAMENTO: number;
   ACOES: { movimento: number; padrao: number; reacao: number };
-  // ATUALIZADO: Declaradas as propriedades `criticalRange` e `EXPLOSIVE_DT_MOD`
   WEAPON_BONUS: Record<string, { 
       attackDice: number; attackBonus: number; 
       criticalRange: number; 
@@ -44,6 +43,9 @@ export interface CalculatedVariables {
   CARGA: { atual: number; max: number };
   DT_RITUAL: { global: number; specific: Record<string, number> };
   PROFICIENCIAS: string[];
+  MAX_RITUAL_CIRCLE: number;
+  AFFINITIES: string[];
+  FREE_RITUALS: string[];
   INJECTED_RITUALS: any[];
   INJECTED_ABILITIES: any[];
   INJECTED_ITEMS: any[]; 
@@ -101,11 +103,22 @@ export const solveFormulaNumber = (formula: Formula, context: CalculatedVariable
 
 export const calculateVariables = (char: CharacterSheet): CalculatedVariables => {
     const nex = char.personal.nex;
+    const cls = char.personal.class;
+    
+    let maxRitualCircle = 0;
+    if (cls === 'ocultista') {
+        if (nex >= 85) maxRitualCircle = 4;
+        else if (nex >= 55) maxRitualCircle = 3;
+        else if (nex >= 25) maxRitualCircle = 2;
+        else if (nex >= 5) maxRitualCircle = 1;
+    }
+
     const ctx: CalculatedVariables = {
         ATTRS: { ...char.attributes.initial }, PV: { max: 0, temp: 0 }, PE: { max: 0, temp: 0, limit: Math.floor(nex / 5) }, SAN: { max: 0, temp: 0 },
         DEF: 10, RD: {}, IMUNIDADES: [], VULNERABILIDADES: [], DESLOCAMENTO: 9, ACOES: { movimento: 1, padrao: 1, reacao: 1 },
         WEAPON_BONUS: {}, EXPLOSIVE_DT_MOD: 0, SKILLS: {}, NEX: nex, PATENTE: 'Recruta', LIMITE_CREDITO: 'Baixo', CARGA: { atual: 0, max: 0 }, DT_RITUAL: { global: 0, specific: {} },
-        PROFICIENCIAS: [], INJECTED_RITUALS: [], INJECTED_ABILITIES: [], INJECTED_ITEMS: [], OVERRIDDEN_RITUALS: {}, OVERRIDDEN_ABILITIES: {}
+        PROFICIENCIAS: [], MAX_RITUAL_CIRCLE: maxRitualCircle, AFFINITIES: [], FREE_RITUALS: [],
+        INJECTED_RITUALS: [], INJECTED_ABILITIES: [], INJECTED_ITEMS: [], OVERRIDDEN_RITUALS: {}, OVERRIDDEN_ABILITIES: {}
     };
 
     const allPossibleSources = [
@@ -189,10 +202,10 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
     });
 
     const steps = Math.max(0, Math.floor((nex === 99 ? 100 : nex - 5) / 5));
-    const cls = CLASS_STATS[char.personal.class] || CLASS_STATS['mundano'];
-    ctx.PV.max = cls.pvInit + ctx.ATTRS.VIG + ((cls.pvNex + ctx.ATTRS.VIG) * steps);
-    ctx.PE.max = cls.peInit + ctx.ATTRS.PRE + ((cls.peNex + ctx.ATTRS.PRE) * steps);
-    ctx.SAN.max = cls.sanInit + (cls.sanNex * steps);
+    const clsClass = CLASS_STATS[char.personal.class] || CLASS_STATS['mundano'];
+    ctx.PV.max = clsClass.pvInit + ctx.ATTRS.VIG + ((clsClass.pvNex + ctx.ATTRS.VIG) * steps);
+    ctx.PE.max = clsClass.peInit + ctx.ATTRS.PRE + ((clsClass.peNex + ctx.ATTRS.PRE) * steps);
+    ctx.SAN.max = clsClass.sanInit + (clsClass.sanNex * steps);
     
     ctx.DEF = 10 + ctx.ATTRS.AGI;
     const fullInventory = [...char.inventory, ...ctx.INJECTED_ITEMS];
@@ -211,6 +224,21 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
     else if (char.personal.class === 'ocultista') ctx.PROFICIENCIAS.push('simples');
     ctx.PROFICIENCIAS.push(...(char.proficiencies || []));
 
+    fullInventory.filter(i => i.type === 'weapon' && (i as any).isEquipped).forEach(w => {
+        const weapon = w as any;
+        const key = weapon.id;
+        if (!ctx.WEAPON_BONUS[key]) {
+            ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
+        }
+        
+        if (weapon.attackTest?.secondaryDice) {
+            ctx.WEAPON_BONUS[key].attackDice += solveFormulaNumber(weapon.attackTest.secondaryDice, ctx, char, key + '_secDice', 'fixed');
+        }
+        if (weapon.attackTest?.secondaryBonus) {
+            ctx.WEAPON_BONUS[key].attackBonus += solveFormulaNumber(weapon.attackTest.secondaryBonus, ctx, char, key + '_secBon', 'fixed');
+        }
+    });
+
     activeEffects.forEach(effect => {
         if (effect.category === 'add_fixed') {
             const val = solveFormulaNumber(effect.value, ctx, char, effect.id);
@@ -218,12 +246,18 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
                 if (t.type === 'pv_max') ctx.PV.max += val; if (t.type === 'pe_max') ctx.PE.max += val; if (t.type === 'san_max') ctx.SAN.max += val;
                 if (t.type === 'pv_temp') ctx.PV.temp += val; if (t.type === 'pe_temp') ctx.PE.temp += val; if (t.type === 'san_temp') ctx.SAN.temp += val;
                 if (t.type === 'defense') ctx.DEF += val; if (t.type === 'displacement') ctx.DESLOCAMENTO += val; if (t.type === 'load_max') ctx.CARGA.max += val;
-                if (t.type === 'ritual_dt') { if (!t.ritualId || t.ritualId === 'all') ctx.DT_RITUAL.global += val; else ctx.DT_RITUAL.specific[t.ritualId] = (ctx.DT_RITUAL.specific[t.ritualId] || 0) + val; }
                 
-                // ATUALIZADO: Cálculo da DT de Explosivos
+                if (t.type === 'action_std') ctx.ACOES.padrao += val;
+                if (t.type === 'action_move') ctx.ACOES.movimento += val;
+
+                if (t.type === 'ritual_dt') { if (!t.ritualId || t.ritualId === 'all') ctx.DT_RITUAL.global += val; else ctx.DT_RITUAL.specific[t.ritualId] = (ctx.DT_RITUAL.specific[t.ritualId] || 0) + val; }
                 if (t.type === 'explosive_dt') ctx.EXPLOSIVE_DT_MOD += val;
                 
+                if (t.type === 'max_ritual_circle') ctx.MAX_RITUAL_CIRCLE = Math.max(ctx.MAX_RITUAL_CIRCLE, val);
+                
                 if (t.type === 'test_skill' && t.skill && ctx.SKILLS[t.skill]) ctx.SKILLS[t.skill].total += val;
+                if (t.type === 'test_skill_all') Object.keys(ctx.SKILLS).forEach(s => ctx.SKILLS[s].total += val);
+                if (t.type === 'test_skill_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].total += val; });
                 if ((t.type as string) === 'test_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].total += val; });
                 
                 if (t.type === 'test_attack' || t.type === 'damage_roll' || t.type === 'critical_range') {
@@ -231,7 +265,6 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
                     if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
                     
                     if (t.type === 'test_attack') ctx.WEAPON_BONUS[key].attackBonus += val;
-                    // ATUALIZADO: Cálculo da Margem de Ameaça
                     if (t.type === 'critical_range') ctx.WEAPON_BONUS[key].criticalRange += val;
                     
                     if (t.type === 'damage_roll') {
@@ -247,7 +280,12 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
             const val = solveFormulaNumber(effect.value, ctx, char, effect.id);
             effect.targets.forEach(t => {
                 if (t.type === 'test_skill' && t.skill && ctx.SKILLS[t.skill]) ctx.SKILLS[t.skill].dice += val;
-                if (t.type === 'test_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].dice += val; });
+                
+                if (t.type === 'test_skill_all') Object.keys(ctx.SKILLS).forEach(s => ctx.SKILLS[s].dice += val);
+                if (t.type === 'test_skill_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].dice += val; });
+
+                if ((t.type as string) === 'test_attribute' && t.attribute) Object.keys(ctx.SKILLS).forEach(s => { if (SKILL_MAP[s] === t.attribute) ctx.SKILLS[s].dice += val; });
+                
                 if (t.type === 'test_attack' || (t.type as string) === 'damage_increase') {
                     const key = t.weaponId || t.weaponFilter || 'all';
                     if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, damageDiceIncrease: {}, extraDamages: [] };
@@ -281,7 +319,11 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
             });
         }
         if (effect.category === 'gain_proficiency') {
-            effect.targets.forEach(t => { if (t.proficiencyType) ctx.PROFICIENCIAS.push(t.proficiencyType); });
+            effect.targets.forEach(t => { 
+                if (t.type === 'proficiency' && t.proficiencyType) ctx.PROFICIENCIAS.push(t.proficiencyType); 
+                if (t.type === 'elemental_affinity' && t.element) ctx.AFFINITIES.push(t.element.toLowerCase());
+                if (t.type === 'unlock_ritual_requirements' && t.ritualId) ctx.FREE_RITUALS.push(t.ritualId);
+            });
         }
     });
 

@@ -45,10 +45,10 @@ export default function SheetDicas({ isMestre }: { isMestre: boolean }) {
                 <div>
                     <h2 className={`text-xl font-black flex items-center gap-2 ${isEdit ? 'text-red-400' : 'text-cyan-400'}`}>
                         {isEdit ? <Shield/> : <Lightbulb/>} 
-                        Dicas Táticas {isEdit && '(MODO MESTRE)'}
+                        Dicas Táticas
                     </h2>
                     <p className="text-[10px] uppercase text-eden-100/50 font-bold mt-1">
-                        {isEdit ? 'Adicione orientações para ajudar o jogador.' : 'Estratégias recomendadas pelo seu mestre.'}
+                        {isEdit ? 'Adicione orientações para ajudar o jogador.' : ''}
                     </p>
                 </div>
             </div>

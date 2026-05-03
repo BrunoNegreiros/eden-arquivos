@@ -3,7 +3,7 @@ import { Zap, BicepsFlexed, Brain, Eye, Shield, Edit2, Pencil, Info } from 'luci
 import { useCharacter } from '../../context/CharacterContext';
 import type { Attribute } from '../../types/systemData';
 
-// Lista de perícias atualizada com as 3 profissões
+
 const SKILL_LIST = [
   "Acrobacia", "Adestramento", "Artes", "Atletismo", "Atualidades", 
   "Ciências", "Crime", "Diplomacia", "Enganação", "Fortitude", 

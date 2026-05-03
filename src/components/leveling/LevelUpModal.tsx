@@ -21,7 +21,7 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
   const { character, updateCharacter, vars } = useCharacter();
   const [willTranscend, setWillTranscend] = useState(false);
   
-  // Estado para armazenar as tarefas que o usuário digita
+  
   const [tasks, setTasks] = useState<{id: string, text: string, isDone: boolean}[]>([]);
   const [taskInput, setTaskInput] = useState('');
   
@@ -80,7 +80,7 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
           personal: { ...prev.personal, nex: targetNex },
           status: newStatus,
           abilities: newAbilities,
-          levelUpTasks: [...tasks] // Apenas as tarefas manuais enviadas
+          levelUpTasks: [...tasks] 
       } as any));
 
       onConfirm();

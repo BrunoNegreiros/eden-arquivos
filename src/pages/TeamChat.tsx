@@ -217,12 +217,12 @@ export default function TeamChat() {
     if (loading) return <div className={`h-screen flex items-center justify-center ${isLight ? 'bg-[#f0f2f5]' : 'bg-[#050510]'} text-purple-600`}><Loader2 className="animate-spin" size={40}/></div>;
 
     return (
-        <div className={`h-screen font-sans flex flex-col md:flex-row overflow-hidden transition-colors duration-300 ${isLight ? 'bg-[#f0f2f5] text-[#111b21]' : 'bg-[#050510] text-[#e9edef]'}`} onClick={() => setMsgActionModal(null)}>
+        <div className={`h-[100dvh] font-sans flex flex-col md:flex-row overflow-hidden transition-colors duration-300 ${isLight ? 'bg-[#f0f2f5] text-[#111b21]' : 'bg-[#050510] text-[#e9edef]'}`} onClick={() => setMsgActionModal(null)}>
             
             {/* SIDEBAR */}
             <div className={`w-full md:w-[420px] flex flex-col border-r ${isLight ? 'bg-white border-[#d1d7db]' : 'bg-[#0d0d1a] border-purple-900/30'} ${activeChatId !== null && 'hidden md:flex'}`}>
                 <div className={`p-3 flex justify-between items-center h-16 shrink-0 border-b ${isLight ? 'bg-[#f0f2f5] border-[#d1d7db]' : 'bg-[#1a1a2e] border-purple-900/20'}`}>
-                    <div className="flex items-center gap-3 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowInfoPanel('me'); }}>
+                    <div className="flex items-center gap-3 cursor-pointer sticky" onClick={(e) => { e.stopPropagation(); setShowInfoPanel('me'); }}>
                         <img src={mySettings.chatPortraitUrl || activeChar?.personal?.portraitUrl || userPlaceholder} className={`w-10 h-10 rounded-full object-cover border ${isLight ? 'border-gray-200' : 'border-purple-500/30'}`} alt="Me" />
                         <div className="flex flex-col">
                             <span className={`text-sm font-bold truncate max-w-[120px] ${isLight ? 'text-[#111b21]' : 'text-purple-100'}`}>{actorName}</span>
@@ -281,7 +281,7 @@ export default function TeamChat() {
             </div>
 
             {/* JANELA DE CHAT */}
-            <div className={`flex-1 flex flex-col relative ${activeChatId === null && 'hidden md:flex'} ${isLight ? 'bg-[#efeae2]' : 'bg-[#050510]'}`}>
+            <div className={`flex-1 flex flex-col min-h-0 min-w-0 relative ${activeChatId === null && 'hidden md:flex'} ${isLight ? 'bg-[#efeae2]' : 'bg-[#050510]'}`}>
                 {activeChatId ? (
                     <>
                         <div className={`p-3 flex items-center justify-between h-16 shrink-0 z-20 shadow-md border-b ${isLight ? 'bg-[#f0f2f5] border-[#d1d7db]' : 'bg-[#1a1a2e] border-purple-900/20'}`}>
@@ -297,7 +297,7 @@ export default function TeamChat() {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:px-12 flex flex-col gap-2 relative z-10">
+                        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar p-4 md:px-12 flex flex-col gap-2 relative z-10">
                             <div className="absolute inset-0 z-0 pointer-events-none transition-opacity" style={{ 
                                 backgroundImage: `url(${mySettings.chatBgUrl || "https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png"})`, 
                                 backgroundSize: mySettings.chatBgUrl ? 'cover' : '400px',
@@ -305,7 +305,7 @@ export default function TeamChat() {
                             }}></div>
                             
                             {currentConversation.map((msg) => {
-                                if (msg.type === 'system') return <div key={msg.id} className="text-center my-4"><span className={`text-[10px] uppercase font-black px-4 py-1.5 rounded-full border ${isLight ? 'bg-white text-gray-500 border-gray-200 shadow-sm' : 'bg-purple-950/40 text-purple-300 border-purple-500/20'}`}>{msg.text}</span></div>;
+                                if (msg.type === 'system') return <div key={msg.id} className="flex justify-center my-4"><div className={`text-[10px] uppercase font-black px-5 py-2 rounded-2xl border text-center leading-relaxed break-words max-w-[90%] md:max-w-[70%] ${isLight ? 'bg-white text-gray-500 border-gray-200 shadow-sm' : 'bg-purple-950/40 text-purple-300 border-purple-500/20'}`}>{msg.text}</div></div>;
                                 const isMe = msg.senderCharId === actingCharId;
                                 const isViewedByEveryone = msg.targetCharacterId === 'global' 
                                     ? Object.keys(msg.viewedBy || {}).length >= allCharacters.length - 1
@@ -347,7 +347,7 @@ export default function TeamChat() {
                             <div ref={messagesEndRef}/>
                         </div>
 
-                        <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(inputText); }} className={`p-3 flex items-center gap-3 shrink-0 z-20 pb-8 md:pb-3 border-t ${isLight ? 'bg-[#f0f2f5] border-[#d1d7db]' : 'bg-[#1a1a2e] border-purple-900/20'}`}>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(inputText); }} className={`p-3 flex sticky items-center gap-3 shrink-0 z-20 pb-8 md:pb-3 border-t ${isLight ? 'bg-[#f0f2f5] border-[#d1d7db]' : 'bg-[#1a1a2e] border-purple-900/20'}`}>
                             <button type="button" onClick={() => fileInputRef.current?.click()} className="text-purple-500 hover:scale-110 transition-transform p-2"><ImageIcon size={26}/></button>
                             <input type="file" ref={fileInputRef} onChange={(e) => handleImageUpload(e, 'msg')} accept="image/*" className="hidden"/>
                             <input value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Digite sua mensagem..." className={`flex-1 rounded-2xl px-5 py-3 text-sm outline-none border transition-all ${isLight ? 'bg-white border-transparent focus:border-purple-300 shadow-sm' : 'bg-[#0d0d1a] border-purple-900/30 focus:border-purple-500/50'}`}/>

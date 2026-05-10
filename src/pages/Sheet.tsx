@@ -740,13 +740,13 @@ function SheetContent() {
       </header>
 
       <button onClick={handleBackToHome} className="lg:hidden fixed bottom-6 left-4 w-12 h-12 flex items-center justify-center bg-eden-950 border border-eden-700 shadow-[0_4px_20px_rgba(0,0,0,0.5)] rounded-2xl z-50 text-eden-100/50 active:scale-95 transition-all"><ArrowLeft size={24} /></button>
-      <div className="fixed bottom-6 right-4 z-50 flex items-center">
+      <div className="fixed bottom-6 right-4 z-50 flex items-center pointer-events-none">
           {autoSaveEnabled ? (
-              <div className={`px-4 py-3 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.5)] font-black text-[11px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all duration-300 ${autoSaveStatus === 'saving' ? 'bg-eden-950 text-eden-100/50 border border-eden-800' : autoSaveStatus === 'saved' ? 'bg-green-950 text-green-500 border border-green-900' : 'opacity-0 pointer-events-none'}`}>
+              <div className={`pointer-events-none px-4 py-3 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.5)] font-black text-[11px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all duration-300 ${autoSaveStatus === 'saving' ? 'bg-eden-950 text-eden-100/50 border border-eden-800' : autoSaveStatus === 'saved' ? 'bg-green-950 text-green-500 border border-green-900' : 'opacity-0'}`}>
                  {autoSaveStatus === 'saving' ? <Loader2 size={14} className="animate-spin text-eden-100/30"/> : <Check size={14} />} {autoSaveStatus === 'saving' ? 'Salvando' : 'Salvo'}
               </div>
           ) : (
-              <button onClick={handleSave} disabled={isSaving} className="px-4 py-3 bg-eden-950 text-eden-100/50 border border-eden-800 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.5)] font-black text-[11px] md:text-xs uppercase tracking-widest flex items-center gap-2 hover:text-energia active:scale-95 transition-all disabled:opacity-50">
+              <button onClick={handleSave} disabled={isSaving} className="pointer-events-auto px-4 py-3 bg-eden-950 text-eden-100/50 border border-eden-800 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.5)] font-black text-[11px] md:text-xs uppercase tracking-widest flex items-center gap-2 hover:text-energia active:scale-95 transition-all disabled:opacity-50">
                  {isSaving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Salvar
               </button>
           )}

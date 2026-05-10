@@ -627,14 +627,14 @@ export default function SheetInventory() {
          </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 no-scrollbar">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pb-2 shrink-0">
           {[1, 2, 3, 4].map(cat => {
               const key = ['I', 'II', 'III', 'IV'][cat - 1] as keyof typeof rank.limit;
               const limit = rank.limit[key] || 0;
               const current = categoryCounts[cat] || 0;
               const isFull = current > limit; 
               return (
-                  <div key={cat} className={`flex-1 min-w-[80px] bg-eden-900/40 border rounded-lg p-2 text-center flex flex-col justify-center ${isFull ? 'border-red-500/50 bg-red-500/5' : 'border-eden-700'}`}>
+                  <div key={cat} className={`flex-1 bg-eden-900/40 border rounded-lg p-2 text-center flex flex-col justify-center ${isFull ? 'border-red-500/50 bg-red-500/5' : 'border-eden-700'}`}>
                       <span className="text-[9px] text-eden-100/40 font-bold uppercase">Cat {key}</span>
                       <span className={`text-sm font-mono font-bold ${isFull ? 'text-red-400' : 'text-eden-100'}`}>{current} / {limit}</span>
                   </div>
@@ -680,36 +680,38 @@ export default function SheetInventory() {
                       return (
                           <div key={item.id} className={`group relative rounded-xl border p-3 flex flex-col md:flex-row gap-3 items-start md:items-center transition-all ${isEquipped ? `bg-eden-800 shadow-md ${styleClass}` : 'bg-eden-900/40 border-eden-700/30 opacity-60 grayscale-[0.8] hover:grayscale-0 hover:opacity-100'}`}>
                               
-                              <button 
-                                onClick={() => {
-                                    if ((item as any).isInjected) {
-                                        updateCharacter(prev => deepUpdatePayload(prev, item.id, p => ({...p, isEquipped: !p.isEquipped})));
-                                    } else {
-                                        toggleItem(item.id);
-                                    }
-                                }} 
-                                className={`shrink-0 p-2 rounded-full transition-all ${isEquipped ? 'text-energia bg-energia/10' : 'text-eden-100/20 hover:text-eden-100 hover:bg-white/5'}`}
-                                title={isEquipped ? "Desequipar (Desativa Efeitos)" : "Equipar (Ativa Efeitos)"}
-                              >
-                                  {isEquipped ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-                              </button>
+                              <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0 w-full">
+                                  <button 
+                                    onClick={() => {
+                                        if ((item as any).isInjected) {
+                                            updateCharacter(prev => deepUpdatePayload(prev, item.id, p => ({...p, isEquipped: !p.isEquipped})));
+                                        } else {
+                                            toggleItem(item.id);
+                                        }
+                                    }} 
+                                    className={`shrink-0 p-1 md:p-2 rounded-full transition-all ${isEquipped ? 'text-energia bg-energia/10' : 'text-eden-100/20 hover:text-eden-100 hover:bg-white/5'}`}
+                                    title={isEquipped ? "Desequipar (Desativa Efeitos)" : "Equipar (Ativa Efeitos)"}
+                                  >
+                                      {isEquipped ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                                  </button>
 
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
                                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 bg-eden-900/50 ${isEquipped ? 'border-current opacity-80' : 'border-eden-700 text-eden-100/30'}`}>
                                       <typeInfo.icon size={20} />
                                   </div>
-                                  <div className="min-w-0">
-                                      <h4 className={`font-bold text-sm truncate flex items-center gap-2 ${isEquipped ? 'text-eden-100' : 'text-eden-100/70'}`}>
-                                        {item.name} 
-                                        {qty > 1 && item.type !== 'ammo' && <span className="text-xs bg-black/20 px-1.5 rounded">x{qty}</span>}
-                                        {item.type === 'cursed' && (item as any).element && <span className="text-[9px] px-1.5 py-0.5 rounded border border-purple-500 text-purple-200 bg-purple-500/20 uppercase font-black">{(item as any).element}</span>}
-                                        {item.type === 'ammo' && (
-                                            <span className="text-[9px] px-1.5 py-0.5 rounded border border-yellow-500 text-yellow-200 bg-yellow-500/20 uppercase font-black">
-                                                {(!item.ammoDurationType || item.ammoDurationType === 'scenes') ? `${item.durationScenes || 0} Cenas` :
-                                                item.ammoDurationType === 'infinite' ? 'Infinita' : `${item.amount || 0} Un`}
-                                            </span>
-                                        )}
-                                    </h4>
+                                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                          <h4 className={`font-bold text-sm truncate max-w-full ${isEquipped ? 'text-eden-100' : 'text-eden-100/70'}`}>
+                                              {item.name}
+                                          </h4>
+                                          {qty > 1 && item.type !== 'ammo' && <span className="text-xs bg-black/20 px-1.5 rounded shrink-0">x{qty}</span>}
+                                          {item.type === 'cursed' && (item as any).element && <span className="text-[9px] px-1.5 py-0.5 rounded border border-purple-500 text-purple-200 bg-purple-500/20 uppercase font-black shrink-0">{(item as any).element}</span>}
+                                          {item.type === 'ammo' && (
+                                              <span className="text-[9px] px-1.5 py-0.5 rounded border border-yellow-500 text-yellow-200 bg-yellow-500/20 uppercase font-black shrink-0">
+                                                  {(!item.ammoDurationType || item.ammoDurationType === 'scenes') ? `${item.durationScenes || 0} Cenas` :
+                                                  item.ammoDurationType === 'infinite' ? 'Infinita' : `${item.amount || 0} Un`}
+                                              </span>
+                                          )}
+                                      </div>
                                       <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wide font-bold opacity-60 mt-0.5">
                                           <span>{typeInfo.label}</span>
                                           <span>•</span>

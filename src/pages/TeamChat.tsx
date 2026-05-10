@@ -324,7 +324,7 @@ export default function TeamChat() {
                                             )}
 
                                             {msg.imageUrl && <img src={msg.imageUrl} className="rounded-xl mb-2 max-h-80 w-full object-cover cursor-zoom-in" onClick={() => setZoomPhoto(msg.imageUrl)} alt="Sent"/>}
-                                            {msg.audioUrl && <div className={`${isLight ? 'bg-[#00000008]' : 'bg-black/20'} rounded-xl p-2 mb-2 flex items-center gap-2`}><audio controls src={msg.audioUrl} className={`w-full h-9 ${!isLight && 'filter hue-rotate-[240deg]'}`} /></div>}
+                                            {msg.audioUrl && <div className={`${isLight ? 'bg-[#00000008]' : 'bg-black/20'} rounded-xl p-2 mb-2 flex items-center gap-2 min-w-[250px] md:min-w-[300px]`}><audio controls src={msg.audioUrl} className={`w-full h-10 ${!isLight && 'filter hue-rotate-[240deg]'}`} /></div>}
                                             
                                             {editingMsgId === msg.id ? (
                                                 <div className="flex flex-col gap-2 min-w-[240px]">
@@ -352,7 +352,7 @@ export default function TeamChat() {
                             <input type="file" ref={fileInputRef} onChange={(e) => handleImageUpload(e, 'msg')} accept="image/*" className="hidden"/>
                             <input value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Digite sua mensagem..." className={`flex-1 rounded-2xl px-5 py-3 text-sm outline-none border transition-all ${isLight ? 'bg-white border-transparent focus:border-purple-300 shadow-sm' : 'bg-[#0d0d1a] border-purple-900/30 focus:border-purple-500/50'}`}/>
                             {inputText.trim() ? <button type="submit" className="bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-500 transition-all"><Send size={22}/></button> : 
-                            <button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} className={`p-3 rounded-full transition-all ${isRecording ? 'bg-red-600 text-white animate-pulse' : 'bg-purple-500/20 text-purple-600'}`}>{isRecording ? <Square size={22}/> : <Mic size={22}/>}</button>}
+                            <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`p-3 rounded-full transition-all ${isRecording ? 'bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-purple-500/20 text-purple-600'}`}>{isRecording ? <Square size={22}/> : <Mic size={22}/>}</button>}
                         </form>
                     </>
                 ) : (
@@ -432,7 +432,7 @@ export default function TeamChat() {
                                             <p className="text-xl font-black">{activeContact?.personal?.name}</p>
                                             <div className={`p-3 rounded-xl flex items-center gap-3 ${isLight ? 'bg-white shadow-inner' : 'bg-black/5'}`}>
                                                 <Edit2 size={14} className="text-purple-500"/>
-                                                <input placeholder="Definir apelido..." defaultValue={mySettings.nicknames?.[activeChatId!] || ''} onBlur={e => updateDoc(doc(db, `mesas/${mesaId}/chat_settings`, actingCharId), { [`nicknames.${activeChatId}`]: e.target.value })} className="bg-transparent text-xs w-full outline-none"/>
+                                                <input key={activeChatId} placeholder="Definir apelido..." defaultValue={mySettings.nicknames?.[activeChatId!] || ''} onBlur={e => updateDoc(doc(db, `mesas/${mesaId}/chat_settings`, actingCharId), { [`nicknames.${activeChatId}`]: e.target.value })} className="bg-transparent text-xs w-full outline-none"/>
                                             </div>
                                         </div>
                                     )}

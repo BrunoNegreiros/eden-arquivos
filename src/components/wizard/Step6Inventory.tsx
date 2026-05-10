@@ -661,14 +661,14 @@ export default function Step6Inventory() {
       </div>
 
       {}
-      <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 no-scrollbar">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pb-2 shrink-0">
           {[1, 2, 3, 4].map(cat => {
               const key = ['I', 'II', 'III', 'IV'][cat - 1] as keyof typeof rank.limit;
               const limit = rank.limit[key] || 0;
               const current = categoryCounts[cat] || 0;
               const isFull = current > limit; 
               return (
-                  <div key={cat} className={`flex-1 min-w-[80px] bg-eden-900/40 border rounded-lg p-2 text-center flex flex-col justify-center ${isFull ? 'border-red-500/50 bg-red-500/5' : 'border-eden-700'}`}>
+                  <div key={cat} className={`flex-1 bg-eden-900/40 border rounded-lg p-2 text-center flex flex-col justify-center ${isFull ? 'border-red-500/50 bg-red-500/5' : 'border-eden-700'}`}>
                       <span className="text-[9px] text-eden-100/40 font-bold uppercase">Cat {key}</span>
                       <span className={`text-sm font-mono font-bold ${isFull ? 'text-red-400' : 'text-eden-100'}`}>{current} / {limit}</span>
                   </div>
@@ -712,11 +712,11 @@ export default function Step6Inventory() {
                       
                       return (
                           <div key={item.id} className={`group relative rounded-xl border p-3 flex flex-col md:flex-row gap-3 items-start md:items-center transition-all bg-eden-800 shadow-md ${styleClass}`}>
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="flex items-center gap-3 flex-1 min-w-0 w-full">
                                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 bg-eden-900/50 border-current opacity-80`}>
                                       <typeInfo.icon size={20} />
                                   </div>
-                                  <div className="min-w-0">
+                                  <div className="flex-1 min-w-0 flex flex-col justify-center">
                                       <h4 className={`font-bold text-sm truncate flex items-center gap-2 text-eden-100`}>
                                         {item.name} 
                                         {qty > 1 && item.type !== 'ammo' && <span className="text-xs bg-black/20 px-1.5 rounded">x{qty}</span>}

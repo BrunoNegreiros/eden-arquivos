@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Book, Plus, Trash2, Zap, Ghost, X, Edit2, GraduationCap, Power, Settings, Copy, Search, Tag, Filter } from 'lucide-react';
+import { Book, Plus, Trash2, Zap, Ghost, X, Edit2, GraduationCap, Power, Settings, Copy, Search, Tag } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import type { UserAbility } from '../../types/systemData';
 import EffectEditor from './EffectEditor';
@@ -241,7 +241,6 @@ export default function SheetAbilities() {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [sourceFilter, setSourceFilter] = useState('all');
-    const [costFilter, setCostFilter] = useState(false);
     const [selectedTagsFilter, setSelectedTagsFilter] = useState<string[]>([]);
 
     let allAbilities: AppAbility[] = [...(character.classPowers || []), ...((character as any).abilities || [])];
@@ -273,7 +272,6 @@ export default function SheetAbilities() {
     const filteredAbilities = finalAbilities.filter(a => {
         if (searchTerm && !a.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
         if (sourceFilter !== 'all' && a.source !== sourceFilter) return false;
-        if (costFilter && !(a.cost && a.cost > 0)) return false;
         if (selectedTagsFilter.length > 0) {
             if (!a.tags || a.tags.length === 0) return false;
             if (!selectedTagsFilter.some(filterId => a.tags!.some((t: any) => t.id === filterId))) return false;
@@ -426,9 +424,6 @@ export default function SheetAbilities() {
                             <option value="Paranormal">Paranormal</option>
                             <option value="Outros">Outros</option>
                         </select>
-                        <button onClick={() => setCostFilter(!costFilter)} className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1 shrink-0 ${costFilter ? 'bg-energia/20 border-energia/50 text-energia' : 'bg-eden-950 border-eden-700 text-eden-100/50'}`}>
-                            <Filter size={12}/> Com Custo
-                        </button>
                     </div>
                     <div className="relative flex-1 md:w-48 shrink-0">
                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
@@ -472,10 +467,10 @@ export default function SheetAbilities() {
                         const colors = SOURCE_COLORS[sourceKey] || SOURCE_COLORS['Outro'];
                         
                         return (
-                            <div key={ability.id} className={`bg-eden-900/50 border rounded-xl overflow-hidden shadow-lg transition-all ${ability.isActive ? 'border-eden-600' : 'border-eden-800 opacity-60 grayscale-[0.5]'}`}>
+                            <div key={ability.id} className={`flex flex-col h-full relative bg-eden-900/50 border rounded-xl overflow-hidden shadow-lg transition-all ${ability.isActive ? 'border-eden-600' : 'border-eden-800 opacity-60 grayscale-[0.5]'}`}>
                                 {ability.isInjected && <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg uppercase z-10">Concedido por Efeito</div>}
 
-                                <div className="p-4 space-y-3">
+                                <div className="p-4 flex flex-col gap-3 flex-1">
                                     <div className="flex justify-between items-start">
                                         <div className="flex-1 pr-2">
                                             <h3 className="font-black text-white text-lg leading-tight">{ability.name}</h3>
@@ -506,17 +501,19 @@ export default function SheetAbilities() {
                                         </div>
                                     </div>
                                     
-                                    <p className="text-sm text-eden-100/80 leading-relaxed whitespace-pre-wrap">{ability.description}</p>
+                                    <p className="text-sm text-eden-100/80 leading-relaxed whitespace-pre-wrap h-[72px] shrink-0 overflow-y-auto custom-scrollbar pr-2">{ability.description}</p>
                                     
                                     {ability.isActive && (ability.effects || []).length > 0 && (
-                                        <div className="space-y-1 pt-2 border-t border-eden-700/50 px-4 pb-4 bg-eden-900/30">
+                                        <div className="space-y-1 pt-2 border-t border-eden-700/50 px-4 pb-4 bg-eden-900/30 mt-auto">
                                             <div className="text-[10px] font-bold text-energia uppercase flex items-center gap-1"><Zap size={10}/> Efeitos Ativos</div>
-                                            {ability.effects!.map((eff: any) => (
-                                                <div key={eff.id} className="flex justify-between items-center text-xs bg-eden-950 p-1.5 rounded border border-eden-700">
-                                                    <span className={eff.isActive === false ? "opacity-50 line-through" : ""}>{eff.name || eff.category.replace('_', ' ')}</span>
-                                                    <button onClick={() => toggleActiveEffect(ability.id, eff.id, ability.isInjected || ability.isOverridden, ability.isOrigin)} className={`p-1 rounded hover:bg-white/10 ${eff.isActive !== false ? 'text-green-400' : 'text-eden-100/20'}`}><Power size={12}/></button>
-                                                </div>
-                                            ))}
+                                            <div className="flex flex-col gap-1 max-h-[45px] overflow-y-auto custom-scrollbar pr-1">
+                                                {ability.effects!.map((eff: any) => (
+                                                    <div key={eff.id} className="flex justify-between items-center text-xs bg-eden-950 p-1.5 rounded border border-eden-700 shrink-0">
+                                                        <span className={eff.isActive === false ? "opacity-50 line-through" : ""}>{eff.name || eff.category.replace('_', ' ')}</span>
+                                                        <button onClick={() => toggleActiveEffect(ability.id, eff.id, ability.isInjected || ability.isOverridden, ability.isOrigin)} className={`p-1 rounded hover:bg-white/10 ${eff.isActive !== false ? 'text-green-400' : 'text-eden-100/20'}`}><Power size={12}/></button>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>

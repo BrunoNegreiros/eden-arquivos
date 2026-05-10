@@ -239,19 +239,19 @@ const TextNotesManager = ({ onBack }: { onBack: () => void }) => {
     
     return (
         <div className="flex flex-col h-full gap-4 animate-in fade-in slide-in-from-left-8">
-            <div className="flex justify-between items-center bg-eden-800 border border-eden-700 p-4 rounded-xl shadow-lg shrink-0">
-                <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="p-2 hover:bg-eden-700 rounded-lg text-eden-100/50 hover:text-white"><ArrowLeft size={20}/></button>
-                    <div>
-                        <h2 className="text-xl font-black text-white flex items-center gap-2"><FileText className="text-energia" /> Suas Anotações</h2>
-                        <p className="text-[10px] text-eden-100/50 uppercase font-bold mt-0.5">Organize informações da campanha</p>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-eden-800 border border-eden-700 p-4 rounded-xl shadow-lg shrink-0">
+                <div className="flex items-center gap-3 min-w-0 w-full md:w-auto">
+                    <button onClick={onBack} className="p-2 hover:bg-eden-700 rounded-lg text-eden-100/50 hover:text-white shrink-0"><ArrowLeft size={20}/></button>
+                    <div className="min-w-0">
+                        <h2 className="text-xl font-black text-white flex items-center gap-2 truncate"><FileText className="text-energia shrink-0" /> <span className="truncate">Suas Anotações</span></h2>
+                        <p className="text-[10px] text-eden-100/50 uppercase font-bold mt-0.5 truncate">Organize informações da campanha</p>
                     </div>
                 </div>
-                <div className="relative">
-                    <button onClick={() => setShowCreateMenu(!showCreateMenu)} className="bg-energia hover:bg-yellow-400 text-eden-900 px-4 py-2.5 rounded-lg text-xs font-black flex items-center gap-2 shadow-lg transition-colors"><Plus size={16}/> NOVA NOTA</button>
+                <div className="relative w-full md:w-auto">
+                    <button onClick={() => setShowCreateMenu(!showCreateMenu)} className="w-full md:w-auto justify-center bg-energia hover:bg-yellow-400 text-eden-900 px-4 py-2.5 rounded-lg text-xs font-black flex items-center gap-2 shadow-lg transition-colors"><Plus size={16}/> NOVA NOTA</button>
                     
                     {showCreateMenu && (
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-eden-900 border border-eden-600 rounded-xl shadow-2xl z-50 overflow-hidden animate-in zoom-in-95">
+                        <div className="absolute right-0 left-0 md:left-auto top-full mt-2 w-full md:w-48 bg-eden-900 border border-eden-600 rounded-xl shadow-2xl z-50 overflow-hidden animate-in zoom-in-95">
                             <div className="bg-eden-950 p-2 text-[10px] font-bold text-eden-100/50 uppercase tracking-widest text-center">Selecione o Modelo</div>
                             {(Object.keys(NOTE_CATEGORIES) as NoteCategory[]).map(cat => (
                                 <button key={cat} onClick={() => handleCreateNote(cat)} className="w-full text-left px-4 py-3 text-sm text-eden-100 hover:bg-eden-800 hover:text-energia border-b border-eden-800/50 last:border-0 transition-colors">

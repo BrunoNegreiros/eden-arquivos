@@ -145,6 +145,7 @@ export default function TeamChat() {
     };
 
     const startRecording = async () => {
+        if (isSending || isRecording) return;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const recorder = new MediaRecorder(stream);
@@ -157,13 +158,21 @@ export default function TeamChat() {
                 reader.readAsDataURL(blob);
                 stream.getTracks().forEach(t => t.stop());
             };
-            recorder.start();
-            setMediaRecorder(recorder);
-            setIsRecording(true);
+            
+            setTimeout(() => {
+                if (recorder.state === 'inactive') recorder.start();
+                setMediaRecorder(recorder);
+                setIsRecording(true);
+            }, 100);
         } catch (e) { alert("Sem acesso ao áudio."); }
     };
 
-    const stopRecording = () => { mediaRecorder?.stop(); setIsRecording(false); };
+    const stopRecording = () => { 
+        if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+        mediaRecorder.stop(); 
+        setIsRecording(false); 
+        setMediaRecorder(null);
+    };
 
     // --- 4. FUNÇÕES DE MODERAÇÃO E PERFIL ---
     const deleteForAll = async (id: string) => {
@@ -324,7 +333,7 @@ export default function TeamChat() {
                                             )}
 
                                             {msg.imageUrl && <img src={msg.imageUrl} className="rounded-xl mb-2 max-h-80 w-full object-cover cursor-zoom-in" onClick={() => setZoomPhoto(msg.imageUrl)} alt="Sent"/>}
-                                            {msg.audioUrl && <div className={`${isLight ? 'bg-[#00000008]' : 'bg-black/20'} rounded-xl p-2 mb-2 flex items-center gap-2 min-w-[250px] md:min-w-[300px]`}><audio controls src={msg.audioUrl} className={`w-full h-10 ${!isLight && 'filter hue-rotate-[240deg]'}`} /></div>}
+                                            {msg.audioUrl && <div className={`${isLight ? 'bg-[#00000008]' : 'bg-black/20'} rounded-xl p-2 mb-2 flex items-center gap-2 min-w-[240px] md:min-w-[300px]`}><audio controls src={msg.audioUrl} className={`w-full h-10 ${!isLight ? 'invert hue-rotate-180 opacity-90' : ''}`} style={{ colorScheme: isLight ? 'light' : 'dark' }} /></div>}
                                             
                                             {editingMsgId === msg.id ? (
                                                 <div className="flex flex-col gap-2 min-w-[240px]">
@@ -351,8 +360,8 @@ export default function TeamChat() {
                             <button type="button" onClick={() => fileInputRef.current?.click()} className="text-purple-500 hover:scale-110 transition-transform p-2"><ImageIcon size={26}/></button>
                             <input type="file" ref={fileInputRef} onChange={(e) => handleImageUpload(e, 'msg')} accept="image/*" className="hidden"/>
                             <input value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Digite sua mensagem..." className={`flex-1 rounded-2xl px-5 py-3 text-sm outline-none border transition-all ${isLight ? 'bg-white border-transparent focus:border-purple-300 shadow-sm' : 'bg-[#0d0d1a] border-purple-900/30 focus:border-purple-500/50'}`}/>
-                            {inputText.trim() ? <button type="submit" className="bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-500 transition-all"><Send size={22}/></button> : 
-                            <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`p-3 rounded-full transition-all ${isRecording ? 'bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-purple-500/20 text-purple-600'}`}>{isRecording ? <Square size={22}/> : <Mic size={22}/>}</button>}
+                            {inputText.trim() ? <button type="submit" className="bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-500 transition-all shrink-0"><Send size={22}/></button> : 
+                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); isRecording ? stopRecording() : startRecording(); }} className={`p-3 rounded-full transition-all shrink-0 ${isRecording ? 'bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-purple-500/20 text-purple-600'}`}>{isRecording ? <Square size={22}/> : <Mic size={22}/>}</button>}
                         </form>
                     </>
                 ) : (

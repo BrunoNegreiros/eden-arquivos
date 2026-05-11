@@ -119,9 +119,10 @@ function SheetGroup({ mesaId, currentId }: { mesaId: string, currentId: string }
                             console.error("Falha ao processar os status de", char.personal?.name);
                         }
 
-                        const pvMax = char.status?.pv?.max ?? pvMaxCalc;
-                        const peMax = char.status?.pe?.max ?? peMaxCalc;
-                        const sanMax = char.status?.san?.max ?? sanMaxCalc;
+                        // CORREÇÃO: Usar diretamente o valor calculado, pois ele já inclui o modificador do banco
+                        const pvMax = pvMaxCalc;
+                        const peMax = peMaxCalc;
+                        const sanMax = sanMaxCalc;
 
                         const currentPV = char.status?.pv?.current ?? pvMax;
                         const currentPE = char.status?.pe?.current ?? peMax;

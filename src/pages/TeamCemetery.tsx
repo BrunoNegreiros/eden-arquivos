@@ -52,9 +52,12 @@ export default function TeamCemetery() {
             
             snap.forEach(d => {
                 const data = { ...d.data(), id: d.id } as any; 
+                // Se a ficha está morta e NÃO é privada, vai para a lista do Cemitério
                 if (data.isDead && !data.isPrivate) {
                     fallen.push(data);
-                } else if (!data.isDead && data.userId === currentUser?.uid) {
+                } 
+                // Se a ficha está viva, NÃO é privada e é do usuário, aparece no seletor de homenagens
+                else if (!data.isDead && !data.isPrivate && data.userId === currentUser?.uid) {
                     activeMine.push(data);
                 }
             });
@@ -292,9 +295,11 @@ export default function TeamCemetery() {
                                                     NEX Final: {char.personal?.nex}%
                                                 </div>
 
-                                                <Link to={`/mesa/${mesaId}/ficha/${char.id}`} className="mt-4 px-6 py-2 bg-gray-900/80 hover:bg-gray-800 text-gray-400 hover:text-white text-[10px] uppercase tracking-widest rounded-full border border-gray-700 transition-colors inline-block font-sans">
-                                                    Abrir Registros
-                                                </Link>
+                                                {isMestre && (
+                                                    <Link to={`/mesa/${mesaId}/ficha/${char.id}`} className="mt-4 px-6 py-2 bg-gray-900/80 hover:bg-gray-800 text-gray-400 hover:text-white text-[10px] uppercase tracking-widest rounded-full border border-gray-700 transition-colors inline-block font-sans">
+                                                        Abrir Registros
+                                                    </Link>
+                                                )}
                                             </div>
 
                                             {/* Base/Chão da lápide simulado */}

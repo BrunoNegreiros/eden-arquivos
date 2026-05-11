@@ -80,7 +80,16 @@ export default function EffectEditor({ effect, onChange, onRemove, isNested = fa
   const operations = effect.value?.operations || [];
 
   const updateTerm = (index: number, updates: any) => {
-      const newTerms = [...terms]; newTerms[index] = { ...newTerms[index], ...updates }; onChange({ ...effect, value: { terms: newTerms as any, operations } });
+      const newTerms = [...terms]; 
+      
+      // Quando trocar para o tipo "dice", já garante os valores padrão no banco
+      if (updates.type === 'dice') {
+          updates.diceFace = updates.diceFace || 20;
+          updates.value = updates.value || 1;
+      }
+      
+      newTerms[index] = { ...newTerms[index], ...updates }; 
+      onChange({ ...effect, value: { terms: newTerms as any, operations } });
   };
 
   return (
@@ -286,8 +295,7 @@ export default function EffectEditor({ effect, onChange, onRemove, isNested = fa
                       <option value="critical_range">Margem de Ameaça</option>
                       <option value="critical_multiplier">Multiplicador de Crítico</option>
                       <option value="explosive_dt">DT de Explosivos</option>
-                      <option value="action_std">Ações Padrão Adicionais</option>
-                      <option value="action_move">Ações de Movimento Adicionais</option>
+                      <option value="action_extra">Ações Adicionais</option>
                       <option value="attribute">Bônus Numérico em Atributo</option>
                       <option value="test_skill">Bônus em Uma Perícia</option>
                       <option value="test_skill_all">Bônus em TODAS Perícias</option>

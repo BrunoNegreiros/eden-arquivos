@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCharacter } from '../../context/CharacterContext';
 import { solveFormulaNumber } from '../../utils/characterFormulas'; 
 import { 
@@ -31,6 +32,7 @@ const RANGE_MAP: Record<string, string> = { adjacente: 'Adjacente', curto: 'Curt
 
 export default function SheetCombat() {
   const { character, updateCharacter, vars } = useCharacter();
+  const [critToggles, setCritToggles] = useState<Record<string, boolean>>({});
 
   const injectedItems = (vars.INJECTED_ITEMS || []).map((i: any) => ({ ...i, isInjected: true, isEquipped: true }));
   const fullInventory = [...(character.inventory || []), ...injectedItems];
@@ -228,13 +230,22 @@ export default function SheetCombat() {
                                       const skillName = item.attackTest.skill || 'Luta';
                                       const skillData = vars?.SKILLS ? vars.SKILLS[skillName] : { dice: 1, total: 0 };
                                       
+                                      let baseDice = skillData?.dice || 1;
+                                      if (item.isAgile && skillName === 'Luta') {
+                                          const forAttr = (vars as any)?.ATTRS?.FOR || 0;
+                                          const agiAttr = (vars as any)?.ATTRS?.AGI || 0;
+                                          if (agiAttr > forAttr) {
+                                              baseDice = baseDice - forAttr + agiAttr;
+                                          }
+                                      }
+
                                       const wBonusDice = (wbAll.attackDice || 0) + (wbSub.attackDice || 0) + (wbId.attackDice || 0);
                                       const wBonusFixed = (wbAll.attackBonus || 0) + (wbSub.attackBonus || 0) + (wbId.attackBonus || 0);
                                       
                                       const secDice = item.attackTest.secondaryDice ? solveFormulaNumber(item.attackTest.secondaryDice, vars, character, wId, 'fixed') : 0;
                                       const secBonus = item.attackTest.secondaryBonus ? solveFormulaNumber(item.attackTest.secondaryBonus, vars, character, wId, 'fixed') : 0;
 
-                                      const totalDice = (skillData?.dice || 1) + wBonusDice + secDice;
+                                      const totalDice = baseDice + wBonusDice + secDice;
                                       const b = (skillData?.total || 0) + wBonusFixed + secBonus;
                                       
                                       let diceDisplay = `${totalDice}d20`;
@@ -257,120 +268,130 @@ export default function SheetCombat() {
                           )}
 
                           {damageList.length > 0 && (
-                             <div className="bg-black/30 border border-eden-700/50 rounded-xl overflow-hidden flex flex-col gap-[1px] bg-eden-700/50 mt-2">
-                                 {(() => {
-                                     
-                                     const allExtra = [
-                                         ...(wbAll.extraDamages || []),
-                                         ...(wbSub.extraDamages || []),
-                                         ...(wbId.extraDamages || [])
-                                     ];
-
-                                     const getDiceIncrease = (type: string, dmgIndex: number) => 
-                                        (wbAll.damageDiceIncrease?.[type] || 0) +
-                                        (wbAll.damageDiceIncrease?.[`idx_${dmgIndex}`] || 0) +
-                                        (wbSub.damageDiceIncrease?.[type] || 0) +
-                                        (wbSub.damageDiceIncrease?.[`idx_${dmgIndex}`] || 0) +
-                                        (wbId.damageDiceIncrease?.[type] || 0) +
-                                        (wbId.damageDiceIncrease?.[`idx_${dmgIndex}`] || 0);
-
-                                     const renderLine = (title: string, diceStr: string, type: string, color: string) => (
-                                         <div className="flex justify-between items-center bg-eden-900/80 p-3.5 border-b border-eden-700/30 last:border-0">
-                                              <div className={`text-[10px] uppercase font-bold bg-black/40 px-2 py-1 rounded border border-white/5 ${color}`}>{title}</div>
-                                              <div className="flex-1 text-right font-mono font-bold text-white text-base">
-                                                  {diceStr} <span className="text-xs uppercase text-eden-100/50 ml-1">{type}</span>
+                              <div className="bg-black/30 border border-eden-700/50 rounded-xl overflow-hidden flex flex-col mt-2 shadow-inner">
+                                  <div className="bg-eden-900/80 p-2.5 border-b border-eden-700/30 flex justify-between items-center">
+                                      <span className="text-[10px] uppercase font-bold text-eden-100/50 ml-1">Dano Causado</span>
+                                      {!isExplosive && (
+                                          <label className="flex items-center gap-2 cursor-pointer bg-black/40 px-2 py-1 rounded-lg border border-white/5 hover:border-red-500/30 transition-colors">
+                                              <span className={`text-[10px] font-bold uppercase tracking-wider ${critToggles[item.id] ? 'text-red-400' : 'text-eden-100/50'}`}>Crítico x{critMult}</span>
+                                              <div className={`w-7 h-4 rounded-full p-0.5 transition-colors ${critToggles[item.id] ? 'bg-red-500' : 'bg-eden-800'}`}>
+                                                  <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${critToggles[item.id] ? 'translate-x-3' : 'translate-x-0'}`}/>
                                               </div>
-                                         </div>
-                                     );
-
-                                     const renderBlocks: any[] = [];
-                                     const typesProcessed: string[] = [];
-
-                                     damageList.forEach((dmg: any, i: number) => {
-                                         const damageOverride = wbId.damageOverride?.[`idx_${i}`]
-                                                                || wbSub.damageOverride?.[`idx_${i}`]
-                                                                || wbAll.damageOverride?.[`idx_${i}`];
-                                                                
-                                         const targetDmg = damageOverride ? { ...dmg, ...damageOverride } : dmg;
-                                         
-                                         const type = targetDmg.type || 'impacto';
-                                         typesProcessed.push(type);
-                                         
-                                         const baseDiceCount = Math.max(1, (targetDmg.diceCount || 0) + getDiceIncrease(type, i));
-                                         const face = targetDmg.diceFace || 6;
-                                         
-                                         let nParts = [`${baseDiceCount}d${face}`];
-                                         let cParts = [`${targetDmg.isMultipliable !== false ? baseDiceCount * critMult : baseDiceCount}d${face}`];
-
-                                         const extrasOfThisType = allExtra.filter((e: any) => e.type === type || (e.type === 'primario' && i === 0));
-                                         
-                                         let itemBonusFixed = 0;
-                                         let itemBonusDice: {count: number, face: number}[] = [];
-                                         
-                                         if (!damageOverride && targetDmg.bonus) {
-                                             itemBonusFixed = solveFormulaNumber(targetDmg.bonus, vars, character, wId, 'fixed');
-                                             if (Array.isArray(targetDmg.bonus.terms)) {
-                                                 targetDmg.bonus.terms.forEach((t: any) => {
-                                                     if (t.type === 'dice') itemBonusDice.push({ count: t.value || 1, face: t.diceFace || 6 });
-                                                 });
-                                             }
-                                         } else if (damageOverride) {
-                                             itemBonusFixed = damageOverride.bonus || 0;
-                                         }
-
-                                         let totalFixed = itemBonusFixed;
-                                         
-                                         if (wSubtype === 'melee' && i === 0 && !isExplosive) {
-                                             totalFixed += ((vars as any)?.ATTRS?.FOR || 0);
-                                         }
-                                         
-                                         extrasOfThisType.forEach((ex: any) => {
-                                             if (ex.diceCount > 0) {
-                                                nParts.push(`+ ${ex.diceCount}d${ex.diceFace}`);
-                                                cParts.push(`+ ${ex.isMultipliable ? ex.diceCount * critMult : ex.diceCount}d${ex.diceFace}`);
-                                             }
-                                             totalFixed += ex.fixed;
-                                         });
-
-                                         itemBonusDice.forEach(d => {
-                                             nParts.push(`+ ${d.count}d${d.face}`);
-                                             cParts.push(`+ ${d.count}d${d.face}`);
-                                         });
-
-                                         if (totalFixed !== 0) {
-                                             nParts.push(totalFixed > 0 ? `+ ${totalFixed}` : `- ${Math.abs(totalFixed)}`);
-                                             cParts.push(totalFixed > 0 ? `+ ${totalFixed}` : `- ${Math.abs(totalFixed)}`);
-                                         }
-
-                                         const normalStr = nParts.join(' ');
-                                         const critStr = cParts.join(' ');
-
-                                         renderBlocks.push(
-                                            <div key={`dmg_${i}`}>
-                                                {renderLine('Normal', normalStr, type, 'text-eden-100/50')} 
-                                                {!isExplosive && renderLine('Crítico', critStr, type, 'text-red-400')}
-                                            </div>
-                                         );
-                                     });
-
-                                     const standaloneExtras = allExtra.filter((e: any) => !typesProcessed.includes(e.type) && e.type !== 'primario');
-                                     standaloneExtras.forEach((ex: any, i: number) => {
-                                         let nParts = []; let cParts = [];
-                                         if (ex.diceCount > 0) { nParts.push(`${ex.diceCount}d${ex.diceFace}`); cParts.push(`${ex.isMultipliable ? ex.diceCount * critMult : ex.diceCount}d${ex.diceFace}`); }
-                                         if (ex.fixed !== 0) { nParts.push(ex.fixed > 0 && nParts.length > 0 ? `+ ${ex.fixed}` : `${ex.fixed}`); cParts.push(ex.fixed > 0 && cParts.length > 0 ? `+ ${ex.fixed}` : `${ex.fixed}`); }
-                                         const normalStr = nParts.join(' '); const critStr = cParts.join(' ');
-                                         
-                                         renderBlocks.push(
-                                             <div key={`ext_${i}`} className="border-t-2 border-purple-500/20">
-                                                 {renderLine('Dano Extra', normalStr, ex.type, 'text-purple-400 bg-purple-900/30')} 
-                                                 {!isExplosive && renderLine('Crit Extra', critStr, ex.type, 'text-red-400')}
-                                             </div>
-                                         );
-                                     });
-
-                                     return renderBlocks;
-                                 })()}
-                             </div>
+                                              <input type="checkbox" className="hidden" checked={critToggles[item.id] || false} onChange={() => setCritToggles(p => ({ ...p, [item.id]: !p[item.id] }))}/>
+                                          </label>
+                                      )}
+                                  </div>
+                                  <div className="p-3.5 flex flex-col gap-3">
+                                      {(() => {
+                                          const isCrit = critToggles[item.id] || false;
+                                          const allExtra = [...(wbAll.extraDamages || []), ...(wbSub.extraDamages || []), ...(wbId.extraDamages || [])];
+                      
+                                          const groupedDamage: Record<string, { parts: { count: number; face: number; isMult: boolean; isExtra: boolean }[]; fixed: number; }> = {};
+                      
+                                          const addPart = (type: string, count: number, face: number, isMult: boolean, isExtra: boolean) => {
+                                              if (!groupedDamage[type]) groupedDamage[type] = { parts: [], fixed: 0 };
+                                              if (count > 0) groupedDamage[type].parts.push({ count, face, isMult, isExtra });
+                                          };
+                      
+                                          const addFixed = (type: string, amount: number) => {
+                                              if (!groupedDamage[type]) groupedDamage[type] = { parts: [], fixed: 0 };
+                                              groupedDamage[type].fixed += amount;
+                                          };
+                      
+                                          const typesProcessed: string[] = [];
+                      
+                                          damageList.forEach((dmg: any, i: number) => {
+                                              const damageOverride = wbId.damageOverride?.[`idx_${i}`] || wbSub.damageOverride?.[`idx_${i}`] || wbAll.damageOverride?.[`idx_${i}`];
+                                              const targetDmg = damageOverride ? { ...dmg, ...damageOverride } : dmg;
+                                              const type = targetDmg.type || 'impacto';
+                                              typesProcessed.push(type);
+                      
+                                              const getInc = (incObj: any) => {
+                                                  if (!incObj) return { diceCount: 0, diceFace: 0, fixed: 0 };
+                                                  if (typeof incObj === 'number') return { diceCount: incObj, diceFace: 0, fixed: 0 };
+                                                  return incObj;
+                                              };
+                      
+                                              const specificInc = getInc(wbId.damageDiceIncrease?.[`idx_${i}`] || wbId.damageDiceIncrease?.[type]);
+                                              const subInc = getInc(wbSub.damageDiceIncrease?.[`idx_${i}`] || wbSub.damageDiceIncrease?.[type]);
+                                              const allInc = getInc(wbAll.damageDiceIncrease?.[`idx_${i}`] || wbAll.damageDiceIncrease?.[type]);
+                      
+                                              let c = (targetDmg.diceCount || 0) + specificInc.diceCount + subInc.diceCount + allInc.diceCount;
+                                              const f = Math.max(targetDmg.diceFace || 6, specificInc.diceFace, subInc.diceFace, allInc.diceFace);
+                      
+                                              addPart(type, c, f, targetDmg.isMultipliable !== false, false);
+                      
+                                              let itemBonusFixed = 0;
+                                              let itemBonusDice: {count: number, face: number}[] = [];
+                                              
+                                              if (!damageOverride && targetDmg.bonus) {
+                                                  itemBonusFixed = solveFormulaNumber(targetDmg.bonus, vars, character, wId, 'fixed');
+                                                  if (Array.isArray(targetDmg.bonus.terms)) {
+                                                      targetDmg.bonus.terms.forEach((t: any) => { if (t.type === 'dice') itemBonusDice.push({ count: t.value || 1, face: t.diceFace || 6 }); });
+                                                  }
+                                              } else if (damageOverride) {
+                                                  itemBonusFixed = damageOverride.bonus || 0;
+                                              }
+                      
+                                              itemBonusFixed += (specificInc.fixed + subInc.fixed + allInc.fixed);
+                      
+                                              if (wSubtype === 'melee' && i === 0 && !isExplosive) {
+                                                  let attrBonus = ((vars as any)?.ATTRS?.FOR || 0);
+                                                  if (item.isAgile && item.attackTest?.skill === 'Luta') {
+                                                      const agiAttr = ((vars as any)?.ATTRS?.AGI || 0);
+                                                      if (agiAttr > attrBonus) attrBonus = agiAttr;
+                                                  }
+                                                  itemBonusFixed += attrBonus;
+                                              }
+                      
+                                              addFixed(type, itemBonusFixed);
+                                              itemBonusDice.forEach(d => addPart(type, d.count, d.face, false, false));
+                      
+                                              const extrasOfThisType = allExtra.filter((e: any) => e.type === type || (e.type === 'primario' && i === 0));
+                                              extrasOfThisType.forEach((ex: any) => {
+                                                  addPart(type, ex.diceCount, ex.diceFace, !!ex.isMultipliable, true);
+                                                  addFixed(type, ex.fixed || 0);
+                                              });
+                                          });
+                      
+                                          const standaloneExtras = allExtra.filter((e: any) => !typesProcessed.includes(e.type) && e.type !== 'primario');
+                                          standaloneExtras.forEach((ex: any) => {
+                                              addPart(ex.type, ex.diceCount, ex.diceFace, !!ex.isMultipliable, true);
+                                              addFixed(ex.type, ex.fixed || 0);
+                                          });
+                      
+                                          return Object.entries(groupedDamage).map(([type, data], idx) => {
+                                              const partsReact: any[] = [];
+                                              
+                                              data.parts.forEach((p, pIdx) => {
+                                                  const count = (isCrit && p.isMult) ? p.count * critMult : p.count;
+                                                  const str = `${count}d${p.face}`;
+                                                  if (pIdx > 0 || partsReact.length > 0) partsReact.push(<span key={`plus_${pIdx}`} className="text-eden-100/30 mx-1.5 font-normal">+</span>);
+                                                  partsReact.push(
+                                                      <span key={`p_${pIdx}`} className={p.isExtra ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]' : 'text-white'}>
+                                                          {str}
+                                                      </span>
+                                                  );
+                                              });
+                      
+                                              if (data.fixed !== 0) {
+                                                  const sign = data.fixed > 0 ? '+' : '-';
+                                                  partsReact.push(<span key="fixed_plus" className="text-eden-100/30 mx-1.5 font-normal">{sign}</span>);
+                                                  partsReact.push(<span key="fixed_val" className="text-white">{Math.abs(data.fixed)}</span>);
+                                              }
+                      
+                                              return (
+                                                  <div key={idx} className="flex justify-between items-center text-sm md:text-base font-mono font-bold">
+                                                      <div className="flex-1 flex flex-wrap items-center">
+                                                          {partsReact.length > 0 ? partsReact : <span className="text-white">0</span>}
+                                                          <span className="text-xs font-sans uppercase text-eden-100/50 ml-2 mt-0.5 tracking-wider">de {type}</span>
+                                                      </div>
+                                                  </div>
+                                              );
+                                          });
+                                      })()}
+                                  </div>
+                              </div>
                           )}
                       </div>
                   ) : (
@@ -383,9 +404,9 @@ export default function SheetCombat() {
 
                   {isRangedWeapon && (
                       <div className="bg-black/20 rounded-xl border border-eden-700/50 p-4 space-y-4">
-                          <div className="flex items-center gap-3">
-                              <Link size={16} className="text-eden-100/50"/>
-                              <select value={attachedAmmoId || ''} onChange={(e) => handleAttachAmmo(item.id, e.target.value)} className="flex-1 bg-eden-900 border border-eden-600 rounded-lg text-sm text-white p-2.5 outline-none focus:border-energia">
+                          <div className="flex items-center gap-3 w-full">
+                              <Link size={16} className="text-eden-100/50 shrink-0"/>
+                              <select value={attachedAmmoId || ''} onChange={(e) => handleAttachAmmo(item.id, e.target.value)} className="flex-1 min-w-0 w-full text-ellipsis overflow-hidden bg-eden-900 border border-eden-600 rounded-lg text-sm text-white p-2.5 outline-none focus:border-energia">
                                   <option value="">-- Selecionar Munição --</option>
                                   {inventoryAmmo.map(ammo => {
                                       let label = ammo.name;

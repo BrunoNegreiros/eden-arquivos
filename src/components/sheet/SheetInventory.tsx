@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { 
   Scale, Trash2, CheckCircle2, Circle, Plus, Search, X, 
   Settings, Crown, AlertTriangle, Edit2,
-  Crosshair, Shield, Package, Bomb, ShoppingBag, Calculator, Book, Sparkles
+  Crosshair, Shield, Package, Bomb, ShoppingBag, Calculator, Sparkles
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import { RANKS, DAMAGE_TYPES_INFO } from '../../data/referenceData';
@@ -46,7 +46,14 @@ function FormulaBuilder({ formula, onChange }: { formula: Formula, onChange: (f:
         onChange({ terms: newTerms, operations: newOps.slice(0, newTerms.length - 1) });
     };
     const updateTerm = (idx: number, field: keyof FormulaTerm, value: any) => {
-        const n = [...formula.terms]; n[idx] = { ...n[idx], [field]: value };
+        const n = [...formula.terms]; 
+        n[idx] = { ...n[idx], [field]: value };
+                
+        if (field === 'type' && value === 'dice') {
+            n[idx].diceFace = n[idx].diceFace || 20;
+            n[idx].value = n[idx].value || 1;
+        }
+        
         onChange({ ...formula, terms: n });
     };
     const updateOp = (idx: number, op: Operation) => {
@@ -119,7 +126,7 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
           return { ...initialData, damage: convertedDamage };
       }
       return {
-          id: '', name: '', type: 'general', category: 1, weight: 1, amount: 1, isEquipped: true, description: '', 
+          id: '', name: '', type: 'general', category: 1, weight: 0, amount: 1, isEquipped: true, description: '', 
           isCustom: true, effects: []
       };
   });
@@ -175,28 +182,9 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-eden-100/50 uppercase">Espaço (Peso)</label>
-                            <input type="number" value={formData.weight || 1} onChange={e => handleChange('weight', Number(e.target.value))} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-2.5 text-sm text-white" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-eden-100/50 uppercase">Quantidade</label>
-                            <input type="number" value={formData.amount || 1} onChange={e => handleChange('amount', Number(e.target.value))} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-2.5 text-sm text-white" />
+                            <input type="number" value={formData.weight ?? 0} onChange={e => handleChange('weight', Number(e.target.value))} className="w-full bg-eden-900 border border-eden-700 rounded-lg p-2.5 text-sm text-white" />
                         </div>
                     </div>
-
-                    {formData.type === 'cursed' && (
-                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 space-y-2 animate-in slide-in-from-top-2">
-                            <h4 className="text-sm font-bold text-purple-300 uppercase flex items-center gap-2"><Book size={16}/> Detalhes</h4>
-                            <div className="space-y-1">
-                                <label className="text-[10px] text-purple-200/60 uppercase font-bold">Elemento Principal</label>
-                                <select 
-                                    value={formData.element || 'Medo'} onChange={(e) => handleChange('element', e.target.value)}
-                                    className="w-full bg-eden-900 border border-purple-500/30 rounded-lg p-2.5 text-sm text-purple-100"
-                                >
-                                    {ELEMENTS.map(el => <option key={el} value={el}>{el}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                    )}
 
                     {(formData.type === 'weapon' || formData.type === 'explosive') && (
                         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
@@ -237,7 +225,15 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
 
                             {formData.type === 'weapon' && (
                                 <div className="space-y-3 pt-3 border-t border-red-500/20">
-                                    <h5 className="text-xs font-bold text-red-300 uppercase">Teste de Ataque</h5>
+                                    <div className="flex justify-between items-center">
+                                        <h5 className="text-xs font-bold text-red-300 uppercase">Teste de Ataque</h5>
+                                        {formData.attackTest?.skill === 'Luta' && (
+                                            <label className="flex items-center gap-1.5 cursor-pointer bg-red-900/30 px-2 py-1 rounded text-[10px] text-red-200 hover:bg-red-900/50 transition-colors border border-red-500/20">
+                                                <input type="checkbox" checked={formData.isAgile || false} onChange={e => handleChange('isAgile', e.target.checked)} className="accent-red-500 w-3 h-3 rounded bg-eden-900"/>
+                                                Arma Ágil
+                                            </label>
+                                        )}
+                                    </div>
                                     <div className="space-y-1">
                                         <label className="text-[10px] text-red-200/60 uppercase font-bold">Perícia Base</label>
                                         <select 
@@ -287,8 +283,7 @@ export const ItemForm = ({ initialData, onSave, onCancel }: { initialData?: any,
                             )}
                         </div>
                     )}
-
-                    {}
+                    
                     <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2 mt-6">
                          <div className="flex justify-between items-center">
                              <h4 className="text-sm font-bold text-red-300 uppercase flex items-center gap-2"><Crosshair size={16}/> Dano Causado (Opcional)</h4>
@@ -509,7 +504,7 @@ export default function SheetInventory() {
 
   const categoryCounts = fullInventory.reduce((acc, item) => {
     const cat = item.category;
-    if (cat > 0) acc[cat] = (acc[cat] || 0) + (item.amount || 1);
+    if (cat > 0) acc[cat] = (acc[cat] || 0) + 1;
     return acc;
   }, {} as Record<number, number>);
 
@@ -558,13 +553,13 @@ export default function SheetInventory() {
           setEditingItem(null); 
           return;
       }
-      
-      const finalItem = { 
+            
+      const finalItem = JSON.parse(JSON.stringify({ 
           ...item, 
-          isEquipped: item.isEquipped ?? true,
-          modifications: [],
-          curses: []
-      };
+          isEquipped: item.isEquipped ?? true, 
+          modifications: item.modifications || [],
+          curses: item.curses || []
+      }));
 
       if (finalItem.type === 'weapon') {
           finalItem.attackTest = finalItem.attackTest || {};
@@ -675,7 +670,7 @@ export default function SheetInventory() {
                       const typeInfo = ITEM_TYPES.find(t => t.id === item.type) || ITEM_TYPES[5];
                       const styleClass = getTypeStyle(item);
                       const isEquipped = item.isEquipped;
-                      const qty = item.amount || 1;
+                      
                       
                       return (
                           <div key={item.id} className={`group relative rounded-xl border p-3 flex flex-col md:flex-row gap-3 items-start md:items-center transition-all ${isEquipped ? `bg-eden-800 shadow-md ${styleClass}` : 'bg-eden-900/40 border-eden-700/30 opacity-60 grayscale-[0.8] hover:grayscale-0 hover:opacity-100'}`}>
@@ -703,8 +698,8 @@ export default function SheetInventory() {
                                           <h4 className={`font-bold text-sm truncate max-w-full ${isEquipped ? 'text-eden-100' : 'text-eden-100/70'}`}>
                                               {item.name}
                                           </h4>
-                                          {qty > 1 && item.type !== 'ammo' && <span className="text-xs bg-black/20 px-1.5 rounded shrink-0">x{qty}</span>}
-                                          {item.type === 'cursed' && (item as any).element && <span className="text-[9px] px-1.5 py-0.5 rounded border border-purple-500 text-purple-200 bg-purple-500/20 uppercase font-black shrink-0">{(item as any).element}</span>}
+                                                                                    
+                                          {item.type === 'weapon' && (item as any).isAgile && <span className="text-[9px] px-1.5 py-0.5 rounded border border-red-500 text-red-200 bg-red-500/20 uppercase font-black shrink-0">Ágil</span>}
                                           {item.type === 'ammo' && (
                                               <span className="text-[9px] px-1.5 py-0.5 rounded border border-yellow-500 text-yellow-200 bg-yellow-500/20 uppercase font-black shrink-0">
                                                   {(!item.ammoDurationType || item.ammoDurationType === 'scenes') ? `${item.durationScenes || 0} Cenas` :
@@ -717,7 +712,7 @@ export default function SheetInventory() {
                                           <span>•</span>
                                           <span>Cat {['0', 'I', 'II', 'III', 'IV'][Math.min(item.category, 4)]}</span>
                                           <span>•</span>
-                                          <span>{item.weight || 1} Esp</span>
+                                          <span>{item.weight ?? 0} Esp</span>
                                       </div>
                                   </div>
                               </div>

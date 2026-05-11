@@ -37,9 +37,15 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
   
   const pvGain = (stats.pvNex + vig) * steps;
   const peGain = (stats.peNex + pre) * steps;
-  let sanGain = (stats.sanNex) * steps;
   
-  if (isLevelingUp && willTranscend) sanGain -= 2;
+  const normalSanGain = (stats.sanNex) * steps;
+  let sanGain = normalSanGain;
+  let sanPenalty = 0;
+  
+  if (isLevelingUp && willTranscend) {
+      sanGain = Math.max(1, normalSanGain - 2);
+      sanPenalty = normalSanGain - sanGain; // Vai ser 2, a não ser que a classe ganhe apenas 1 de base.
+  }
 
   const addTask = () => {
       if (!taskInput.trim()) return;
@@ -52,34 +58,24 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
   };
 
   const handleConfirm = () => {
-      const currentPvMax = (character.status.pv as any).max ?? vars.PV.max;
-      const currentPeMax = (character.status.pe as any).max ?? vars.PE.max;
-      const currentSanMax = (character.status.san as any).max ?? vars.SAN.max;
+      // Como a Vida Máxima salva no banco agora é um MODIFICADOR (Lote 12), não podemos injetar o "Ganho Padrão de Nível" nela!
+      const currentPvMod = (character.status.pv as any).max || 0;
+      const currentPeMod = (character.status.pe as any).max || 0;
+      const currentSanMod = (character.status.san as any).max || 0;
 
       const newStatus = { 
           ...character.status,
-          pv: { ...character.status.pv, current: character.status.pv.current + pvGain, max: currentPvMax + pvGain },
-          pe: { ...character.status.pe, current: character.status.pe.current + peGain, max: currentPeMax + peGain },
-          san: { ...character.status.san, current: character.status.san.current + sanGain, max: currentSanMax + sanGain }
+          pv: { ...character.status.pv, current: character.status.pv.current + pvGain, max: currentPvMod },
+          pe: { ...character.status.pe, current: character.status.pe.current + peGain, max: currentPeMod },
+          san: { ...character.status.san, current: character.status.san.current + sanGain, max: currentSanMod }
       };
 
-      const newAbilities = [...(character.abilities || [])];
-      
-      if (isLevelingUp && willTranscend) {
-          newAbilities.push({
-              id: 'transcender_' + Date.now(),
-              name: `Transcender (${targetNex}%)`,
-              description: 'Você transcendeu neste nível, perdendo 2 de Sanidade Máxima permanentemente para acolher o Paranormal.',
-              source: 'Paranormal', cost: 0,              
-              effects: [{ id: 'eff_' + Date.now(), name: 'Custo do Paranormal', category: 'add_fixed', targets: [{ id: '1', type: 'san_max' }], value: { terms: [{ id: '1', type: 'fixed', value: -2 }], operations: [] } }]
-          });
-      }
+      const transcendences = ((character.personal as any).transcendences || 0) + (isLevelingUp && willTranscend ? 1 : 0);
 
       updateCharacter(prev => ({
           ...prev,
-          personal: { ...prev.personal, nex: targetNex },
+          personal: { ...prev.personal, nex: targetNex, transcendences },
           status: newStatus,
-          abilities: newAbilities,
           levelUpTasks: [...tasks] 
       } as any));
 
@@ -132,7 +128,7 @@ export default function LevelUpModal({ targetNex, onConfirm, onCancel }: Props) 
                         <input type="checkbox" className="hidden" checked={willTranscend} onChange={e => setWillTranscend(e.target.checked)} />
                         <div>
                             <span className={`text-sm font-bold block ${willTranscend ? 'text-violet-400' : 'text-eden-100'}`}>Transcender neste nível?</span>
-                            <span className="text-xs text-eden-100/60 leading-relaxed block mt-1">Você perde <strong>2 de Sanidade Máxima</strong> para acolher o Paranormal.</span>
+                            <span className="text-xs text-eden-100/60 leading-relaxed block mt-1">Você abdica de <strong>{sanPenalty > 0 ? sanPenalty : 2} de Sanidade Máxima</strong> neste nível para acolher o Paranormal e recebe <strong>+1 de RD Mental</strong>.</span>
                         </div>
                     </label>
                 )}

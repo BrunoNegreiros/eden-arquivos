@@ -411,7 +411,6 @@ function SheetManualEffects() {
 
     const manualEffects = activeEffects.filter(e => e.effect.category === 'manual');
     const instantEffects = activeEffects.filter(e => e.effect.category === 'instant_heal_damage');
-    const gainedPowers = activeEffects.filter(e => e.effect.category === 'gain_power' || e.effect.category === 'override_power');
 
     const handleApplyInstant = (eff: Effect, source: string) => {
         const val = solveFormulaNumber(eff.value, vars, character, eff.id);
@@ -481,25 +480,9 @@ function SheetManualEffects() {
                         </div>
                     ))}
                 </div>
-            )}
+            )} 
 
-            {gainedPowers.length > 0 && (
-                <div className="space-y-3">
-                    <h3 className="text-sm font-bold text-purple-400 uppercase border-b border-purple-900 pb-2">Poderes / Itens Ganhos via Efeito</h3>
-                    {gainedPowers.map((item, idx) => (
-                        <div key={idx} className="bg-purple-950/20 border border-purple-500/30 p-4 rounded-lg">
-                            <div className="flex gap-2 items-center mb-2">
-                                <span className="bg-purple-900 text-purple-100 px-2 py-0.5 rounded text-[10px] font-bold">{item.source}</span>
-                                <span className="font-bold text-sm text-white">{item.effect.payload?.name || 'Poder Desconhecido'}</span>
-                            </div>
-                            <p className="text-xs text-purple-200/80 mb-3">{item.effect.payload?.description}</p>
-                            <div className="text-[10px] bg-black/40 px-2 py-1 rounded inline-block text-purple-300 border border-purple-500/20">{(item.effect.payload?.effects || []).length} efeito(s) mecânico(s) injetado(s) na sua ficha!</div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {instantEffects.length === 0 && manualEffects.length === 0 && gainedPowers.length === 0 && (
+            {instantEffects.length === 0 && manualEffects.length === 0 && (
                 <div className="text-center py-10 border-2 border-dashed border-eden-800 rounded-xl text-eden-100/30 text-sm">
                     Nenhum efeito especial ativo no momento.
                 </div>
@@ -677,14 +660,23 @@ function SheetContent() {
                   
                   {}
                   <div className={`overflow-x-auto whitespace-nowrap custom-scrollbar gap-3 items-center justify-start text-[12px] md:text-sm text-eden-100/50 font-mono mt-1 pb-1 w-full ${isInfoExpanded ? 'flex' : 'hidden lg:flex'}`}>
-                      <span className="text-white font-bold shrink-0">{character.personal.player || 'Agente'}</span>
-                      <span className="text-eden-700 shrink-0">|</span>
-                      <span className="text-eden-100/80 shrink-0">{character.personal.origin || 'Sem Origem'}</span>
-                      <span className="text-eden-700 shrink-0">|</span>
-                      <span className="text-white shrink-0">{(character.personal.class || 'Mundano').charAt(0).toUpperCase() + (character.personal.class || 'Mundano').slice(1)}</span>
-                      {character.personal.nex >= 10 && (
-                          <><span className="text-eden-700 shrink-0">|</span><input type="text" value={character.personal.trail || ''} onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, trail: e.target.value}}))} placeholder="Trilha" className="bg-transparent hover:text-energia focus:text-energia outline-none text-energia/70 font-bold w-24 transition-colors placeholder:text-eden-100/30 shrink-0 text-left relative z-5" /></>
-                      )}
+                        <span className="text-white font-bold shrink-0">{character.personal.player || 'Agente'}</span>
+                        <span className="text-eden-700 shrink-0">|</span>
+                        <span className="text-eden-100/80 shrink-0">{character.personal.origin || 'Sem Origem'}</span>
+                        <span className="text-eden-700 shrink-0">|</span>
+                        <span className="text-white shrink-0">{(character.personal.class || 'Mundano').charAt(0).toUpperCase() + (character.personal.class || 'Mundano').slice(1)}</span>
+                        {character.personal.nex >= 10 && (
+                            <>
+                                <span className="text-eden-700 shrink-0">|</span>
+                                <input 
+                                    type="text" 
+                                    value={character.personal.trail || ''} 
+                                    onChange={e => updateCharacter(prev => ({...prev, personal: {...prev.personal, trail: e.target.value}}))} 
+                                    placeholder="Trilha" 
+                                    className="bg-transparent hover:text-energia focus:text-energia outline-none text-energia/70 font-bold min-w-[120px] transition-colors placeholder:text-eden-100/30 shrink-0 text-left relative z-5" 
+                                />
+                            </>
+                        )}
                   </div>
               </div>
           </div>

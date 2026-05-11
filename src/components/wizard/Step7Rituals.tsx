@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCharacter } from '../../context/CharacterContext';
 import type { UserRitual, ElementType, RitualVersion } from '../../types/systemData';
-import { Plus, X, Search, Settings, Trash2, AlertCircle, Edit2, Power } from 'lucide-react';
+import { Plus, X, Search, Settings, Trash2, AlertCircle, Edit2, Power, ArrowUp, ArrowDown } from 'lucide-react';
 import EffectEditor from '../sheet/EffectEditor';
 
 const ELEMENTS: ElementType[] = ['Conhecimento', 'Energia', 'Morte', 'Sangue', 'Medo'];
@@ -226,7 +226,7 @@ export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: Us
     };
     
     const defaultRitual: UserRitual = {
-        id: '', name: '', element: 'Conhecimento', circle: 1,
+        id: '', name: '', element: 'Conhecimento', circle: 1, ritualType: 'ativa',
         normal: { ...defaultVersion, isActive: true }, 
         discente: { ...defaultVersion },
         verdadeiro: { ...defaultVersion }
@@ -265,6 +265,12 @@ export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: Us
                                     className="bg-black/20 border border-white/10 rounded text-[10px] uppercase font-bold text-white px-2 py-0.5"
                                 >
                                     {[1,2,3,4].map(c => <option key={c} value={c}>{c}º Círculo</option>)}
+                                </select>
+                                <select 
+                                    value={data.ritualType || 'ativa'} onChange={e => setData({...data, ritualType: e.target.value as any})}
+                                    className="bg-black/20 border border-white/10 rounded text-[10px] uppercase font-bold text-white px-2 py-0.5"
+                                >
+                                    <option value="passiva">Passivo</option><option value="ativa">Ativo</option><option value="hibrida">Híbrido</option>
                                 </select>
                             </div>
                         </div>
@@ -317,6 +323,18 @@ export default function Step7Rituals() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [editingRitual, setEditingRitual] = useState<UserRitual | null>(null);
+  
+  const [selectedElements, setSelectedElements] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [circleFilter, setCircleFilter] = useState('all');
+
+  const [sortBy, setSortBy] = useState<'default' | 'alpha' | 'circle'>(() => (localStorage.getItem('eden_rituals_sort') as any) || 'default');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => (localStorage.getItem('eden_rituals_order') as any) || 'asc');
+
+  useEffect(() => {
+      localStorage.setItem('eden_rituals_sort', sortBy);
+      localStorage.setItem('eden_rituals_order', sortOrder);
+  }, [sortBy, sortOrder]);
 
   const handleSave = (ritual: UserRitual) => {
       const finalRitual = { ...ritual, id: ritual.id || generateId() };
@@ -335,7 +353,21 @@ export default function Step7Rituals() {
       }
   };
 
-  const filteredRituals = rituals.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredRituals = [...rituals].filter(r => {
+      if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      if (selectedElements.length > 0 && !selectedElements.includes(r.element)) return false;
+      if (selectedTypes.length > 0 && !selectedTypes.includes(r.ritualType || 'ativa')) return false;
+      if (circleFilter !== 'all' && r.circle !== Number(circleFilter)) return false;
+      return true;
+  });
+
+  if (sortBy === 'alpha') {
+      filteredRituals.sort((a, b) => sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+  } else if (sortBy === 'circle') {
+      filteredRituals.sort((a, b) => sortOrder === 'asc' ? a.circle - b.circle : b.circle - a.circle);
+  } else if (sortBy === 'default' && sortOrder === 'desc') {
+      filteredRituals.reverse();
+  }
 
   const renderNonOcultistWarning = () => (
      <div className="bg-eden-900/50 border border-yellow-500/30 p-4 rounded-xl flex gap-3 items-start mb-4">
@@ -360,14 +392,53 @@ export default function Step7Rituals() {
 
       {!isOcultista && filteredRituals.length === 0 && renderNonOcultistWarning()}
 
-      <div className="flex gap-2">
-          <div className="relative flex-1">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-eden-100/40 w-4 h-4" />
-             <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-eden-800 border border-eden-700 rounded-xl py-2 pl-9 pr-4 text-sm text-eden-100 focus:border-eden-100 outline-none" />
+      <div className="flex flex-col gap-3 bg-eden-800/50 p-4 rounded-xl border border-eden-700/50">
+          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between w-full">
+              <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                  <div className="flex gap-1 shrink-0">
+                      <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="bg-eden-900 border border-eden-600 rounded-lg px-2 py-2 text-sm text-white font-bold outline-none w-24 md:w-32">
+                          <option value="default">Criação</option>
+                          <option value="alpha">Alfabética</option>
+                          <option value="circle">Círculo</option>
+                      </select>
+                      <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')} className="bg-eden-900 border border-eden-600 rounded-lg px-2 py-2 text-eden-100 hover:text-white hover:border-energia transition-colors flex items-center justify-center">
+                          {sortOrder === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+                      </button>
+                  </div>
+                  <select value={circleFilter} onChange={e => setCircleFilter(e.target.value)} className="bg-eden-900 border border-eden-600 rounded-lg px-3 py-2 text-sm text-eden-100 outline-none flex-1 md:w-32 shrink-0">
+                      <option value="all">Todos Círculos</option>
+                      {[1, 2, 3, 4].map(c => <option key={c} value={c}>{c}º Círculo</option>)}
+                  </select>
+                  <div className="relative flex-1 shrink-0 w-full md:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
+                      <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-900 border border-eden-600 rounded-xl pl-10 pr-4 py-2 text-sm text-white outline-none focus:border-energia"/>
+                  </div>
+              </div>
+              <button onClick={() => setIsCreating(true)} className="w-full md:w-auto bg-energia text-eden-900 px-6 py-2 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-yellow-400 shrink-0 shadow-lg">
+                  <Plus size={18}/> Novo Ritual
+              </button>
           </div>
-          <button onClick={() => setIsCreating(true)} className="bg-energia text-eden-900 px-4 rounded-xl font-bold text-sm hover:bg-yellow-400 shadow-lg flex items-center gap-2">
-             <Plus size={18} /> Novo Ritual
-          </button>
+          <div className="flex flex-col gap-2 pt-2 border-t border-eden-700/50">
+              <div className="flex flex-wrap gap-2">
+                  {ELEMENTS.map(el => {
+                      const isSelected = selectedElements.includes(el);
+                      return (
+                          <button key={el} onClick={() => setSelectedElements(p => isSelected ? p.filter(x => x !== el) : [...p, el])} className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border transition-all ${isSelected ? 'opacity-100 shadow-md bg-energia text-eden-900 border-energia' : 'opacity-40 hover:opacity-80 bg-eden-900 text-eden-100 border-eden-700'}`}>
+                              {el}
+                          </button>
+                      );
+                  })}
+                  <div className="w-px h-4 bg-eden-700 mx-1 self-center"></div>
+                  {['passiva', 'ativa', 'hibrida'].map(type => {
+                      const isSelected = selectedTypes.includes(type);
+                      return (
+                          <button key={type} onClick={() => setSelectedTypes(p => isSelected ? p.filter(x => x !== type) : [...p, type])} className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border transition-all ${isSelected ? 'opacity-100 shadow-md bg-energia text-eden-900 border-energia' : 'opacity-40 hover:opacity-80 bg-eden-900 text-eden-100 border-eden-700'}`}>
+                              {type}
+                          </button>
+                      );
+                  })}
+              </div>
+          </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto custom-scrollbar pr-1 pb-4 flex-1 min-h-[400px]">
@@ -396,6 +467,7 @@ export default function Step7Rituals() {
                                   {ritual.element}
                               </div>
                               <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border border-eden-600 text-eden-100/70">{ritual.circle}º Círculo</span>
+                              <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border border-white/10 bg-black/20 text-eden-100/70 capitalize">{ritual.ritualType || 'ativa'}</span>
                           </div>
                           <p className="text-xs text-eden-100/70 line-clamp-3 italic">"{ritual.normal.description}"</p>
                           

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Heart, Brain, Zap, RefreshCw, Skull, Shield, Footprints } from 'lucide-react';
+import { Heart, Brain, Zap, RefreshCw, Skull, Shield, Footprints, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import { CONDITIONS_LIST } from '../../data/referenceData';
 import type { DamageType } from '../../types/systemData';
 
 export default function SheetStatus() {
   const { character, vars, updateCharacter } = useCharacter();
+  const [showMovDetails, setShowMovDetails] = useState(false);
   const { status } = character;
 
   const [damageType, setDamageType] = useState<DamageType | ''>('');
@@ -52,10 +53,11 @@ export default function SheetStatus() {
       const maxReal = vars[poolKey.toUpperCase() as 'PV'|'PE'|'SAN'].max;
 
       if (transAction === 'damage') {
-        if (targetPool === 'max') {            
-            const savedMax = currentPool.max !== undefined ? currentPool.max : maxReal;
-            currentPool.max = Math.max(0, savedMax - finalValue);
-            if (currentPool.current > currentPool.max) currentPool.current = currentPool.max;
+        if (targetPool === 'max') {                        
+            currentPool.max = (currentPool.max || 0) - finalValue;
+            
+            const newMaxReal = maxReal - finalValue;
+            if (currentPool.current > newMaxReal) currentPool.current = Math.max(0, newMaxReal);
         } 
         else {
             let remainingDamage = finalValue;
@@ -74,8 +76,7 @@ export default function SheetStatus() {
         }
       } else {
         if (targetPool === 'max') {             
-            const savedMax = currentPool.max !== undefined ? currentPool.max : maxReal;
-            currentPool.max = savedMax + finalValue;
+            currentPool.max = (currentPool.max || 0) + finalValue;
         } else if (targetPool === 'temp') {
             currentPool.temp = (currentPool.temp || 0) + finalValue;
         } else {            
@@ -199,9 +200,52 @@ export default function SheetStatus() {
       </div>
       
       <div className="bg-eden-800 border border-eden-700 p-4 md:p-5 rounded-xl space-y-4 shadow-sm">
-              <div className="flex justify-between items-center pb-4 border-b border-eden-700">
-                 <div className="flex items-center gap-3"><div className="p-2 bg-eden-950 rounded-lg border border-eden-600 text-eden-100"><Shield size={20}/></div><div><div className="text-xl md:text-3xl font-black text-white leading-none">{vars.DEF}</div><div className="text-[8px] md:text-[10px] font-bold text-eden-100/40 uppercase mt-1">Defesa</div></div></div>
-                 <div className="flex items-center gap-3 text-right"><div><div className="text-xl md:text-3xl font-black text-white leading-none">{vars.DESLOCAMENTO}m</div><div className="text-[8px] md:text-[10px] font-bold text-eden-100/40 uppercase mt-1">Deslocamento</div></div><div className="p-2 bg-eden-950 rounded-lg border border-eden-600 text-eden-100"><Footprints size={20}/></div></div>
+              <div className="flex justify-between items-start md:items-center pb-4 border-b border-eden-700">
+                 {/* Defesa (Lado Esquerdo) */}
+                 <div className="flex items-center gap-3 mt-1 md:mt-0">
+                    <div className="p-2 bg-eden-950 rounded-lg border border-eden-600 text-eden-100"><Shield size={20}/></div>
+                    <div>
+                       <div className="text-xl md:text-3xl font-black text-white leading-none">{vars.DEF}</div>
+                       <div className="text-[8px] md:text-[10px] font-bold text-eden-100/40 uppercase mt-1">Defesa</div>
+                    </div>
+                 </div>
+                 
+                 <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-4">
+                    {/* Carrossel de Movimentações (Apenas visível se showMovDetails for true) */}
+                    {showMovDetails && (
+                       <div className="flex bg-eden-950/40 rounded-lg border border-eden-700/50 divide-x divide-eden-700/50 shadow-sm order-2 md:order-1 animate-in slide-in-from-right-2 fade-in duration-200">
+                          <div className="flex flex-col items-center justify-center px-3 py-1.5">
+                             <span className="text-white font-black text-xs md:text-sm leading-none">{1 + (vars.ACOES?.extra || 0)}</span>
+                             <span className="text-[7px] md:text-[8px] uppercase text-eden-100/50 font-bold mt-0.5">Ações</span>
+                          </div>
+                          <div className="flex flex-col items-center justify-center px-3 py-1.5">
+                             <span className="text-white font-black text-xs md:text-sm leading-none">{Math.floor(vars.DESLOCAMENTO / 2)}</span>
+                             <span className="text-[7px] md:text-[8px] uppercase text-eden-100/50 font-bold mt-0.5">Mov/Ação</span>
+                          </div>
+                          <div className="flex flex-col items-center justify-center px-3 py-1.5">
+                             <span className="text-energia font-black text-xs md:text-sm leading-none">{Math.floor(vars.DESLOCAMENTO / 2) * (1 + (vars.ACOES?.extra || 0))}</span>
+                             <span className="text-[7px] md:text-[8px] uppercase text-eden-100/50 font-bold mt-0.5">Max Mov</span>
+                          </div>
+                       </div>
+                    )}
+                    
+                    {/* Botão de Deslocamento (Gatilho para o Carrossel) */}
+                    <button 
+                       onClick={() => setShowMovDetails(!showMovDetails)}
+                       className={`flex items-center gap-3 text-right order-1 md:order-2 p-1.5 rounded-xl transition-all duration-200 group ${showMovDetails ? 'bg-energia/10 border border-energia/20' : 'hover:bg-white/5 border border-transparent'}`}
+                    >
+                       <div className={`transition-transform duration-200 ${showMovDetails ? 'text-energia' : 'text-eden-100/20'}`}>
+                          {showMovDetails ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                       </div>
+                       <div>
+                          <div className="text-xl md:text-3xl font-black text-white leading-none">{vars.DESLOCAMENTO}m</div>
+                          <div className="text-[8px] md:text-[10px] font-bold text-eden-100/40 uppercase mt-1">Deslocamento</div>
+                       </div>
+                       <div className={`p-2 bg-eden-950 rounded-lg border transition-colors ${showMovDetails ? 'border-energia text-energia' : 'border-eden-600 text-eden-100'}`}>
+                          <Footprints size={20}/>
+                       </div>
+                    </button>
+                 </div>
               </div>
               
               <div className="text-xs">

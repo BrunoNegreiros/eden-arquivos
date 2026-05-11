@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Book, Plus, Trash2, Zap, Ghost, X, Edit2, GraduationCap, Power, Settings, Copy, Search, Tag } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Book, Plus, Trash2, Zap, Ghost, X, Edit2, GraduationCap, Power, Settings, Copy, Search, Tag, ArrowUp, ArrowDown } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import type { UserAbility } from '../../types/systemData';
 import EffectEditor from './EffectEditor';
@@ -31,7 +31,7 @@ const generateId = () => Date.now().toString(36) + Math.random().toString(36).su
 export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: AppAbility, onSave: (a: AppAbility) => void, onCancel: () => void }) => {
     const [formData, setFormData] = useState<AppAbility>(initialData || {
         id: generateId(), name: '', description: '', source: 'Outro',
-        effects: [], isActive: true, cost: 0, tags: []
+        effects: [], isActive: true, cost: 0, tags: [], abilityType: 'passiva'
     });
 
     const { character } = useCharacter();
@@ -120,7 +120,7 @@ export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: A
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="space-y-1">
                             <label className="text-[10px] font-bold text-eden-100/40 uppercase">Fonte</label>
                             <select disabled={formData.isOrigin} value={formData.source} onChange={e => setFormData({...formData, source: e.target.value as any})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-sm text-white outline-none focus:border-energia disabled:opacity-50">
@@ -133,7 +133,15 @@ export const AbilityForm = ({ initialData, onSave, onCancel }: { initialData?: A
                             </select>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-eden-100/40 uppercase">Custo (PE) - Opcional</label>
+                            <label className="text-[10px] font-bold text-eden-100/40 uppercase">Tipo</label>
+                            <select value={formData.abilityType || 'passiva'} onChange={e => setFormData({...formData, abilityType: e.target.value as any})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-sm text-white outline-none focus:border-energia">
+                                <option value="passiva">Passiva</option>
+                                <option value="ativa">Ativa</option>
+                                <option value="hibrida">Híbrida</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-eden-100/40 uppercase">Custo (PE)</label>
                             <input type="number" value={formData.cost || 0} onChange={e => setFormData({...formData, cost: Number(e.target.value)})} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-sm text-white outline-none focus:border-energia" placeholder="0"/>
                         </div>
                         {formData.source === 'Paranormal' && (
@@ -241,7 +249,17 @@ export default function SheetAbilities() {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [sourceFilter, setSourceFilter] = useState('all');
+    const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+    
+    const [sortBy, setSortBy] = useState<'default' | 'alpha' | 'cost'>(() => (localStorage.getItem('eden_abilities_sort') as any) || 'default');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => (localStorage.getItem('eden_abilities_order') as any) || 'asc');
     const [selectedTagsFilter, setSelectedTagsFilter] = useState<string[]>([]);
+
+    // Salva a preferência sempre que o jogador alterar a ordem
+    useEffect(() => {
+        localStorage.setItem('eden_abilities_sort', sortBy);
+        localStorage.setItem('eden_abilities_order', sortOrder);
+    }, [sortBy, sortOrder]);
 
     let allAbilities: AppAbility[] = [...(character.classPowers || []), ...((character as any).abilities || [])];
 
@@ -250,7 +268,8 @@ export default function SheetAbilities() {
         allAbilities.unshift({
             id: 'origin_power_virtual', name: customOrig.power.name, description: customOrig.power.description,
             cost: Number(customOrig.power.cost) || 0, source: 'Origem', isActive: customOrig.power.isActive !== false,
-            isInjected: false, isOrigin: true, effects: customOrig.power.effects || [], tags: customOrig.power.tags || []
+            isInjected: false, isOrigin: true, effects: customOrig.power.effects || [], tags: customOrig.power.tags || [],
+            abilityType: customOrig.power.abilityType || 'passiva'
         } as unknown as AppAbility);
     }
 
@@ -272,12 +291,23 @@ export default function SheetAbilities() {
     const filteredAbilities = finalAbilities.filter(a => {
         if (searchTerm && !a.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
         if (sourceFilter !== 'all' && a.source !== sourceFilter) return false;
+        if (selectedTypes.length > 0 && !selectedTypes.includes(a.abilityType || 'passiva')) return false;
         if (selectedTagsFilter.length > 0) {
             if (!a.tags || a.tags.length === 0) return false;
             if (!selectedTagsFilter.some(filterId => a.tags!.some((t: any) => t.id === filterId))) return false;
         }
         return true;
     });
+
+    if (sortBy === 'alpha') {
+        filteredAbilities.sort((a, b) => sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+    } else if (sortBy === 'cost') {
+        filteredAbilities.sort((a, b) => sortOrder === 'asc' ? (a.cost || 0) - (b.cost || 0) : (b.cost || 0) - (a.cost || 0));
+    } else if (sortBy === 'default') {
+        if (sortOrder === 'desc') {
+            filteredAbilities.reverse();
+        }
+    }
 
     const deepUpdatePayload = (prev: any, payloadId: string, mutator: (payload: any) => any) => {
         const scan = (items: any[]) => items.map(item => {
@@ -299,7 +329,7 @@ export default function SheetAbilities() {
                 ...prev,
                 customOrigin: {
                     ...((prev as any).customOrigin || {}),
-                    power: { name: ability.name, description: ability.description, cost: ability.cost, effects: ability.effects, isActive: ability.isActive, tags: ability.tags }
+                    power: { name: ability.name, description: ability.description, cost: ability.cost, effects: ability.effects, isActive: ability.isActive, tags: ability.tags, abilityType: ability.abilityType }
                 }
             }));
             setIsCreating(false); setEditingAbility(null); return;
@@ -396,7 +426,7 @@ export default function SheetAbilities() {
     return (
         <div className="space-y-6 animate-in fade-in pb-20 relative">
             <div className="bg-eden-800 p-4 rounded-xl border border-eden-700 shadow-lg top-0 z-20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <h2 className="text-xl font-black w-full text-white flex items-center justify-between gap-2">
+                <h2 className="text-xl font-black w-full md:w-auto text-white flex items-center justify-between gap-2 shrink-0">
                     <div className="flex items-center gap-2">
                         <Zap className="text-energia" /> 
                         Habilidades 
@@ -413,8 +443,29 @@ export default function SheetAbilities() {
                     </button>
                 </h2>
 
-                <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                    <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
+                <div className="flex flex-wrap xl:flex-nowrap gap-3 w-full justify-start md:justify-end min-w-0 flex-1">
+                    <div className="flex gap-2 w-full xl:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
+                        <div className="flex gap-1 shrink-0">
+                            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-xs text-white font-bold outline-none w-24 md:w-28">
+                                <option value="default">Criação</option>
+                                <option value="alpha">Alfabética</option>
+                                <option value="cost">Custo (PE)</option>
+                            </select>
+                            <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-eden-100 hover:text-white hover:border-energia transition-colors flex items-center justify-center" title={sortOrder === 'asc' ? 'Crescente' : 'Decrescente'}>
+                                {sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                            </button>
+                        </div>
+                        <div className="flex gap-2 items-center bg-eden-950/50 p-1.5 rounded-lg border border-eden-700 overflow-x-auto no-scrollbar shrink-0">
+                           {['passiva', 'ativa', 'hibrida'].map(type => {
+                             const isSelected = selectedTypes.includes(type);
+                             return (
+                               <button key={type} onClick={() => setSelectedTypes(prev => isSelected ? prev.filter(x => x !== type) : [...prev, type])}
+                                 className={`text-[9px] font-black px-2 py-1 rounded-md border transition-all uppercase whitespace-nowrap ${isSelected ? 'bg-energia text-eden-900 border-energia' : 'bg-black/20 text-eden-100/40 border-white/5'}`}>
+                                 {type}
+                               </button>
+                             );
+                           })}
+                        </div>
                         <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-xs text-eden-100 outline-none flex-1 md:w-32 shrink-0">
                             <option value="all">Todas Fontes</option>
                             <option value="Classe">Classe</option>
@@ -425,11 +476,13 @@ export default function SheetAbilities() {
                             <option value="Outros">Outros</option>
                         </select>
                     </div>
-                    <div className="relative flex-1 md:w-48 shrink-0">
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
-                        <input type="text" placeholder="Buscar habilidade..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:border-energia"/>
+                    <div className="flex gap-2 w-full xl:w-auto flex-1 min-w-[200px]">
+                        <div className="relative flex-1 shrink-0 min-w-0">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
+                            <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:border-energia"/>
+                        </div>
+                        <button onClick={() => setIsCreating(true)} className="hidden md:flex bg-energia text-eden-900 px-4 py-1.5 rounded-lg text-xs font-bold items-center gap-2 hover:bg-yellow-400 shadow-lg shrink-0"><Plus size={16}/>Novo</button>
                     </div>
-                    <button onClick={() => setIsCreating(true)} className="hidden md:flex bg-energia text-eden-900 px-4 py-1.5 rounded-lg text-xs font-black items-center gap-2 hover:bg-yellow-400 shadow-lg shrink-0"><Plus size={16}/>Novo</button>
                 </div>
             </div>
 
@@ -477,6 +530,9 @@ export default function SheetAbilities() {
                                             <div className="flex flex-wrap items-center gap-2 mt-1">
                                                 <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded border ${colors}`}>
                                                     {ability.source} {ability.source === 'Paranormal' && ability.element ? `• ${ability.element}` : ''}
+                                                </span>
+                                                <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded border border-white/10 bg-black/20 text-eden-100/70">
+                                                    {ability.abilityType || 'Passiva'}
                                                 </span>
                                                 {ability.cost && ability.cost > 0 ? (
                                                     <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded border border-energia/50 bg-energia/10 text-energia">

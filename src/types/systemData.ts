@@ -10,7 +10,7 @@ export type ElementType = 'Sangue' | 'Morte' | 'Conhecimento' | 'Energia' | 'Med
 
 export type DiceFace = 2 | 3 | 4 | 6 | 8 | 10 | 12 | 20 | 100;
 
-export type ItemType = 'weapon' | 'protection' | 'ammo' | 'accessory' | 'explosive' | 'general' | 'cursed';
+export type ItemType = 'weapon' | 'protection' | 'ammo' | 'accessory' | 'explosive' | 'general';
 
 export type Range = 'adjacente' | 'curto' | 'medio' | 'longo' | 'extremo';
 
@@ -25,7 +25,7 @@ export type TermType =
   | 'fixed' | 'dice' | 'attribute' | 'skill_total' | 'skill_training'
   | 'stat_max' | 'stat_current' | 'stat_temp' | 'nex' | 'pe_limit'
   | 'displacement' | 'defense' | 'dr_value' | 'load_max' | 'load_current'
-  | 'action_move' | 'action_std' | 'count_rituals' | 'count_paranormal_powers'
+  | 'action_extra' | 'count_rituals' | 'count_paranormal_powers'
   | 'count_abilities' | 'count_class_powers' | 'count_origin_powers' | 'count_team_powers' | 'prestige_points';
 
 export interface FormulaTerm {
@@ -51,7 +51,7 @@ export type EffectCategory =
   | 'instant_heal_damage' | 'manual';
 
 export type TargetType = 
-  | 'defense' | 'displacement' | 'load_max' | 'action_std' | 'action_move'
+  | 'defense' | 'displacement' | 'load_max' | 'action_extra'
   | 'test_skill' | 'test_attribute' | 'test_attack' | 'damage_roll' | 'damage_increase'
   | 'pv_max' | 'pe_max' | 'san_max' | 'pv_temp' | 'pe_temp' | 'san_temp'
   | 'ritual_dt' | 'attribute' | 'dr' | 'immunity_damage' | 'immunity_condition' | 'vulnerability'
@@ -140,6 +140,7 @@ export interface UserWeapon extends BaseUserItem {
   attackTest?: AttackTest; 
   ammunition?: string; 
   attacks?: any[]; 
+  isAgile?: boolean;
 }
 
 export interface UserProtection extends BaseUserItem {
@@ -165,17 +166,12 @@ export interface UserExplosive extends BaseUserItem {
   complexity?: Complexity; 
 }
 
-export interface UserCursedItem extends BaseUserItem {
-  type: 'cursed';
-  element: ElementType;
-}
-
 export interface UserAccessory extends BaseUserItem { type: 'accessory'; }
 export interface UserGeneralItem extends BaseUserItem { type: 'general'; }
 
 export type AnyUserItem = 
   | UserWeapon | UserProtection | UserAmmo | UserExplosive 
-  | UserAccessory | UserGeneralItem | UserCursedItem;
+  | UserAccessory | UserGeneralItem;
 
 export interface RitualVersion {
     isUnlocked?: boolean;
@@ -207,6 +203,7 @@ export interface UserRitual {
   normal: RitualVersion;
   discente: RitualVersion;
   verdadeiro: RitualVersion;
+  ritualType?: 'passiva' | 'ativa' | 'hibrida';
 }
 
 export interface UserAbility {
@@ -216,6 +213,7 @@ export interface UserAbility {
   cost?: number; 
   effects?: Effect[];
   source?: string; 
+  abilityType?: 'passiva' | 'ativa' | 'hibrida';
 }
 
 export interface EdensLetterSection {

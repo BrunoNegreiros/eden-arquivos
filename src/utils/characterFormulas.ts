@@ -27,13 +27,13 @@ export interface CalculatedVariables {
   IMUNIDADES: string[];
   VULNERABILIDADES: string[];
   DESLOCAMENTO: number;
-  ACOES: { movimento: number; padrao: number; reacao: number };
+  ACOES: { extra: number };
   WEAPON_BONUS: Record<string, { 
       attackDice: number; attackBonus: number; 
       criticalRange: number; 
       criticalMultiplier: number;
       damageDiceIncrease: Record<string, number>; 
-      extraDamages: { type: string, fixed: number, diceCount: number, diceFace: number, isMultipliable: boolean }[]; 
+      extraDamages: { type: string, fixed: number, diceCount: number, diceFace: number, isMultipliable: boolean }[];
       damageOverride?: Record<string, any>; 
   }>;
   EXPLOSIVE_DT_MOD: number;
@@ -112,11 +112,16 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
         else if (nex >= 55) maxRitualCircle = 3;
         else if (nex >= 25) maxRitualCircle = 2;
         else if (nex >= 5) maxRitualCircle = 1;
+    } else {
+        if (nex >= 95) maxRitualCircle = 4;
+        else if (nex >= 75) maxRitualCircle = 3;
+        else if (nex >= 45) maxRitualCircle = 2;
+        else if (nex >= 5) maxRitualCircle = 1;
     }
 
     const ctx: CalculatedVariables = {
         ATTRS: { ...char.attributes.initial }, PV: { max: 0, temp: 0 }, PE: { max: 0, temp: 0, limit: Math.floor(nex / 5) }, SAN: { max: 0, temp: 0 },
-        DEF: 10, RD: {}, IMUNIDADES: [], VULNERABILIDADES: [], DESLOCAMENTO: 9, ACOES: { movimento: 1, padrao: 1, reacao: 1 },
+        DEF: 10, RD: {}, IMUNIDADES: [], VULNERABILIDADES: [], DESLOCAMENTO: 9, ACOES: { extra: 0 },
         WEAPON_BONUS: {}, EXPLOSIVE_DT_MOD: 0, SKILLS: {}, NEX: nex, PATENTE: 'Recruta', LIMITE_CREDITO: 'Baixo', CARGA: { atual: 0, max: 0 }, DT_RITUAL: { global: 0, specific: {} },
         PROFICIENCIAS: [], MAX_RITUAL_CIRCLE: maxRitualCircle, AFFINITIES: [], FREE_RITUALS: [],
         INJECTED_RITUALS: [], INJECTED_ABILITIES: [], INJECTED_ITEMS: [], OVERRIDDEN_RITUALS: {}, OVERRIDDEN_ABILITIES: {}
@@ -204,16 +209,24 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
 
     const steps = Math.max(0, Math.floor((nex === 99 ? 100 : nex - 5) / 5));
     const clsClass = CLASS_STATS[char.personal.class] || CLASS_STATS['mundano'];
-    ctx.PV.max = clsClass.pvInit + ctx.ATTRS.VIG + ((clsClass.pvNex + ctx.ATTRS.VIG) * steps);
-    ctx.PE.max = clsClass.peInit + ctx.ATTRS.PRE + ((clsClass.peNex + ctx.ATTRS.PRE) * steps);
-    ctx.SAN.max = clsClass.sanInit + (clsClass.sanNex * steps);
+    
+    // Automação: Transcendência (RD e Perda de SAN)
+    const transcendences = (char.personal as any).transcendences || 0;
+    const sanPenaltyPerTranscendence = clsClass.sanNex - Math.max(1, clsClass.sanNex - 2);
+    const totalSanPenalty = transcendences * sanPenaltyPerTranscendence;
+
+    ctx.PV.max = clsClass.pvInit + ctx.ATTRS.VIG + ((clsClass.pvNex + ctx.ATTRS.VIG) * steps) + (char.status?.pv?.max || 0);
+    ctx.PE.max = clsClass.peInit + ctx.ATTRS.PRE + ((clsClass.peNex + ctx.ATTRS.PRE) * steps) + (char.status?.pe?.max || 0);
+    ctx.SAN.max = clsClass.sanInit + (clsClass.sanNex * steps) + (char.status?.san?.max || 0) - totalSanPenalty;
+    
+    ctx.RD['mental'] = (ctx.RD['mental'] || 0) + transcendences;
     
     ctx.DEF = 10 + ctx.ATTRS.AGI;
     const fullInventory = [...char.inventory, ...ctx.INJECTED_ITEMS];
 
     fullInventory.filter(i => (i as any).isEquipped && i.type === 'protection').forEach(i => ctx.DEF += ((i as any).defenseBonus || 0));
     ctx.CARGA.max = ctx.ATTRS.FOR > 0 ? ctx.ATTRS.FOR * 5 : 2;
-    fullInventory.forEach(i => ctx.CARGA.atual += (Number(i.weight) || 0) * (Number((i as any).amount) || 1)); 
+    fullInventory.forEach(i => ctx.CARGA.atual += (Number(i.weight) ?? 0)); 
 
     Object.keys(SKILL_MAP).forEach(s => {
         const t = char.skills[s]?.training || 0;
@@ -231,13 +244,6 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
         if (!ctx.WEAPON_BONUS[key]) {
             ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, criticalMultiplier: 0, damageDiceIncrease: {}, extraDamages: [] };
         }
-        
-        if (weapon.attackTest?.secondaryDice) {
-            ctx.WEAPON_BONUS[key].attackDice += solveFormulaNumber(weapon.attackTest.secondaryDice, ctx, char, key + '_secDice', 'fixed');
-        }
-        if (weapon.attackTest?.secondaryBonus) {
-            ctx.WEAPON_BONUS[key].attackBonus += solveFormulaNumber(weapon.attackTest.secondaryBonus, ctx, char, key + '_secBon', 'fixed');
-        }
     });
 
     activeEffects.forEach(effect => {
@@ -248,8 +254,7 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
                 if (t.type === 'pv_temp') ctx.PV.temp += val; if (t.type === 'pe_temp') ctx.PE.temp += val; if (t.type === 'san_temp') ctx.SAN.temp += val;
                 if (t.type === 'defense') ctx.DEF += val; if (t.type === 'displacement') ctx.DESLOCAMENTO += val; if (t.type === 'load_max') ctx.CARGA.max += val;
                 
-                if (t.type === 'action_std') ctx.ACOES.padrao += val;
-                if (t.type === 'action_move') ctx.ACOES.movimento += val;
+                if (t.type === 'action_extra' || (t.type as string) === 'action_std' || (t.type as string) === 'action_move') ctx.ACOES.extra += val;
 
                 if (t.type === 'ritual_dt') { if (!t.ritualId || t.ritualId === 'all') ctx.DT_RITUAL.global += val; else ctx.DT_RITUAL.specific[t.ritualId] = (ctx.DT_RITUAL.specific[t.ritualId] || 0) + val; }
                 if (t.type === 'explosive_dt') ctx.EXPLOSIVE_DT_MOD += val;
@@ -292,8 +297,11 @@ export const calculateVariables = (char: CharacterSheet): CalculatedVariables =>
                     if (!ctx.WEAPON_BONUS[key]) ctx.WEAPON_BONUS[key] = { attackDice: 0, attackBonus: 0, criticalRange: 0, criticalMultiplier: 0, damageDiceIncrease: {}, extraDamages: [] };
                     if (t.type === 'test_attack') ctx.WEAPON_BONUS[key].attackDice += val;
                     if ((t.type as string) === 'damage_increase') {
-                        if (t.damageIndex !== undefined && t.damageIndex !== -1) ctx.WEAPON_BONUS[key].damageDiceIncrease[`idx_${t.damageIndex}`] = (ctx.WEAPON_BONUS[key].damageDiceIncrease[`idx_${t.damageIndex}`] || 0) + val;
-                        else if (t.damageType) ctx.WEAPON_BONUS[key].damageDiceIncrease[t.damageType] = (ctx.WEAPON_BONUS[key].damageDiceIncrease[t.damageType] || 0) + val;
+                        // Se o alvo for "primario", mapeamos diretamente para o índice 0 (dano principal)
+                        const targetKey = (t.damageIndex !== undefined && t.damageIndex !== -1) ? `idx_${t.damageIndex}` : (t.damageType === 'primario' ? 'idx_0' : t.damageType);
+                        if (targetKey) {
+                            ctx.WEAPON_BONUS[key].damageDiceIncrease[targetKey] = (ctx.WEAPON_BONUS[key].damageDiceIncrease[targetKey] || 0) + val;
+                        }
                     }
                 }
             });

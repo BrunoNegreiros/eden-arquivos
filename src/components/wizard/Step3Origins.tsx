@@ -24,6 +24,7 @@ interface CustomOriginState {
         name: string;
         description: string;
         cost?: number; 
+        abilityType?: 'passiva' | 'ativa' | 'hibrida';
         effects: any[];
     };
 }
@@ -33,7 +34,7 @@ export default function Step3Origins() {
   
   const [origin, setOrigin] = useState<CustomOriginState>({
     id: '', name: '', source: 'Própria', description: '', trainedSkills: [],
-    power: { name: '', description: '', cost: 0, effects: [] } 
+    power: { name: '', description: '', cost: 0, abilityType: 'passiva', effects: [] } 
   });
 
   useEffect(() => {
@@ -106,9 +107,37 @@ export default function Step3Origins() {
              <h3 className="text-sangue font-bold uppercase text-sm flex items-center gap-2"><Zap size={16}/> Poder da Origem</h3>
              
              {}
-             <div className="flex gap-3">
-                 <input type="text" value={origin.power.name} onChange={(e) => setOrigin({...origin, power: {...origin.power, name: e.target.value}})} className="flex-1 bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none font-bold" placeholder="Nome do poder..."/>
-                 <input type="number" value={origin.power.cost || 0} onChange={(e) => setOrigin({...origin, power: {...origin.power, cost: Number(e.target.value)}})} className="w-20 bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 text-center focus:border-sangue outline-none font-bold" title="Custo em PE" placeholder="PE"/>
+             {/* ESTRUTURA DOS INPUTS CORRIGIDA */}
+             <div className="flex flex-col md:flex-row gap-3 w-full">
+                 <input 
+                    type="text" 
+                    value={origin.power.name} 
+                    onChange={(e) => setOrigin({...origin, power: {...origin.power, name: e.target.value}})} 
+                    className="flex-1 min-w-0 bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none font-bold" 
+                    placeholder="Nome do poder..."
+                 />
+                 <div className="flex gap-2 shrink-0">
+                     <select 
+                        value={origin.power.abilityType || 'passiva'} 
+                        onChange={(e) => setOrigin({...origin, power: {...origin.power, abilityType: e.target.value as any}})} 
+                        className="w-28 bg-eden-950 border border-eden-700 rounded-xl px-2 py-3 text-eden-100 text-xs md:text-sm focus:border-sangue outline-none cursor-pointer"
+                     >
+                         <option value="passiva">Passiva</option>
+                         <option value="ativa">Ativa</option>
+                         <option value="hibrida">Híbrida</option>
+                     </select>
+                     <div className="relative w-16 md:w-20">
+                        <input 
+                            type="number" 
+                            value={origin.power.cost || 0} 
+                            onChange={(e) => setOrigin({...origin, power: {...origin.power, cost: Number(e.target.value)}})} 
+                            className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 text-center focus:border-sangue outline-none font-bold" 
+                            title="Custo em PE" 
+                            placeholder="PE"
+                        />
+                        <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-eden-900 px-1 text-[8px] font-bold text-eden-100/40 uppercase">PE</span>
+                     </div>
+                 </div>
              </div>
 
              <textarea value={origin.power.description} onChange={(e) => setOrigin({...origin, power: {...origin.power, description: e.target.value}})} rows={3} className="w-full bg-eden-950 border border-eden-700 rounded-xl p-3 text-eden-100 focus:border-sangue outline-none text-sm resize-none" placeholder="Efeito técnico..."/>

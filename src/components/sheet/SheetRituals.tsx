@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCharacter } from '../../context/CharacterContext';
 import type { 
   UserRitual, ElementType, RitualVersion, DiceFace, DamageType
 } from '../../types/systemData';
 import { 
   Settings, Zap, Plus, X, Search, Trash2, Ghost,
-  Edit2, Book, Dices, StopCircle, Power, RefreshCw, Tag, Crosshair, Lock
+  Edit2, Book, Dices, StopCircle, Power, RefreshCw, Tag, Crosshair, Lock, ArrowUp, ArrowDown
 } from 'lucide-react';
 import EffectEditor from './EffectEditor';
 import { DAMAGE_TYPES_INFO } from '../../data/referenceData';
@@ -132,7 +132,7 @@ const RitualVersionEditor = ({ label, version, onChange, baseVersion }: { label:
 
 export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: UserRitual, onSave: (r: UserRitual) => void, onCancel: () => void }) => {
     const defaultVersion: RitualVersion = { isUnlocked: false, isActive: false, cost: 1, execution: 'Padrão', range: 'Curto', target: '1 ser', duration: 'Instantânea', resistance: 'Nenhuma', description: '', effects: [], damage: [] };
-    const defaultRitual = { id: '', name: '', element: 'Conhecimento', circle: 1, normal: { ...defaultVersion, isUnlocked: true }, discente: { ...defaultVersion }, verdadeiro: { ...defaultVersion } } as any;
+    const defaultRitual = { id: '', name: '', element: 'Conhecimento', circle: 1, ritualType: 'ativa', normal: { ...defaultVersion, isUnlocked: true }, discente: { ...defaultVersion }, verdadeiro: { ...defaultVersion } } as any;
     
     const [data, setData] = useState<UserRitual>(initialData || defaultRitual as any);
     const [activeTab, setActiveTab] = useState<'normal' | 'discente' | 'verdadeiro'>('normal');
@@ -182,6 +182,7 @@ export const RitualForm = ({ initialData, onSave, onCancel }: { initialData?: Us
                             <div className="flex gap-2">
                                 <select value={data.element} onChange={e => setData({...data, element: e.target.value as ElementType})} className="bg-black/20 border border-white/10 rounded text-[10px] uppercase font-bold text-white px-2 py-0.5">{ELEMENTS.map(el => <option key={el} value={el}>{el}</option>)}</select>
                                 <select value={data.circle} onChange={e => setData({...data, circle: Number(e.target.value) as any})} className="bg-black/20 border border-white/10 rounded text-[10px] uppercase font-bold text-white px-2 py-0.5">{[1,2,3,4].map(c => <option key={c} value={c}>{c}º Círculo</option>)}</select>
+                                <select value={data.ritualType || 'ativa'} onChange={e => setData({...data, ritualType: e.target.value as any})} className="bg-black/20 border border-white/10 rounded text-[10px] uppercase font-bold text-white px-2 py-0.5"><option value="passiva">Passivo</option><option value="ativa">Ativo</option><option value="hibrida">Híbrido</option></select>
                             </div>
                         </div>
                     </div>
@@ -277,8 +278,18 @@ export default function SheetRituals() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingRitual, setEditingRitual] = useState<UserRitual | null>(null);
 
-  const [elementFilter, setElementFilter] = useState('all');
+  const [selectedElements, setSelectedElements] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [circleFilter, setCircleFilter] = useState('all');
   const [selectedTagsFilter, setSelectedTagsFilter] = useState<string[]>([]);
+
+  const [sortBy, setSortBy] = useState<'default' | 'alpha' | 'circle'>(() => (localStorage.getItem('eden_rituals_sort') as any) || 'default');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => (localStorage.getItem('eden_rituals_order') as any) || 'asc');
+
+  useEffect(() => {
+      localStorage.setItem('eden_rituals_sort', sortBy);
+      localStorage.setItem('eden_rituals_order', sortOrder);
+  }, [sortBy, sortOrder]);
 
   const getOccultismStats = () => {
       const int = character.attributes?.initial?.INT || 0;
@@ -315,15 +326,25 @@ export default function SheetRituals() {
     return Array.from(tagMap.values());
 }, [character]);
 
-  const filteredRituals = allRituals.filter(r => {
+  const filteredRituals = [...allRituals].filter(r => {
       if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) && !(r.normal.description || '').toLowerCase().includes(searchTerm.toLowerCase())) return false;
-      if (elementFilter !== 'all' && r.element !== elementFilter) return false;
+      if (selectedElements.length > 0 && !selectedElements.includes(r.element)) return false;
+      if (selectedTypes.length > 0 && !selectedTypes.includes(r.ritualType || 'ativa')) return false;
+      if (circleFilter !== 'all' && r.circle !== Number(circleFilter)) return false;
       if (selectedTagsFilter.length > 0) {
           if (!(r as any).tags || (r as any).tags.length === 0) return false;
           if (!selectedTagsFilter.some(filterId => (r as any).tags!.some((t: any) => t.id === filterId))) return false;
       }
       return true;
   });
+
+  if (sortBy === 'alpha') {
+      filteredRituals.sort((a, b) => sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+  } else if (sortBy === 'circle') {
+      filteredRituals.sort((a, b) => sortOrder === 'asc' ? a.circle - b.circle : b.circle - a.circle);
+  } else if (sortBy === 'default' && sortOrder === 'desc') {
+      filteredRituals.reverse();
+  }
 
   const deepUpdatePayload = (prev: any, payloadId: string, mutator: (payload: any) => any) => {
       const scan = (items: any[]) => items.map(item => {
@@ -490,41 +511,70 @@ export default function SheetRituals() {
               <button onClick={() => setIsCreating(true)} className="md:hidden bg-energia text-eden-900 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-yellow-400 text-xs shadow-lg"><Plus size={14}/> Novo</button>
           </div>
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-              <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
-                  <select value={elementFilter} onChange={e => setElementFilter(e.target.value)} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-xs text-eden-100 outline-none flex-1 md:w-32 shrink-0">
-                      <option value="all">Todos Elementos</option>
-                      {ELEMENTS.map(e => <option key={e} value={e}>{e}</option>)}
+              <div className="flex gap-1 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0 shrink-0">
+                  <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-xs text-white font-bold outline-none flex-1 md:w-28">
+                      <option value="default">Criação</option>
+                      <option value="alpha">A-Z</option>
+                      <option value="circle">Círculo</option>
+                  </select>
+                  <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-eden-100 hover:text-white hover:border-energia transition-colors flex items-center justify-center">
+                      {sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                  </button>
+                  <select value={circleFilter} onChange={e => setCircleFilter(e.target.value)} className="bg-eden-950 border border-eden-700 rounded-lg px-2 py-1.5 text-xs text-eden-100 outline-none flex-1 md:w-28">
+                      <option value="all">Todos Círculos</option>
+                      {[1, 2, 3, 4].map(c => <option key={c} value={c}>{c}º Círculo</option>)}
                   </select>
               </div>
-              <div className="relative flex-1 md:w-48 shrink-0">
+              <div className="relative flex-1 md:w-40 shrink-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-eden-100/30 w-4 h-4"/>
-                  <input type="text" placeholder="Buscar ritual..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white focus:border-energia outline-none"/>
+                  <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-eden-950 border border-eden-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white focus:border-energia outline-none"/>
               </div>
               <button onClick={() => setIsCreating(true)} className="hidden md:flex bg-energia text-eden-900 px-4 py-1.5 rounded-lg font-bold items-center gap-2 hover:bg-yellow-400 text-xs shadow-lg shrink-0"><Plus size={16}/> Novo</button>
           </div>
       </div>
 
-      {globalTags.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-1">
-              <span className="text-[10px] uppercase font-bold text-eden-100/30 mt-1 flex items-center gap-1"><Tag size={10}/> Tags:</span>
-              {globalTags.map((tag: any) => {
-                  const isSelected = selectedTagsFilter.includes(tag.id);
+      <div className="flex flex-col gap-2 px-1">
+          <div className="flex flex-wrap gap-2">
+              {ELEMENTS.map(el => {
+                  const isSelected = selectedElements.includes(el);
                   return (
-                      <button 
-                          key={tag.id}
-                          onClick={() => setSelectedTagsFilter(p => isSelected ? p.filter(id => id !== tag.id) : [...p, tag.id])}
-                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border transition-all ${isSelected ? 'opacity-100 scale-105 shadow-md' : 'opacity-40 hover:opacity-80'}`}
-                          style={{ backgroundColor: `${tag.color}30`, color: tag.color, borderColor: `${tag.color}50` }}
-                      >
-                          {tag.name}
+                      <button key={el} onClick={() => setSelectedElements(p => isSelected ? p.filter(x => x !== el) : [...p, el])} className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border transition-all ${isSelected ? 'opacity-100 shadow-md bg-energia text-eden-900 border-energia' : 'opacity-40 hover:opacity-80 bg-eden-900 text-eden-100 border-eden-700'}`}>
+                          {el}
                       </button>
                   );
               })}
-              {selectedTagsFilter.length > 0 && (
-                  <button onClick={() => setSelectedTagsFilter([])} className="text-[9px] font-bold text-eden-100/50 hover:text-white px-2 py-0.5 rounded border border-eden-700">Limpar Filtros</button>
-              )}
+              <div className="w-px h-4 bg-eden-700 mx-1 self-center"></div>
+              {['passiva', 'ativa', 'hibrida'].map(type => {
+                  const isSelected = selectedTypes.includes(type);
+                  return (
+                      <button key={type} onClick={() => setSelectedTypes(p => isSelected ? p.filter(x => x !== type) : [...p, type])} className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border transition-all ${isSelected ? 'opacity-100 shadow-md bg-energia text-eden-900 border-energia' : 'opacity-40 hover:opacity-80 bg-eden-900 text-eden-100 border-eden-700'}`}>
+                          {type}
+                      </button>
+                  );
+              })}
           </div>
-      )}
+          {globalTags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1">
+                  <span className="text-[10px] uppercase font-bold text-eden-100/30 mt-1 flex items-center gap-1"><Tag size={10}/> Tags:</span>
+                  {globalTags.map((tag: any) => {
+                      const isSelected = selectedTagsFilter.includes(tag.id);
+                      return (
+                          <button 
+                              key={tag.id}
+                              onClick={() => setSelectedTagsFilter(p => isSelected ? p.filter(id => id !== tag.id) : [...p, tag.id])}
+                              className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border transition-all ${isSelected ? 'opacity-100 scale-105 shadow-md' : 'opacity-40 hover:opacity-80'}`}
+                              style={{ backgroundColor: `${tag.color}30`, color: tag.color, borderColor: `${tag.color}50` }}
+                          >
+                              {tag.name}
+                          </button>
+                      );
+                  })}
+                  {selectedTagsFilter.length > 0 && (
+                      <button onClick={() => setSelectedTagsFilter([])} className="text-[9px] font-bold text-eden-100/50 hover:text-white px-2 py-0.5 rounded border border-eden-700">Limpar Tags</button>
+                  )}
+              </div>
+          )}
+      </div>
 
       {filteredRituals.length === 0 ? (
           <div className="text-center py-20 border-2 border-dashed border-eden-800 rounded-xl text-eden-100/30">
@@ -565,6 +615,7 @@ export default function SheetRituals() {
                                     <h3 className="font-bold text-eden-100 leading-none">{ritual.name}</h3>
                                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                         <span className={`text-[9px] uppercase font-bold opacity-70 ${style.color}`}>{ritual.element} • {ritual.circle}º Círculo</span>
+                                        <span className="text-[9px] uppercase font-bold text-eden-100/50 bg-black/20 px-1.5 rounded border border-white/5">{ritual.ritualType || 'ativa'}</span>
                                         <span className="text-[9px] uppercase font-bold text-eden-100/50 bg-black/20 px-1.5 rounded border border-white/5">DT {vars.DT_RITUAL.global + (vars.DT_RITUAL.specific[ritual.id] || 0)}</span>
                                         {(ritual.tags || []).map((tag: any) => (
                                             <span key={tag.id} className="text-[8px] font-black uppercase px-1 rounded border" style={{ backgroundColor: `${tag.color}20`, color: tag.color, borderColor: `${tag.color}40` }}>{tag.name}</span>

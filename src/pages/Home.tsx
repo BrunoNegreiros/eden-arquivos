@@ -84,14 +84,14 @@ export default function Home() {
         
         snapChars.forEach((docSnap) => {
           const data = docSnap.data();
-          
-          if (data.isDead) return;
+                    
+          if (data.isDead || data.isPrivate) return;
 
           const char = { ...data, id: docSnap.id };
           
           if (data.userId === currentUser.uid) {
               mines.push(char);
-          } else if (!data.isPrivate) {
+          } else {
               publics.push(char);
           }
         });

@@ -181,13 +181,17 @@ export default function TeamDashboard() {
         const varsMid = calculateVariables(clone); 
         
         clone.rituals?.forEach((r: any) => {
-            const isSimActive = sim[r.id] !== undefined ? sim[r.id] : (r.normal?.isActive || r.discente?.isActive || r.verdadeiro?.isActive);
+            const simState = sim[r.id];
             
-            if (r.normal) r.normal.isActive = false;
-            if (r.discente) r.discente.isActive = false;
-            if (r.verdadeiro) r.verdadeiro.isActive = false;
-
-            if (isSimActive) {
+            if (simState === false) {
+                if (r.normal) r.normal.isActive = false;
+                if (r.discente) r.discente.isActive = false;
+                if (r.verdadeiro) r.verdadeiro.isActive = false;
+            } else if (simState === true) {
+                if (r.normal) r.normal.isActive = false;
+                if (r.discente) r.discente.isActive = false;
+                if (r.verdadeiro) r.verdadeiro.isActive = false;
+                
                 const bypass = varsMid.FREE_RITUALS?.includes(r.id) || varsMid.FREE_RITUALS?.includes('all');
                 
                 const hasVerd = r.verdadeiro && (r.verdadeiro.effects?.length > 0 || r.verdadeiro.cost > 1 || (r.verdadeiro.description && r.verdadeiro.description.trim() !== ''));
@@ -195,16 +199,17 @@ export default function TeamDashboard() {
                 
                 const canVerdadeiro = hasVerd && (bypass || (varsMid.MAX_RITUAL_CIRCLE >= (r.verdadeiro.requiredCircle || r.circle) && (!r.verdadeiro.affinity || varsMid.AFFINITIES?.includes(r.verdadeiro.affinity.toLowerCase()))));
                 const canDiscente = hasDisc && (bypass || (varsMid.MAX_RITUAL_CIRCLE >= (r.discente.requiredCircle || r.circle) && (!r.discente.affinity || varsMid.AFFINITIES?.includes(r.discente.affinity.toLowerCase()))));
-                const canNormal = r.normal && (bypass || varsMid.MAX_RITUAL_CIRCLE >= r.circle);
 
-                if (canVerdadeiro) {
+                if (canVerdadeiro && r.verdadeiro) {
                     r.verdadeiro.isActive = true;
-                } else if (canDiscente) {
+                } else if (canDiscente && r.discente) {
                     r.discente.isActive = true;
-                } else if (canNormal) {
+                } else if (r.normal) {
                     r.normal.isActive = true;
                 }
             }
+            // Se simState === undefined (não clicou no dashboard), o código IGNORA os testes de segurança
+            // e mantém o ritual ativado na mesma versão que veio da ficha original!
         });
 
         const vars = calculateVariables(clone);
@@ -224,10 +229,12 @@ export default function TeamDashboard() {
 
         let maxAtk = 0;
 
-        const acoesTotais = vars.ACOES.padrao || 1;
-        const qtdeMovimentacoes = Math.floor(vars.DESLOCAMENTO / 2) * acoesTotais;
+        const acoesTotais = 1 + (vars.ACOES.extra || 0); // Ação padrão (1) + Ações adicionais
+        const qtdeMovimentacoes = Math.floor(vars.DESLOCAMENTO / 2) * acoesTotais; // 1 movimentação = 2m
         
-        const multiplicadorMovimento = opts.recklessAttacks ? Math.max(1, Math.floor(qtdeMovimentacoes / 2)) : 1;
+        // Se desenfreado, ele troca TODAS as movimentações por ataques (1 ataque = 2 mov).
+        // Se normal, conta apenas como 1 único ataque.
+        const multiplicadorAtaques = opts.recklessAttacks ? Math.floor(qtdeMovimentacoes / 2) : 1;
 
         let maxRitualDmg = 0;
         let maxWeaponDmg = 0;
@@ -256,7 +263,18 @@ export default function TeamDashboard() {
 
             if (atk.attackTest?.skill) {
                 const skillTotal = vars.SKILLS[atk.attackTest.skill]?.total || 0;
-                const skillDice = Math.max(0, (vars.SKILLS[atk.attackTest.skill]?.dice || 1) + totalWbAttackDice);
+                let baseDice = vars.SKILLS[atk.attackTest.skill]?.dice || 1;
+                
+                // Lógica de Arma Ágil (Substitui FOR por AGI se for maior)
+                if (atk.isAgile && atk.attackTest.skill === 'Luta') {
+                    const forAttr = vars.ATTRS['FOR'] || 0;
+                    const agiAttr = vars.ATTRS['AGI'] || 0;
+                    if (agiAttr > forAttr) {
+                        baseDice = baseDice - forAttr + agiAttr;
+                    }
+                }
+
+                const skillDice = Math.max(0, baseDice + totalWbAttackDice);
                 const finalBonus = skillTotal + convertDiceToBonus(skillDice) + totalWbAttackBonus;
                 if (finalBonus > maxAtk) maxAtk = finalBonus;
             } else if (atk.element && atk.circle) {
@@ -270,19 +288,10 @@ export default function TeamDashboard() {
             
             if (atk.type === 'weapon' || atk.type === 'explosive') {
                 if (atk.damage) dmgListToEvaluate.push(atk.damage);
-            } else {
-                const bypass = vars.FREE_RITUALS?.includes(atk.id) || vars.FREE_RITUALS?.includes('all');
-                
-                const hasVerd = atk.verdadeiro && (atk.verdadeiro.effects?.length > 0 || atk.verdadeiro.cost > 1 || (atk.verdadeiro.description && atk.verdadeiro.description.trim() !== ''));
-                const hasDisc = atk.discente && (atk.discente.effects?.length > 0 || atk.discente.cost > 1 || (atk.discente.description && atk.discente.description.trim() !== ''));
-                
-                const canVerdadeiro = hasVerd && (bypass || (vars.MAX_RITUAL_CIRCLE >= (atk.verdadeiro.requiredCircle || atk.circle) && (!atk.verdadeiro.affinity || vars.AFFINITIES?.includes(atk.verdadeiro.affinity.toLowerCase()))));
-                const canDiscente = hasDisc && (bypass || (vars.MAX_RITUAL_CIRCLE >= (atk.discente.requiredCircle || atk.circle) && (!atk.discente.affinity || vars.AFFINITIES?.includes(atk.discente.affinity.toLowerCase()))));
-                const canNormal = atk.normal && (bypass || vars.MAX_RITUAL_CIRCLE >= atk.circle);
-
-                if (canVerdadeiro && atk.verdadeiro.damage) dmgListToEvaluate.push(atk.verdadeiro.damage);
-                else if (canDiscente && atk.discente.damage) dmgListToEvaluate.push(atk.discente.damage);
-                else if (canNormal && atk.normal.damage) dmgListToEvaluate.push(atk.normal.damage);
+            } else {                
+                if (atk.verdadeiro?.isActive && atk.verdadeiro.damage) dmgListToEvaluate.push(atk.verdadeiro.damage);
+                else if (atk.discente?.isActive && atk.discente.damage) dmgListToEvaluate.push(atk.discente.damage);
+                else if (atk.normal?.isActive && atk.normal.damage) dmgListToEvaluate.push(atk.normal.damage);
             }
 
             const multMod = (wbSpecific.criticalMultiplier || 0) + (wbAll.criticalMultiplier || 0) + (wbMelee.criticalMultiplier || 0) + (wbRanged.criticalMultiplier || 0);
@@ -293,7 +302,6 @@ export default function TeamDashboard() {
                 let currentDmgSum = 0;
 
                 dmgList.forEach((dmg: any, idx: number) => {
-                    // 1. Verifica se tem efeito de substituição de dano (Ex: d3 para d8)
                     const damageOverride = wbSpecific.damageOverride?.[`idx_${idx}`] 
                                         || wbMelee.damageOverride?.[`idx_${idx}`] 
                                         || wbRanged.damageOverride?.[`idx_${idx}`] 
@@ -301,7 +309,7 @@ export default function TeamDashboard() {
                                         
                     const targetDmg = damageOverride ? { ...dmg, ...damageOverride } : dmg;
 
-                    // 2. Aplica aumentos de dados baseados no alvo substituído
+                    // Como limpamos os objetos no systemData.ts, isso aqui volta a ser 100% numérico!
                     const specificInc = wbSpecific.damageDiceIncrease[`idx_${idx}`] || wbSpecific.damageDiceIncrease[targetDmg.type] || 0;
                     const allInc = wbAll.damageDiceIncrease[`idx_${idx}`] || wbAll.damageDiceIncrease[targetDmg.type] || 0;
                     const meleeInc = wbMelee.damageDiceIncrease[`idx_${idx}`] || wbMelee.damageDiceIncrease[targetDmg.type] || 0;
@@ -310,7 +318,6 @@ export default function TeamDashboard() {
                     let c = (targetDmg.diceCount || 0) + specificInc + allInc + meleeInc + rangedInc;
                     const f = targetDmg.diceFace || 6;
                     
-                    // 3. Multiplica o crítico usando o critMult atualizado
                     if (opts.considerCriticals && targetDmg.isMultipliable !== false) {
                         c = c * critMult;
                     }
@@ -324,7 +331,13 @@ export default function TeamDashboard() {
                     
                     let attrBonus = 0;
                     if (atk.attackTest?.skill === 'Luta') {
-                        attrBonus = vars.ATTRS['FOR'] || 0;
+                        const forAttr = vars.ATTRS['FOR'] || 0;
+                        const agiAttr = vars.ATTRS['AGI'] || 0;
+                        if (atk.isAgile && agiAttr > forAttr) {
+                            attrBonus = agiAttr;
+                        } else {
+                            attrBonus = forAttr;
+                        }
                     }
 
                     currentDmgSum += Math.floor(convertDamageToAvg(c, f)) + fixed + attrBonus;
@@ -344,7 +357,8 @@ export default function TeamDashboard() {
             });
         });
 
-        const maxDmg = Math.max(maxRitualDmg, maxWeaponDmg * multiplicadorMovimento);
+        // Rituais batem por Ação (acoesTotais), Armas batem pelo Desenfreado (multiplicadorAtaques)
+        const maxDmg = Math.max(maxRitualDmg * acoesTotais, maxWeaponDmg * multiplicadorAtaques);
         
         const trueDef = opts.addReflexesToDefense ? vars.DEF + (vars.SKILLS['Reflexos']?.total || 0) : vars.DEF;
 

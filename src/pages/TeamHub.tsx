@@ -52,6 +52,11 @@ export default function TeamHub() {
                 allChars.push(data);
                 if (data.userId === currentUser?.uid) mine.push(data);
             });
+
+            // Ordena em ordem alfabética
+            allChars.sort((a, b) => (a.personal?.name || '').localeCompare(b.personal?.name || ''));
+            mine.sort((a, b) => (a.personal?.name || '').localeCompare(b.personal?.name || ''));
+
             setCharacters(allChars);
             setMyChars(mine);
         });
@@ -404,18 +409,21 @@ export default function TeamHub() {
                                         )}
                                     </div>
                                     <div className="p-4 space-y-2 bg-eden-900/30">
-                                        {rank.items.map((charId: string, idx: number) => {
-                                            const char = characters.find(c => c.id === charId);
-                                            return (
-                                                <div key={`${rank.id}-item-${idx}`} className="flex items-center gap-3 bg-black/40 p-2 rounded-xl border border-white/5">
-                                                    <div className="w-6 h-6 flex items-center justify-center font-black text-xs bg-yellow-500 text-eden-900 rounded-full shrink-0">{idx + 1}</div>
-                                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-black shrink-0">
-                                                        {char?.personal?.portraitUrl ? <img src={char.personal.portraitUrl} className="w-full h-full object-cover"/> : <Ghost className="w-4 h-4 m-auto mt-2 text-white/20"/>}
+                                        {rank.items
+                                            .filter((charId: string) => characters.some(c => c.id === charId))
+                                            .map((charId: string, idx: number) => {
+                                                const char = characters.find(c => c.id === charId);
+                                                return (
+                                                    <div key={`${rank.id}-item-${charId}`} className="flex items-center gap-3 bg-black/40 p-2 rounded-xl border border-white/5">
+                                                        <div className="w-6 h-6 flex items-center justify-center font-black text-xs bg-yellow-500 text-eden-900 rounded-full shrink-0">{idx + 1}</div>
+                                                        <div className="w-8 h-8 rounded-full overflow-hidden bg-black shrink-0">
+                                                            {char?.personal?.portraitUrl ? <img src={char.personal.portraitUrl} className="w-full h-full object-cover"/> : <Ghost className="w-4 h-4 m-auto mt-2 text-white/20"/>}
+                                                        </div>
+                                                        <span className="text-sm font-bold text-white truncate">{char?.personal?.name || 'Desconhecido'}</span>
                                                     </div>
-                                                    <span className="text-sm font-bold text-white truncate">{char?.personal?.name || 'Desconhecido'}</span>
-                                                </div>
-                                            )
-                                        })}
+                                                )
+                                            })
+                                        }
                                     </div>
                                     {!isLocked && currentUser && (
                                         <div className="p-3 bg-eden-950 flex gap-2 border-t border-eden-700">

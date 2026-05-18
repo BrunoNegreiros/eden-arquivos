@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { collection, query, where, onSnapshot, doc, addDoc, serverTimestamp, orderBy, updateDoc, arrayUnion, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, doc, serverTimestamp, orderBy, updateDoc, arrayUnion, setDoc, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../config/firebase'; 
 import { Home as HomeIcon, Send, MessageSquare, ArrowLeft, Loader2, Search, CheckCheck, X, Edit2, Camera, Mic, Square, ImageIcon, MoreVertical, Trash2, Reply, Info as InfoIcon, Sun, Moon } from 'lucide-react';
 
@@ -14,10 +14,10 @@ export default function TeamChat() {
     const [loading, setLoading] = useState(true);
     const [mesa, setMesa] = useState<any>(null);
     const [allCharacters, setAllCharacters] = useState<any[]>([]); 
+    const [allChatSettings, setAllChatSettings] = useState<Record<string, any>>({}); // NOVO: Guarda as configs de chat de todos
     const [actingCharId, setActingCharId] = useState<string>('');
     const [activeChatId, setActiveChatId] = useState<string | 'global' | null>('global');
     const [messages, setMessages] = useState<any[]>([]);
-    const [mySettings, setMySettings] = useState<any>({ theme: 'dark', chatBgOpacity: 0.1 });
     const [searchTerm, setSearchTerm] = useState('');
 
     // Estados de UI
@@ -39,6 +39,7 @@ export default function TeamChat() {
     const userPlaceholder = "https://img.icons8.com/ios-filled/100/7c3aed/user.png";
 
     // --- 1. DEFINIÇÕES GLOBAIS ---
+    const mySettings = { theme: 'dark', chatBgOpacity: 0.1, ...(allChatSettings[actingCharId] || {}) };
     const isLight = mySettings.theme === 'light';
     const myActiveChars = useMemo(() => allCharacters.filter(c => c.userId === currentUser?.uid), [allCharacters, currentUser]);
     const activeChar = useMemo(() => allCharacters.find(c => c.id === actingCharId), [allCharacters, actingCharId]);
@@ -48,6 +49,7 @@ export default function TeamChat() {
     useEffect(() => {
         if (!mesaId) return;
         const unsubMesa = onSnapshot(doc(db, 'mesas', mesaId), (snap) => { if (snap.exists()) setMesa(snap.data()); });
+        
         const qChars = query(collection(db, 'characters'), where('mesaId', '==', mesaId));
         const unsubChars = onSnapshot(qChars, (snap) => {
             const chars: any[] = [];
@@ -60,15 +62,16 @@ export default function TeamChat() {
             if (mine.length > 0 && !actingCharId) setActingCharId(mine[0].id);
             setLoading(false);
         });
-        return () => { unsubMesa(); unsubChars(); };
-    }, [mesaId, currentUser, actingCharId]);
 
-    useEffect(() => {
-        if (!mesaId || !actingCharId) return;
-        return onSnapshot(doc(db, `mesas/${mesaId}/chat_settings`, actingCharId), (snap) => { 
-            if (snap.exists()) setMySettings((prev: any) => ({ ...prev, ...snap.data() })); 
+        // NOVO: Baixa as configurações de chat de todos os personagens da mesa
+        const unsubSettings = onSnapshot(collection(db, `mesas/${mesaId}/chat_settings`), (snap) => {
+            const settings: Record<string, any> = {};
+            snap.forEach(d => { settings[d.id] = d.data(); });
+            setAllChatSettings(settings);
         });
-    }, [mesaId, actingCharId]);
+
+        return () => { unsubMesa(); unsubChars(); unsubSettings(); };
+    }, [mesaId, currentUser, actingCharId]);
 
     useEffect(() => {
         if (!mesaId) return;
@@ -275,7 +278,7 @@ export default function TeamChat() {
                         if (!lastMsg && !searchTerm) return null;
                         return (
                             <div key={contact.id} onClick={(e) => { e.stopPropagation(); setActiveChatId(contact.id); }} className={`flex items-center gap-4 p-4 cursor-pointer transition-all border-b border-l-4 ${activeChatId === contact.id ? (isLight ? 'bg-[#f0f2f5] border-purple-600' : 'bg-[#1a1a2e] border-purple-500') : 'border-transparent border-b-black/5 hover:bg-black/5'}`}>
-                                <img src={contact.personal?.portraitUrl || userPlaceholder} className="w-12 h-12 rounded-full object-cover shadow-md" alt="C"/>
+                                <img src={allChatSettings[contact.id]?.chatPortraitUrl || contact.personal?.portraitUrl || userPlaceholder} className="w-12 h-12 rounded-full object-cover shadow-md" alt="C"/>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-center mb-1">
                                         <h4 className={`font-bold truncate ${isLight ? 'text-[#111b21]' : 'text-purple-100'}`}>{mySettings.nicknames?.[contact.id] || contact.personal?.name}</h4>
@@ -297,7 +300,7 @@ export default function TeamChat() {
                             <div className="flex items-center gap-4 cursor-pointer min-w-0" onClick={(e) => { e.stopPropagation(); setShowInfoPanel('chat'); }}>
                                 <button onClick={(e) => { e.stopPropagation(); setActiveChatId(null); }} className="md:hidden text-purple-600 mr-1"><ArrowLeft size={24}/></button>
                                 <div className={`w-11 h-11 rounded-full overflow-hidden flex items-center justify-center shrink-0 ${isLight ? 'bg-white shadow-sm' : 'bg-[#0d0d1a] border border-purple-500/30'}`}>
-                                    {activeChatId === 'global' ? <img src={mesa?.chatPortraitUrl || groupPlaceholder} className="w-full h-full object-cover" alt="G"/> : <img src={activeContact?.personal?.portraitUrl || userPlaceholder} className="w-full h-full object-cover" alt="C"/>}
+                                    {activeChatId === 'global' ? <img src={mesa?.chatPortraitUrl || groupPlaceholder} className="w-full h-full object-cover" alt="G"/> : <img src={allChatSettings[activeChatId]?.chatPortraitUrl || activeContact?.personal?.portraitUrl || userPlaceholder} className="w-full h-full object-cover" alt="C"/>}
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                     <span className={`font-black truncate text-base ${isLight ? 'text-[#111b21]' : 'text-purple-50'}`}>{activeChatId === 'global' ? (mesa?.chatName || "Grupo da Mesa") : (mySettings.nicknames?.[activeChatId] || activeContact?.personal?.name)}</span>
@@ -399,7 +402,7 @@ export default function TeamChat() {
                                 return (
                                     <div key={charId} className={`flex items-center justify-between p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-black/20'}`}>
                                         <div className="flex items-center gap-3">
-                                            <img src={char?.personal?.portraitUrl || userPlaceholder} className="w-8 h-8 rounded-full object-cover"/>
+                                            <img src={allChatSettings[charId]?.chatPortraitUrl || char?.personal?.portraitUrl || userPlaceholder} className="w-8 h-8 rounded-full object-cover"/>
                                             <span className="font-bold text-sm">{char?.personal?.name || "Desconhecido"}</span>
                                         </div>
                                         <div className="text-right">
@@ -423,7 +426,7 @@ export default function TeamChat() {
                     </div>
                     <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center gap-8">
                         <div className="relative group">
-                            <img src={showInfoPanel === 'me' ? (mySettings.chatPortraitUrl || activeChar?.personal?.portraitUrl || userPlaceholder) : (activeChatId === 'global' ? (mesa?.chatPortraitUrl || groupPlaceholder) : activeContact?.personal?.portraitUrl || userPlaceholder)} className={`w-56 h-56 rounded-full object-cover shadow-2xl cursor-zoom-in border-4 ${isLight ? 'border-white shadow-purple-500/10' : 'border-[#1a1a2e] shadow-purple-500/20'}`} onClick={(e:any) => setZoomPhoto(e.target.src)}/>
+                            <img src={showInfoPanel === 'me' ? (mySettings.chatPortraitUrl || activeChar?.personal?.portraitUrl || userPlaceholder) : (activeChatId === 'global' ? (mesa?.chatPortraitUrl || groupPlaceholder) : (allChatSettings[activeChatId as string]?.chatPortraitUrl || activeContact?.personal?.portraitUrl || userPlaceholder))} className={`w-56 h-56 rounded-full object-cover shadow-2xl cursor-zoom-in border-4 ${isLight ? 'border-white shadow-purple-500/10' : 'border-[#1a1a2e] shadow-purple-500/20'}`} onClick={(e:any) => setZoomPhoto(e.target.src)}/>
                             {(showInfoPanel === 'me' || (showInfoPanel === 'chat' && activeChatId === 'global')) && (
                                 <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-purple-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-full transition-all backdrop-blur-sm"><Camera className="text-white" size={32}/></button>
                             )}
@@ -435,7 +438,7 @@ export default function TeamChat() {
                                 <div className={`p-5 rounded-3xl border text-left ${isLight ? 'bg-[#f0f2f5] border-transparent shadow-sm' : 'bg-[#1a1a2e] border-purple-900/20'}`}>
                                     <label className="text-[10px] uppercase text-purple-600 font-black block mb-2 tracking-widest">{activeChatId === 'global' ? "Nome do Grupo" : "Nome"}</label>
                                     {activeChatId === 'global' ? (
-                                        <input defaultValue={mesa?.chatName} onBlur={e => updateGroupInfo('name', e.target.value)} className="bg-transparent text-xl font-black w-full outline-none border-b border-purple-400"/>
+                                        <input key={`name-${mesaId}`} defaultValue={mesa?.chatName} onBlur={e => updateGroupInfo('name', e.target.value)} className="bg-transparent text-xl font-black w-full outline-none border-b border-purple-400"/>
                                     ) : (
                                         <div className="space-y-2">
                                             <p className="text-xl font-black">{activeContact?.personal?.name}</p>
@@ -451,12 +454,12 @@ export default function TeamChat() {
                             <div className={`p-5 rounded-3xl border text-left ${isLight ? 'bg-[#f0f2f5] border-transparent shadow-sm' : 'bg-[#1a1a2e] border-purple-900/20'}`}>
                                 <label className="text-[10px] uppercase text-purple-600 font-black block mb-2 tracking-widest">{activeChatId === 'global' && showInfoPanel === 'chat' ? "Sobre o Grupo" : "Recado / Bio"}</label>
                                 {showInfoPanel === 'me' ? (
-                                    <textarea defaultValue={mySettings.chatBio || ''} onBlur={e => updateMyChatProfile('bio', e.target.value)} className="bg-transparent text-sm w-full outline-none resize-none h-24"/>
+                                    <textarea key={`bio-${actingCharId}`} defaultValue={mySettings.chatBio || ''} onBlur={e => updateMyChatProfile('bio', e.target.value)} className="bg-transparent text-sm w-full outline-none resize-none h-24"/>
                                 ) : (
                                     activeChatId === 'global' ? (
-                                        <textarea defaultValue={mesa?.chatDescription} onBlur={e => updateGroupInfo('description', e.target.value)} className="bg-transparent text-sm w-full outline-none resize-none h-24 border-b border-purple-400"/>
+                                        <textarea key={`desc-${mesaId}`} defaultValue={mesa?.chatDescription} onBlur={e => updateGroupInfo('description', e.target.value)} className="bg-transparent text-sm w-full outline-none resize-none h-24 border-b border-purple-400"/>
                                     ) : (
-                                        <p className="text-sm">{activeContact?.chatBio || "Sem bio disponível."}</p>
+                                        <p className="text-sm">{allChatSettings[activeChatId as string]?.chatBio || "Sem bio disponível."}</p>
                                     )
                                 )}
                             </div>
@@ -489,7 +492,7 @@ export default function TeamChat() {
                                         {allCharacters.map(c => (
                                             <div key={c.id} onClick={() => { if(c.id !== actingCharId) { setActiveChatId(c.id); setShowInfoPanel(null); } }} className="flex items-center justify-between group cursor-pointer">
                                                 <div className="flex items-center gap-3">
-                                                    <img src={c.personal?.portraitUrl || userPlaceholder} className="w-10 h-10 rounded-full object-cover border border-purple-900/10"/>
+                                                    <img src={allChatSettings[c.id]?.chatPortraitUrl || c.personal?.portraitUrl || userPlaceholder} className="w-10 h-10 rounded-full object-cover border border-purple-900/10"/>
                                                     <span className="font-bold text-sm">{c.personal?.name} {c.id === actingCharId && "(Você)"}</span>
                                                 </div>
                                                 {c.id !== actingCharId && <MessageSquare size={16} className="text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity"/>}
@@ -514,7 +517,7 @@ export default function TeamChat() {
                         <div className="p-3 overflow-y-auto max-h-[60vh] custom-scrollbar">
                             {allCharacters.filter(c => c.id !== actingCharId && c.personal?.name.toLowerCase().includes(searchTerm.toLowerCase())).map(contact => (
                                 <div key={contact.id} onClick={() => { setActiveChatId(contact.id); setShowContactList(false); }} className={`flex items-center gap-4 p-4 hover:bg-black/5 cursor-pointer rounded-2xl transition-all mb-1`}>
-                                    <img src={contact.personal?.portraitUrl || userPlaceholder} className="w-12 h-12 rounded-full object-cover shadow-lg border border-purple-900/10"/>
+                                    <img src={allChatSettings[contact.id]?.chatPortraitUrl || contact.personal?.portraitUrl || userPlaceholder} className="w-12 h-12 rounded-full object-cover shadow-lg border border-purple-900/10"/>
                                     <div><p className="font-black">{contact.personal?.name}</p><p className="text-[10px] text-purple-500 font-bold uppercase opacity-60">{contact.personal?.class}</p></div>
                                 </div>
                             ))}

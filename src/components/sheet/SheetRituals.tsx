@@ -396,8 +396,9 @@ export default function SheetRituals() {
                   } else { pe.temp = (Number(pe.temp) || 0) - pCost; }
               } else { pe.current = Math.max(0, currentPE - pCost); }
 
-              san.max = Math.max(0, (typeof san.max === 'number' ? san.max : 99) - sanLoss);
-              if (san.current > san.max) san.current = san.max;
+              san.max = (Number(san.max) || 0) - sanLoss;
+              const newCalculatedMax = vars.SAN.max - sanLoss;
+              if (san.current > newCalculatedMax) san.current = Math.max(0, newCalculatedMax);
 
               if ((ritual as any).isInjected) {
                   return deepUpdatePayload({ ...prev, status: newStatus }, ritual.id, (p) => ({ ...p, normal: { ...p.normal, isActive: false }, discente: { ...p.discente, isActive: false }, verdadeiro: { ...p.verdadeiro, isActive: false }, [versionKey]: { ...p[versionKey], isActive: true } }));
@@ -434,7 +435,11 @@ export default function SheetRituals() {
 
           if (!isSuccess) {
               san.current = Math.max(0, Number(san.current) - pCost);
-              if (finalDT - roll >= 5) { san.max = Math.max(0, (typeof san.max === 'number' ? san.max : 99) - 1); if (san.current > san.max) san.current = san.max; }
+              if (finalDT - roll >= 5) { 
+                  san.max = (Number(san.max) || 0) - 1; 
+                  const newCalculatedMax = vars.SAN.max - 1;
+                  if (san.current > newCalculatedMax) san.current = Math.max(0, newCalculatedMax); 
+              }
           }
           if (shouldActivate) {
               if ((ritual as any).isInjected) {

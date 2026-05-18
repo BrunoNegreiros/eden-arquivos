@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { User, Save, Sparkles, Scroll, Book, Image as ImageIcon, Upload } from 'lucide-react';
+import { useRef } from 'react';
+import { User, Sparkles, Scroll, Book, Image as ImageIcon, Upload } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 
 export default function SheetDescription() {
@@ -7,28 +7,15 @@ export default function SheetDescription() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const info = character.personal;
-  const [editValues, setEditValues] = useState(info);
-  const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => {
-    setEditValues(character.personal);
-  }, [character.personal]);
-
-  const handleChange = (field: keyof typeof info, value: any) => {
-    setEditValues((prev: any) => {
-        const newState = { ...prev, [field]: value };
-        return newState;
-    });
-    setHasChanges(true);
-  };
-
-  const saveChanges = () => {
+  const handleChange = (field: string, value: any) => {
     updateCharacter(prev => ({
         ...prev,
-        personal: editValues
+        personal: {
+            ...prev.personal,
+            [field]: value
+        }
     }));
-    setHasChanges(false);
-    alert("Dados salvos com sucesso!");
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,11 +66,6 @@ export default function SheetDescription() {
           <h3 className="font-bold text-eden-100 flex items-center gap-2 text-base md:text-lg">
               <Book className="text-energia w-5 h-5 md:w-6 md:h-6"/> Dados Pessoais
           </h3>
-          {hasChanges && (
-              <button onClick={saveChanges} className="bg-energia text-eden-900 px-4 py-2 rounded-lg text-xs md:text-sm font-black flex items-center gap-2 hover:bg-yellow-400 transition-all shadow-lg animate-pulse">
-                   <Save size={14} className="md:w-4 md:h-4"/> <span className="hidden md:inline">SALVAR ALTERAÇÕES</span><span className="md:hidden">SALVAR</span>
-              </button>
-          )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
@@ -92,8 +74,8 @@ export default function SheetDescription() {
               <div className="bg-eden-800 border border-eden-700 p-4 md:p-6 rounded-xl space-y-4 md:space-y-5">
                   <div className="flex flex-col items-center gap-3 pb-2 border-b border-eden-700/50">
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-eden-600 bg-eden-900 flex items-center justify-center shrink-0 shadow-inner">
-                          {editValues.portraitUrl ? (
-                              <img src={editValues.portraitUrl} alt="Retrato" className="w-full h-full object-cover" />
+                          {info.portraitUrl ? (
+                              <img src={info.portraitUrl} alt="Retrato" className="w-full h-full object-cover" />
                           ) : (
                               <User className="w-10 h-10 md:w-16 md:h-16 text-eden-100/20" />
                           )}
@@ -102,11 +84,11 @@ export default function SheetDescription() {
                           <label className={LABEL_CLASS}><ImageIcon size={12}/> Avatar do Agente</label>
                           <input 
                             type="text"
-                            value={editValues.portraitUrl?.startsWith('data:image') ? '(Imagem Local)' : (editValues.portraitUrl || '')} 
+                            value={info.portraitUrl?.startsWith('data:image') ? '(Imagem Local)' : (info.portraitUrl || '')} 
                             onChange={e => handleChange('portraitUrl', e.target.value)} 
                             className={INPUT_CLASS} 
                             placeholder="https://... (Link da internet)"
-                            disabled={editValues.portraitUrl?.startsWith('data:image')}
+                            disabled={info.portraitUrl?.startsWith('data:image')}
                           />
                           <div className="flex items-center gap-2 mt-2">
                               <input 
@@ -132,7 +114,7 @@ export default function SheetDescription() {
                           <label className={LABEL_CLASS}>Idade</label>
                           <input 
                             type="number" 
-                            value={editValues.age || ''} 
+                            value={info.age || ''} 
                             onChange={e => handleChange('age', parseInt(e.target.value))} 
                             className={INPUT_CLASS} 
                             style={{ colorScheme: 'dark' }}
@@ -141,7 +123,7 @@ export default function SheetDescription() {
                       <div>
                           <label className={LABEL_CLASS}>Gênero</label>
                           <input 
-                            value={editValues.gender || ''} 
+                            value={info.gender || ''} 
                             onChange={e => handleChange('gender', e.target.value)} 
                             className={INPUT_CLASS} 
                             style={{ colorScheme: 'dark' }}
@@ -157,7 +139,7 @@ export default function SheetDescription() {
                   <div>
                       <label className={LABEL_CLASS}>Conceito / Arquétipo</label>
                       <textarea 
-                        value={editValues.archetype || ''} 
+                        value={info.archetype || ''} 
                         onChange={e => handleChange('archetype', e.target.value)} 
                         className={`${INPUT_CLASS} min-h-[100px] md:min-h-[140px] resize-none`} 
                         style={{ colorScheme: 'dark' }}
@@ -169,7 +151,7 @@ export default function SheetDescription() {
                       <div>
                           <label className={LABEL_CLASS}><User size={14}/> Aparência Física</label>
                           <textarea 
-                            value={editValues.appearance || ''} 
+                            value={info.appearance || ''} 
                             onChange={e => handleChange('appearance', e.target.value)} 
                             className={`${INPUT_CLASS} h-32 md:h-40 resize-none`} 
                             style={{ colorScheme: 'dark' }}
@@ -179,7 +161,7 @@ export default function SheetDescription() {
                       <div>
                           <label className={LABEL_CLASS}><Sparkles size={14}/> Personalidade</label>
                           <textarea 
-                            value={editValues.personality || ''} 
+                            value={info.personality || ''} 
                             onChange={e => handleChange('personality', e.target.value)} 
                             className={`${INPUT_CLASS} h-32 md:h-40 resize-none`} 
                             style={{ colorScheme: 'dark' }}
@@ -191,7 +173,7 @@ export default function SheetDescription() {
                   <div className="flex-1 flex flex-col">
                       <label className={LABEL_CLASS}><Scroll size={14}/> Histórico</label>
                       <textarea 
-                        value={editValues.history || ''} 
+                        value={info.history || ''} 
                         onChange={e => handleChange('history', e.target.value)} 
                         className={`${INPUT_CLASS} flex-1 min-h-[200px] md:min-h-[300px] resize-none`} 
                         style={{ colorScheme: 'dark' }}
